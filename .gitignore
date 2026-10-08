@@ -1,0 +1,37 @@
+# Java / Maven
+**/target/
+**/.mvn/timing
+*.class
+*.jar
+*.war
+*.ear
+
+# Embedded H2 Database
+**/data/
+*.mv.db
+*.trace.db
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment variables
+.env
+.env*.local
+
+# IDEs & System
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Backups & logs
+backups/
+*.log
+

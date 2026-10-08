@@ -1,0 +1,34 @@
+### Resumo financeiro
+GET http://localhost:8080/api/v1/financial/summary?month=9&year=2026
+Accept: application/json
+
+### Movimentos do mes
+GET http://localhost:8080/api/v1/financial/movements?month=9&year=2026
+Accept: application/json
+
+### Registrar entrada de teste
+POST http://localhost:8080/api/v1/financial/incomes
+Content-Type: application/json
+
+{
+  "documentType": "CPF",
+  "tenantName": "Inquilino Teste",
+  "documentNumber": "529.982.247-25",
+  "propertyRegistration": "IM-001",
+  "transactionDate": "2026-09-27",
+  "grossAmount": 1500.00
+}
+
+### Registrar saída/despesa de teste
+POST http://localhost:8080/api/v1/financial/expenses
+Content-Type: application/json
+
+{
+  "description": "Manutenção Elétrica e Pintura",
+  "propertyRegistration": "IM-001",
+  "transactionDate": "2026-09-28",
+  "grossAmount": 320.50
+}
+
+### Excluir transação por ID
+DELETE http://localhost:8080/api/v1/financial/transactions/1

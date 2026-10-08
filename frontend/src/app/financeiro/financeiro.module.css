@@ -1,0 +1,901 @@
+.financeShell {
+  min-height: 100vh;
+  background: #ececec;
+  color: #000000;
+}
+
+.financeMain {
+  min-height: 100vh;
+  margin-left: 223px;
+  background: #ececec;
+}
+
+.financeCanvas {
+  position: relative;
+  width: min(1132px, calc(100vw - 235px));
+  min-height: 738px;
+  margin-left: 6px;
+  padding-top: 10px;
+  padding-bottom: 9px;
+}
+
+.pageTitle {
+  width: max-content;
+  margin: 0 auto;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 22px;
+}
+
+.periodControls {
+  position: absolute;
+  top: 9px;
+  left: 5px;
+  z-index: 2;
+  display: flex;
+  gap: 26px;
+}
+
+.periodSelect,
+.periodSelectSmall {
+  display: block;
+  height: 23px;
+}
+
+.periodSelect select,
+.periodSelectSmall select {
+  height: 23px;
+  padding: 0 26px 0 12px;
+  border: 0;
+  border-radius: 1px;
+  outline: 0;
+  background: #f3f3f3;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  color: #000000;
+  font-size: 15px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.periodSelect select {
+  width: 123px;
+}
+
+.periodSelectSmall select {
+  width: 105px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.summaryCard {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  height: 67px;
+  min-width: 0;
+  background: #ffffff;
+  border: 0.25px solid #c1c1c1;
+  border-radius: 8px;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+}
+
+.summaryIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 100%;
+  color: #000000;
+}
+
+.summaryIcon svg {
+  width: 25px;
+  height: 25px;
+  stroke-width: 2.2;
+}
+
+.summaryContent {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 0;
+  padding-right: 44px;
+}
+
+.summaryContent strong {
+  color: #092a54;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.summaryContent span {
+  margin-top: 1px;
+  color: #000000;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.transactionsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.transactionPanel {
+  position: relative;
+  height: 433px;
+  min-width: 0;
+  overflow: hidden;
+  background: #ffffff;
+  border: 0.25px solid #c1c1c1;
+  border-radius: 8px;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 41px;
+  padding: 8px 16px 6px;
+}
+
+.panelHeader h2 {
+  margin: 0;
+  color: #000000;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 22px;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: #ffffff;
+  color: #000000;
+  cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.iconButton:hover {
+  background: #afafaf;
+  transform: translateY(-1px);
+}
+
+.iconButton svg {
+  width: 24px;
+  height: 24px;
+}
+
+.manualEntryButton {
+  position: absolute;
+  z-index: 3;
+  top: 39px;
+  right: 17px;
+  width: 146px;
+  height: 22px;
+  padding: 0 15px;
+  border: 0;
+  background: #ececec;
+  color: #000000;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 13px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.manualEntryButton:hover {
+  background: #afafaf;
+}
+
+.emptyState {
+  position: absolute;
+  inset: 41px 22px 0 16px;
+  display: grid;
+  place-items: center;
+  color: #000000;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 17px;
+}
+
+.fakeScrollbar {
+  position: absolute;
+  top: 42px;
+  right: 6px;
+  bottom: 5px;
+  width: 11px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #efefef;
+  box-shadow: inset 0 4px 4px rgba(0, 0, 0, 0.25);
+}
+
+.fakeScrollbar span {
+  display: block;
+  width: 11px;
+  height: 66%;
+  border: 0.11px solid #dfdfdf;
+  border-top-width: 0;
+  border-bottom-width: 0;
+  border-radius: 8px;
+  background: #bbbbbb;
+}
+
+.bottomGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 954px) 167px;
+  gap: 11px;
+  margin-top: 10px;
+}
+
+.remindersPanel {
+  position: relative;
+  height: 163px;
+  background: #ffffff;
+  border: 0.25px solid #c1c1c1;
+  border-radius: 8px;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+}
+
+.reminderEmpty {
+  position: absolute;
+  inset: 42px 18px 8px;
+  display: grid;
+  place-items: center;
+  color: #000000;
+  font-size: 14px;
+  line-height: 17px;
+}
+
+.quickActions {
+  display: grid;
+  grid-template-rows: repeat(2, 76px);
+  gap: 12px;
+}
+
+.quickAction {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: center;
+  width: 167px;
+  height: 76px;
+  padding: 0 14px;
+  border: 0.25px solid #c1c1c1;
+  border-radius: 8px;
+  background: #9cbfea;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+  color: #000000;
+  cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.quickAction:hover {
+  background: #7b97ba;
+  transform: translateY(-1px);
+}
+
+.quickAction svg {
+  width: 32px;
+  height: 32px;
+}
+
+.quickAction span {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 16px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.entryModal {
+  position: relative;
+  width: min(840px, 100%);
+  min-height: 607px;
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 10px 22px 18px;
+  border-radius: 8px;
+  background: #bab6b6;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.25);
+}
+
+.modalTitle {
+  margin: 0 auto;
+  color: #000000;
+  font-family: "Julius Sans One", "Segoe UI", Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 24px;
+  text-align: center;
+}
+
+.modalClose {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.modalClose svg {
+  width: 22px;
+  height: 22px;
+}
+
+.entryForm {
+  display: grid;
+  grid-template-columns: 286px 1fr;
+  column-gap: 43px;
+  row-gap: 12px;
+  width: min(796px, 100%);
+  margin: 14px auto 0;
+}
+
+.formColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formBlock {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.formBlock legend,
+.blockTitle {
+  padding: 0;
+  color: #000000;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 27px;
+}
+
+.documentTypeRow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 21px;
+}
+
+.documentTypeRow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 22px;
+}
+
+.documentTypeRow input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: #31739c;
+}
+
+.clearDocumentType {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: #ac0000;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.clearDocumentType svg {
+  width: 12px;
+  height: 12px;
+}
+
+.textInput {
+  width: 286px;
+  max-width: 100%;
+  height: 22px;
+  padding: 2px 8px;
+  border: 1px solid #000000;
+  border-radius: 2px;
+  outline: 0;
+  background: #ffffff;
+  color: #000000;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 13px;
+}
+
+.textInput::placeholder {
+  color: #858585;
+  opacity: 1;
+}
+
+.textInput:focus,
+.dateInputWrap:focus-within {
+  outline: 2px solid rgba(49, 115, 156, 0.34);
+  outline-offset: 1px;
+}
+
+.shortInput {
+  width: 113px;
+}
+
+.dateBlock {
+  width: 115px;
+}
+
+.dateInputWrap {
+  display: grid;
+  grid-template-columns: 1fr 28px;
+  width: 115px;
+  height: 22px;
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 2px;
+}
+
+.dateInputWrap input {
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #000000;
+  font-size: 10px;
+}
+
+.dateInputWrap input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 0;
+}
+
+.dateInputWrap svg {
+  align-self: center;
+  justify-self: center;
+  width: 18px;
+  height: 18px;
+}
+
+.inlineRuleBlock {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 28px;
+}
+
+.rulePlus {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 27px;
+  padding: 0;
+  border: 1px solid #000000;
+  border-radius: 50%;
+  background: #31739c;
+  color: #ffffff;
+  cursor: help;
+}
+
+.rulePlus svg {
+  width: 20px;
+  height: 20px;
+}
+
+.moneyInput {
+  width: 109px;
+}
+
+.netValueButton,
+.secondaryButton,
+.primaryButton {
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 24px;
+  cursor: pointer;
+}
+
+.netValueButton {
+  width: 153px;
+  height: 43px;
+  margin-top: 2px;
+  background: #22487a;
+  cursor: help;
+}
+
+.formMessage {
+  grid-column: 1 / -1;
+  min-height: 18px;
+  margin: 2px 0 0;
+  color: #3e1f00;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.modalActions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 143px 137px;
+  justify-content: end;
+  gap: 165px;
+  margin-top: 98px;
+}
+
+.secondaryButton {
+  width: 143px;
+  height: 43px;
+  background: #22487a;
+}
+
+.primaryButton {
+  width: 137px;
+  height: 43px;
+  background: #004aad;
+}
+
+.secondaryButton:hover,
+.netValueButton:hover {
+  background: #18395f;
+}
+
+.primaryButton:hover {
+  background: #00367e;
+}
+
+@media (max-width: 1180px) {
+  .financeCanvas {
+    width: calc(100vw - 241px);
+    margin-right: 12px;
+  }
+
+  .periodControls {
+    position: static;
+    justify-content: flex-start;
+    margin-bottom: 8px;
+  }
+
+  .pageTitle {
+    position: absolute;
+    top: 10px;
+    right: 0;
+  }
+
+  .transactionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .transactionPanel {
+    height: 390px;
+  }
+
+  .bottomGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .quickActions {
+    grid-template-columns: repeat(2, minmax(0, 167px));
+    grid-template-rows: 76px;
+  }
+}
+
+@media (max-width: 860px) {
+  .financeMain {
+    margin-left: 76px;
+  }
+
+  .financeCanvas {
+    width: calc(100vw - 94px);
+    margin-left: 8px;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryContent {
+    padding-right: 44px;
+  }
+}
+
+@media (max-width: 720px) {
+  .financeCanvas {
+    padding-top: 12px;
+  }
+
+  .periodControls {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-right: 120px;
+  }
+
+  .pageTitle {
+    top: 14px;
+    font-size: 15px;
+  }
+
+  .entryModal {
+    min-height: 0;
+    padding: 12px 16px 18px;
+  }
+
+  .modalTitle {
+    padding-right: 26px;
+    font-size: 19px;
+  }
+
+  .entryForm {
+    grid-template-columns: 1fr;
+    margin-top: 22px;
+  }
+
+  .formColumn {
+    gap: 16px;
+  }
+
+  .textInput {
+    width: 100%;
+  }
+
+  .shortInput,
+  .moneyInput,
+  .dateBlock {
+    width: min(100%, 286px);
+  }
+
+  .dateInputWrap {
+    width: min(100%, 286px);
+  }
+
+  .formMessage {
+    grid-column: 1;
+  }
+
+  .modalActions {
+    grid-column: 1;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .secondaryButton,
+  .primaryButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .financeCanvas {
+    width: calc(100vw - 88px);
+    margin-left: 6px;
+  }
+
+  .periodControls {
+    padding-right: 0;
+  }
+
+  .pageTitle {
+    position: static;
+    margin-top: 8px;
+  }
+
+  .summaryGrid {
+    margin-top: 12px;
+  }
+
+  .transactionPanel {
+    height: 340px;
+  }
+
+  .bottomGrid {
+    gap: 10px;
+  }
+
+  .remindersPanel {
+    height: 140px;
+  }
+
+  .quickActions {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, 68px);
+  }
+
+  .quickAction {
+    width: 100%;
+    height: 68px;
+  }
+
+  .modalOverlay {
+    padding: 10px;
+  }
+
+  .documentTypeRow {
+    gap: 10px;
+  }
+
+  .documentTypeRow label {
+    gap: 5px;
+    font-size: 15px;
+  }
+
+  .formBlock legend,
+  .blockTitle {
+    font-size: 18px;
+    line-height: 22px;
+  }
+}
+
+/* R6.3 - integracao com backend Java */
+.integrationStatus {
+  min-height: 18px;
+  margin-top: 2px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.integrationStatus span {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.integrationError {
+  color: #8b0000;
+}
+
+.integrationSuccess {
+  color: #1e6030;
+}
+
+.movementList {
+  position: absolute;
+  inset: 43px 22px 7px 12px;
+  overflow-y: auto;
+  padding: 0 8px 8px 0;
+  scrollbar-width: none;
+}
+
+.movementList::-webkit-scrollbar {
+  display: none;
+}
+
+.movementRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 9px 10px;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.movementIdentity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.movementIdentity strong {
+  overflow: hidden;
+  color: #0e1a29;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.movementIdentity span {
+  overflow: hidden;
+  color: #5b5b5b;
+  font-size: 11px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.positiveAmount,
+.negativeAmount {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.positiveAmount {
+  color: #176b35;
+}
+
+.negativeAmount {
+  color: #9f1b1b;
+}
+
+.quickAction {
+  text-decoration: none;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.modalClose:disabled,
+.clearDocumentType:disabled,
+.textInput:disabled,
+.dateInputWrap input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+/* Ações adicionais da linha de movimentação (Exclusão e Saída) */
+.movementRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.deleteRowButton {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8c8c8c;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.deleteRowButton:hover {
+  color: #c91818;
+  background: #fee2e2;
+}
+
+.deleteRowButton svg {
+  width: 15px;
+  height: 15px;
+}
