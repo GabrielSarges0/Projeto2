@@ -16,11 +16,15 @@ import {
   Check,
   CheckCircle2,
   CircleDollarSign,
+  FileText,
+  Filter,
   History,
   House,
+  KeyRound,
   Plus,
   Search,
   Trash2,
+  Wrench,
   X,
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -157,6 +161,23 @@ const fmcProperties = [
   { id: "IM-005", address: "Av. Agamenon Magalhães, 1200 - Conjunto 405", tenant: "Tech Soluções Ltda", status: "Ocupado", rent: 4500.0 },
 ];
 
+const figmaProperties = [
+  { id: "1", code: "IM-001", address: "Rua A, 120", situation: "Ocupado", statusType: "green", value: "R$ ...", details: "Imóvel residencial locado para João Pedro Cavalcanti. Contrato ativo com vencimento em Outubro/2026." },
+  { id: "2", code: "IM-002", address: "Rua A, 26", situation: "Ocupado", statusType: "green", value: "R$ ...", details: "Imóvel comercial locado para Maria Helena Silva. Vistoria regular realizada em 2026." },
+  { id: "3", code: "IM-003", address: "Rua B, 75", situation: "Livre", statusType: "yellow", value: "R$ ...", details: "Imóvel desocupado e disponível para locação. Chaves sob custódia da administração." },
+  { id: "4", code: "IM-004", address: "Rua C, 173", situation: "Manutenção", statusType: "red", value: "R$ ...", details: "Imóvel em manutenção hidráulica e elétrica preventiva." },
+  { id: "5", code: "IM-005", address: "Rua C, 50", situation: "Livre", statusType: "yellow", value: "R$ ...", details: "Imóvel comercial térreo disponível para locação institucional." },
+];
+
+const figmaHistoryRows = [
+  { id: "1", data: "IM-001", tipo: "Saída", responsavel: "Maria", item: "Projetor", details: "Retirada de equipamento audiovisual para apresentação institucional da Fundação Manuel Cruz." },
+  { id: "2", data: "IM-002", tipo: "Cadastro", responsavel: "João", item: "Imóvel", details: "Inclusão e registro cadastral do imóvel IM-002 no livro de patrimônio da FMC." },
+  { id: "3", data: "IM-003", tipo: "Alteração", responsavel: "Carlos", item: "Contrato", details: "Alteração contratual de locação comercial com reajuste anual aplicado." },
+  { id: "4", data: "IM-004", tipo: "Saída", responsavel: "Maria", item: "Notebook", details: "Notebook institucional disponibilizado para auditoria e prestação de contas." },
+  { id: "5", data: "IM-005", tipo: "Entrada", responsavel: "Ana", item: "Imóvel", details: "Recebimento de chaves e termo de vistoria de entrega devidamente assinado." },
+  { id: "6", data: "IM-006", tipo: "Saída", responsavel: "Bruno", item: "Projetor", details: "Empréstimo de projetor multimídia para reunião da Curadoria de Fundações." },
+];
+
 function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -215,6 +236,11 @@ function errorMessage(error: unknown) {
 
 export function FinancialDashboard() {
   const now = new Date();
+  const [currentView, setCurrentView] = useState<"FINANCEIRO" | "IMOVEIS" | "HISTORICO">("FINANCEIRO");
+  const [imoveisSearch, setImoveisSearch] = useState("");
+  const [historicoSearch, setHistoricoSearch] = useState("");
+  const [selectedDetailModal, setSelectedDetailModal] = useState<{ title: string; content: string } | null>(null);
+
   const [month, setMonth] = useState(months[now.getMonth()]);
   const [year, setYear] = useState(String(now.getFullYear()));
   const [summary, setSummary] = useState<FinancialSummary>(emptySummary);
@@ -649,80 +675,323 @@ export function FinancialDashboard() {
 
       <main className={styles.financeMain}>
         <div className={styles.financeCanvas}>
-          <div className={styles.periodControls}>
-            <label className={styles.periodSelect}>
-              <span className="sr-only">Selecione o mês</span>
-              <select
-                value={month}
-                onChange={(event) => changeMonth(event.target.value)}
-                aria-label="Mês de referência"
-              >
-                {months.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {currentView === "FINANCEIRO" && (
+            <>
+              <div className={styles.periodControls}>
+                <label className={styles.periodSelect}>
+                  <span className="sr-only">Selecione o mês</span>
+                  <select
+                    value={month}
+                    onChange={(event) => changeMonth(event.target.value)}
+                    aria-label="Mês de referência"
+                  >
+                    {months.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <label className={styles.periodSelectSmall}>
-              <span className="sr-only">Selecione o ano</span>
-              <select
-                value={year}
-                onChange={(event) => changeYear(event.target.value)}
-                aria-label="Ano de referência"
-              >
-                {["2024", "2025", "2026", "2027"].map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+                <label className={styles.periodSelectSmall}>
+                  <span className="sr-only">Selecione o ano</span>
+                  <select
+                    value={year}
+                    onChange={(event) => changeYear(event.target.value)}
+                    aria-label="Ano de referência"
+                  >
+                    {["2024", "2025", "2026", "2027"].map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
-          <h1 className={styles.pageTitle}>FINANCEIRO</h1>
+              <h1 className={styles.pageTitle}>FINANCEIRO</h1>
 
-          <section className={styles.summaryGrid} aria-label="Resumo do mês">
-            <SummaryCard
-              label="Entradas:"
-              value={currency(summary.income)}
-              icon={<ArrowDownLeft aria-hidden="true" />}
-            />
-            <SummaryCard
-              label="Saídas:"
-              value={currency(summary.expense)}
-              icon={<ArrowUpRight aria-hidden="true" />}
-            />
-            <SummaryCard
-              label="Saldo:"
-              value={currency(summary.balance)}
-              icon={<CircleDollarSign aria-hidden="true" />}
-            />
-          </section>
+              <section className={styles.summaryGrid} aria-label="Resumo do mês">
+                <SummaryCard
+                  label="Entradas:"
+                  value={currency(summary.income)}
+                  icon={<ArrowDownLeft aria-hidden="true" />}
+                />
+                <SummaryCard
+                  label="Saídas:"
+                  value={currency(summary.expense)}
+                  icon={<ArrowUpRight aria-hidden="true" />}
+                />
+                <SummaryCard
+                  label="Saldo:"
+                  value={currency(summary.balance)}
+                  icon={<CircleDollarSign aria-hidden="true" />}
+                />
+              </section>
 
-          <section className={styles.transactionsGrid}>
-            <TransactionPanel
-              title="ENTRADA:"
-              month={month}
-              items={incomes}
-              emptyText="Nenhuma entrada registrada para este período."
-              actionLabel="Registrar entrada"
-              onAction={openEntryModal}
-              onDelete={handleDeleteTransaction}
-            />
+              <section className={styles.transactionsGrid}>
+                <TransactionPanel
+                  title="ENTRADA:"
+                  month={month}
+                  items={incomes}
+                  emptyText="Nenhuma entrada registrada para este período."
+                  actionLabel="Registrar entrada"
+                  onAction={openEntryModal}
+                  onDelete={handleDeleteTransaction}
+                />
 
-            <TransactionPanel
-              title="SAÍDA:"
-              month={month}
-              items={expenses}
-              emptyText="Nenhuma saída registrada para este período."
-              actionLabel="Registrar saída"
-              onAction={openExpenseModal}
-              onDelete={handleDeleteTransaction}
-            />
-          </section>
+                <TransactionPanel
+                  title="SAÍDA:"
+                  month={month}
+                  items={expenses}
+                  emptyText="Nenhuma saída registrada para este período."
+                  actionLabel="Registrar saída"
+                  onAction={openExpenseModal}
+                  onDelete={handleDeleteTransaction}
+                />
+              </section>
+            </>
+          )}
 
+          {currentView === "IMOVEIS" && (
+            <>
+              <div className={styles.viewTitleHeader}>
+                <button
+                  type="button"
+                  className={styles.backToOverviewBtn}
+                  onClick={() => setCurrentView("FINANCEIRO")}
+                  title="Voltar ao painel financeiro"
+                >
+                  ← Painel Financeiro
+                </button>
+                <h1 className={styles.viewTitle}>IMÓVEIS CADASTRADOS</h1>
+              </div>
+
+              {/* 4 Cards de Métricas de Imóveis (Imagem 3) */}
+              <div className={styles.imoveisMetricGrid}>
+                <div className={styles.imoveisMetricCard}>
+                  <div className={styles.imoveisIconCircle} style={{ background: "#E0F2FE", color: "#0284C7" }}>
+                    <Building size={22} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
+                      Total de imóveis
+                    </span>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>124</strong>
+                  </div>
+                </div>
+
+                <div className={styles.imoveisMetricCard}>
+                  <div className={styles.imoveisIconCircle} style={{ background: "#FEE2E2", color: "#EF4444" }}>
+                    <KeyRound size={22} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
+                      Ocupados
+                    </span>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>92</strong>
+                  </div>
+                </div>
+
+                <div className={styles.imoveisMetricCard}>
+                  <div className={styles.imoveisIconCircle} style={{ background: "#DCFCE7", color: "#16A34A" }}>
+                    <House size={22} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
+                      Disponíveis
+                    </span>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>32</strong>
+                  </div>
+                </div>
+
+                <div className={styles.imoveisMetricCard}>
+                  <div className={styles.imoveisIconCircle} style={{ background: "#FEF9C3", color: "#CA8A04" }}>
+                    <Wrench size={22} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
+                      Manutenções
+                    </span>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>32</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barra de Busca Exata: Buscar Imóvel */}
+              <div className={styles.viewSearchBarContainer}>
+                <div className={styles.viewSearchBar}>
+                  <div className={styles.viewSearchIconBox}>
+                    <Search size={22} />
+                  </div>
+                  <input
+                    type="text"
+                    className={styles.viewSearchInput}
+                    placeholder="Buscar Imóvel"
+                    value={imoveisSearch}
+                    onChange={(e) => setImoveisSearch(e.target.value)}
+                  />
+                  <div
+                    className={styles.viewFilterIconBox}
+                    onClick={() => showToast("Filtro de imóveis")}
+                    title="Filtro"
+                  >
+                    <Filter size={20} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabela de Imóveis (Imagem 3) */}
+              <div className={styles.figmaTableCard}>
+                <table className={styles.figmaTable}>
+                  <thead>
+                    <tr>
+                      <th>Imóvel</th>
+                      <th>Endereço</th>
+                      <th>Situação</th>
+                      <th>Valor</th>
+                      <th>Ver informações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {figmaProperties
+                      .filter(
+                        (p) =>
+                          !imoveisSearch.trim() ||
+                          p.code.toLowerCase().includes(imoveisSearch.toLowerCase()) ||
+                          p.address.toLowerCase().includes(imoveisSearch.toLowerCase())
+                      )
+                      .map((row) => (
+                        <tr key={row.id}>
+                          <td><strong>{row.code}</strong></td>
+                          <td>{row.address}</td>
+                          <td>
+                            <span className={styles.situationDot}>
+                              <span
+                                className={
+                                  row.statusType === "green"
+                                    ? styles.dotGreen
+                                    : row.statusType === "yellow"
+                                    ? styles.dotYellow
+                                    : styles.dotRed
+                                }
+                              />
+                              <span>{row.situation}</span>
+                            </span>
+                          </td>
+                          <td>{row.value}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className={styles.viewDocBtn}
+                              title={`Ver informações do imóvel ${row.code}`}
+                              onClick={() =>
+                                setSelectedDetailModal({
+                                  title: `IMÓVEL ${row.code} - ${row.address}`,
+                                  content: `${row.details} Situação: ${row.situation}. Valor médio de locação: ${row.value}.`,
+                                })
+                              }
+                            >
+                              <FileText size={20} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {currentView === "HISTORICO" && (
+            <>
+              <div className={styles.viewTitleHeader}>
+                <button
+                  type="button"
+                  className={styles.backToOverviewBtn}
+                  onClick={() => setCurrentView("FINANCEIRO")}
+                  title="Voltar ao painel financeiro"
+                >
+                  ← Painel Financeiro
+                </button>
+                <h1 className={styles.viewTitle}>HISTÓRICO</h1>
+              </div>
+
+              {/* Barra de Busca Exata: Buscar documentos */}
+              <div className={styles.viewSearchBarContainer}>
+                <div className={styles.viewSearchBar}>
+                  <div className={styles.viewSearchIconBox}>
+                    <Search size={22} />
+                  </div>
+                  <input
+                    type="text"
+                    className={styles.viewSearchInput}
+                    placeholder="Buscar documentos"
+                    value={historicoSearch}
+                    onChange={(e) => setHistoricoSearch(e.target.value)}
+                  />
+                  <div
+                    className={styles.viewFilterIconBox}
+                    onClick={() => showToast("Filtro de histórico")}
+                    title="Filtro"
+                  >
+                    <Filter size={20} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabela de Histórico (Imagem 2) */}
+              <div className={styles.figmaTableCard}>
+                <table className={styles.figmaTable}>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Tipo</th>
+                      <th>Responsável</th>
+                      <th>Item</th>
+                      <th>Ver informações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {figmaHistoryRows
+                      .filter(
+                        (h) =>
+                          !historicoSearch.trim() ||
+                          h.data.toLowerCase().includes(historicoSearch.toLowerCase()) ||
+                          h.tipo.toLowerCase().includes(historicoSearch.toLowerCase()) ||
+                          h.responsavel.toLowerCase().includes(historicoSearch.toLowerCase()) ||
+                          h.item.toLowerCase().includes(historicoSearch.toLowerCase())
+                      )
+                      .map((row) => (
+                        <tr key={row.id}>
+                          <td><strong>{row.data}</strong></td>
+                          <td>{row.tipo}</td>
+                          <td>{row.responsavel}</td>
+                          <td>{row.item}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className={styles.viewDocBtn}
+                              title={`Ver informações do registro ${row.data}`}
+                              onClick={() =>
+                                setSelectedDetailModal({
+                                  title: `HISTÓRICO: ${row.data} (${row.tipo})`,
+                                  content: `${row.details} Responsável: ${row.responsavel}. Item: ${row.item}.`,
+                                })
+                              }
+                            >
+                              <FileText size={20} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* Grade Inferior com LEMBRETES e Ações Rápidas (Presente em todas as visões) */}
           <section className={styles.bottomGrid}>
             <div className={styles.remindersPanel}>
               <div className={styles.panelHeader}>
@@ -789,8 +1058,8 @@ export function FinancialDashboard() {
             <div className={styles.quickActions}>
               <button
                 type="button"
-                className={styles.quickAction}
-                onClick={() => setPropertiesModalOpen(true)}
+                className={`${styles.quickAction} ${currentView === "IMOVEIS" ? styles.quickActionActive : ""}`}
+                onClick={() => setCurrentView((v) => (v === "IMOVEIS" ? "FINANCEIRO" : "IMOVEIS"))}
                 title="Visualizar imóveis da fundação"
               >
                 <House aria-hidden="true" />
@@ -798,8 +1067,8 @@ export function FinancialDashboard() {
               </button>
               <button
                 type="button"
-                className={styles.quickAction}
-                onClick={() => setHistoryModalOpen(true)}
+                className={`${styles.quickAction} ${currentView === "HISTORICO" ? styles.quickActionActive : ""}`}
+                onClick={() => setCurrentView((v) => (v === "HISTORICO" ? "FINANCEIRO" : "HISTORICO"))}
                 title="Abrir tabela e histórico detalhado"
               >
                 <History aria-hidden="true" />
@@ -848,6 +1117,54 @@ export function FinancialDashboard() {
       {/* Modal 4: Imóveis Cadastrados */}
       {propertiesModalOpen ? (
         <PropertiesModal onClose={() => setPropertiesModalOpen(false)} />
+      ) : null}
+
+      {/* Modal 5: Informações Detalhadas do Imóvel ou Registro */}
+      {selectedDetailModal ? (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setSelectedDetailModal(null)}>
+          <div
+            className={styles.entryModal}
+            role="dialog"
+            aria-modal="true"
+            style={{ maxWidth: "520px", minHeight: "auto", padding: "28px" }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className={styles.modalClose}
+              onClick={() => setSelectedDetailModal(null)}
+              aria-label="Fechar"
+            >
+              <X aria-hidden="true" />
+            </button>
+            <h2 className={styles.modalTitle} style={{ textAlign: "left", marginBottom: "16px" }}>
+              {selectedDetailModal.title}
+            </h2>
+            <div
+              style={{
+                padding: "16px",
+                background: "#ffffff",
+                borderRadius: "6px",
+                border: "1px solid #c1c1c1",
+                fontSize: "14px",
+                lineHeight: "22px",
+                color: "#1e293b",
+              }}
+            >
+              {selectedDetailModal.content}
+            </div>
+            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                style={{ width: "120px", height: "40px", fontSize: "14px" }}
+                onClick={() => setSelectedDetailModal(null)}
+              >
+                FECHAR
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {/* Toast Alert */}

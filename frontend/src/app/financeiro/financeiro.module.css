@@ -1304,3 +1304,224 @@
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+
+/* Estilos adicionais para as telas de Histórico e Imóveis Cadastrados do Figma */
+.viewTitleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.viewTitle {
+  font-family: "Inter", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: 0.05em;
+  margin: 0;
+  text-align: center;
+}
+
+.backToOverviewBtn {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #092a54;
+  background: #f1f5f9;
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.backToOverviewBtn:hover {
+  background: #e2e8f0;
+}
+
+.imoveisMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.imoveisMetricCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f1f5f9;
+}
+
+.imoveisIconCircle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.viewSearchBarContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+.viewSearchBar {
+  display: flex;
+  align-items: center;
+  height: 43px;
+}
+
+.viewSearchIconBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 43px;
+  height: 43px;
+  background: #cad4db;
+  border-radius: 4px 0px 0px 4px;
+  color: #334155;
+  border: 0;
+  padding: 0;
+}
+
+.viewSearchInput {
+  width: 540px;
+  max-width: calc(100vw - 440px);
+  height: 43px;
+  padding: 0 16px;
+  background: #e2e8f0;
+  border: 0;
+  color: #000000;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  outline: 0;
+}
+
+.viewSearchInput::placeholder {
+  color: #64748b;
+  opacity: 0.9;
+}
+
+.viewFilterIconBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 43px;
+  height: 43px;
+  background: #cad4db;
+  border-radius: 0px 4px 4px 0px;
+  color: #334155;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.viewFilterIconBox:hover {
+  background: #b5c3cb;
+}
+
+.figmaTableCard {
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  margin-bottom: 22px;
+  min-height: 280px;
+}
+
+.figmaTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "Inter", sans-serif;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.figmaTable thead th {
+  background: #092a54;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 12px 24px;
+  border: 0;
+}
+
+.figmaTable tbody td {
+  padding: 14px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.figmaTable tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.situationDot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.dotGreen {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.dotYellow {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #eab308;
+}
+
+.dotRed {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.viewDocBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: 0;
+  color: #092a54;
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.viewDocBtn:hover {
+  background: #f1f5f9;
+  transform: scale(1.15);
+}
+
+.quickActionActive {
+  background: #648db9 !important;
+  border-color: #092a54 !important;
+}

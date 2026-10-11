@@ -1,13 +1,13 @@
 .documentosShell {
   min-height: 100vh;
-  background: #ffffff;
+  background: #f8fafc;
   color: #000000;
 }
 
 .documentosMain {
   min-height: 100vh;
   margin-left: 218px;
-  background: #ffffff;
+  background: #f8fafc;
 }
 
 .documentosCanvas {
@@ -15,7 +15,7 @@
   width: min(1148px, calc(100vw - 218px));
   min-height: 700px;
   margin: 0 auto;
-  padding: 37px 24px 40px;
+  padding: 32px 24px 40px;
 }
 
 /* Toolbar de Ações e Busca do Figma */
@@ -25,13 +25,13 @@
   justify-content: space-between;
   gap: 24px;
   min-height: 43px;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
 .leftActionGroup {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 24px;
 }
 
 .actionIconBtn {
@@ -41,14 +41,14 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #092a54;
+  color: #334155;
   cursor: pointer;
-  transition: transform 140ms ease, color 140ms ease, opacity 140ms ease;
+  transition: transform 140ms ease, color 140ms ease;
 }
 
 .actionIconBtn:hover {
   transform: scale(1.1);
-  color: #31739c;
+  color: #092a54;
 }
 
 .qrIconBtn {
@@ -57,23 +57,13 @@
 }
 
 .addIconBtn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #092a54;
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(9, 42, 84, 0.25);
-}
-
-.addIconBtn:hover {
-  background: #31739c;
-  color: #ffffff;
+  width: 32px;
+  height: 32px;
 }
 
 .sendIconBtn {
-  width: 36px;
-  height: 36px;
-  color: #092a54;
+  width: 32px;
+  height: 32px;
 }
 
 /* Barra de Busca Exata do Figma */
@@ -114,8 +104,8 @@
 }
 
 .searchInput::placeholder {
-  color: #000000;
-  opacity: 0.85;
+  color: #64748b;
+  opacity: 0.9;
 }
 
 .filterIconBtn {
@@ -141,192 +131,133 @@
   background: #092a54;
 }
 
-/* Categorias / Abas */
-.categoryTabs {
+/* Duas Colunas do Figma: Pastas e Documentos sem pasta */
+.documentosGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 8px;
+}
+
+.columnSection {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 22px;
-  overflow-x: auto;
-  padding-bottom: 6px;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.tabBtn {
-  padding: 8px 18px;
-  border: 1px solid #d1d5db;
-  border-radius: 20px;
-  background: #f9fafb;
-  color: #374151;
-  font-family: "Inter", sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 140ms ease;
-}
-
-.tabBtn:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
-}
-
-.tabBtnActive {
-  background: #092a54;
-  color: #ffffff;
-  border-color: #092a54;
-  box-shadow: 0 2px 4px rgba(9, 42, 84, 0.2);
-}
-
-/* Área de Listagem de Documentos */
-.documentsPanel {
-  background: #ffffff;
-  border: 1px solid #000000;
-  border-radius: 8px;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-}
-
-.panelTopHeader {
+.columnHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fafafa;
+  margin-bottom: 4px;
 }
 
-.panelTopHeader h2 {
+.columnTitle {
+  font-family: "Inter", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
   margin: 0;
-  color: #0e1a29;
-  font-family: "Inter", sans-serif;
-  font-size: 18px;
-  font-weight: 700;
 }
 
-.panelCountBadge {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b7280;
-  background: #f3f4f6;
-  padding: 4px 10px;
-  border-radius: 12px;
-}
-
-.docTable {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 13px;
-  font-family: "Inter", sans-serif;
-}
-
-.docTable th {
-  padding: 12px 20px;
-  font-weight: 600;
-  color: #4b5563;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-}
-
-.docTable td {
-  padding: 14px 20px;
-  border-bottom: 1px solid #f3f4f6;
-  color: #1f2937;
-  vertical-align: middle;
-}
-
-.docRow:hover {
-  background: #f8fafc;
-}
-
-.protocolBadge {
-  font-family: monospace;
-  font-weight: 700;
-  color: #092a54;
-  background: #eef2ff;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.docTitleCell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.docTitle {
-  font-weight: 600;
-  color: #111827;
-}
-
-.docSubtitle {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.statusTag {
+.columnAddBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
   font-weight: 600;
+  color: #092a54;
+  background: #e2e8f0;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 120ms ease;
 }
 
-.statusValido {
-  background: #dcfce7;
-  color: #166534;
+.columnAddBtn:hover {
+  background: #cbd5e1;
 }
 
-.statusPendente {
-  background: #fef9c3;
-  color: #854d0e;
+.itemCardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  padding: 0 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
-.statusArquivado {
-  background: #f1f5f9;
-  color: #475569;
+.itemCardRow:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.actionsCell {
+.itemCardLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+
+.itemCardIcon {
+  flex-shrink: 0;
+  color: #1e293b;
+}
+
+.itemCardName {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemCardActions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.actionBtnSmall {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  color: #374151;
+.actionIconBtnRow {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
   cursor: pointer;
-  transition: all 120ms ease;
+  border-radius: 4px;
+  transition: color 140ms ease, background 140ms ease;
 }
 
-.actionBtnSmall:hover {
-  background: #092a54;
-  color: #ffffff;
-  border-color: #092a54;
+.actionIconBtnRow:hover {
+  color: #092a54;
+  background: #f1f5f9;
 }
 
-.emptyDocs {
-  padding: 48px 24px;
+.emptyStateCol {
+  padding: 32px 16px;
   text-align: center;
-  color: #6b7280;
-  font-size: 14px;
+  color: #64748b;
+  font-size: 13px;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
 }
 
-/* Modais Específicos de Documentos */
+/* Modais de Documentos */
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -339,10 +270,10 @@
 
 .docModalCard {
   position: relative;
-  width: min(620px, 100%);
+  width: min(560px, 100%);
   max-height: calc(100vh - 48px);
   overflow-y: auto;
-  padding: 28px 32px;
+  padding: 24px 28px;
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
@@ -362,7 +293,7 @@
   margin: 0;
   color: #092a54;
   font-family: "Inter", sans-serif;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -408,18 +339,6 @@
   box-shadow: 0 0 0 2px rgba(9, 42, 84, 0.2);
 }
 
-.formTextarea {
-  min-height: 70px;
-  padding: 8px 12px;
-  border: 1px solid #000000;
-  border-radius: 4px;
-  font-family: "Inter", sans-serif;
-  font-size: 13px;
-  color: #000000;
-  outline: 0;
-  resize: vertical;
-}
-
 .fileDropzone {
   display: flex;
   flex-direction: column;
@@ -451,27 +370,27 @@
 }
 
 .cancelBtn {
-  height: 40px;
-  padding: 0 18px;
+  height: 38px;
+  padding: 0 16px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   background: #ffffff;
   color: #374151;
   font-family: "Inter", sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .confirmBtn {
-  height: 40px;
-  padding: 0 20px;
+  height: 38px;
+  padding: 0 18px;
   border: 0;
   border-radius: 6px;
   background: #092a54;
   color: #ffffff;
   font-family: "Inter", sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 140ms ease;
@@ -481,11 +400,10 @@
   background: #18395f;
 }
 
-/* Scanner QR Viewfinder */
 .scannerViewfinder {
   position: relative;
   width: 100%;
-  height: 240px;
+  height: 200px;
   background: #111827;
   border-radius: 8px;
   display: flex;

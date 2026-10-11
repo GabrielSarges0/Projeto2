@@ -3,153 +3,98 @@
 import { useEffect, useState } from "react";
 import {
   CheckCircle2,
+  CloudUpload,
   Download,
-  Eye,
-  FileCheck2,
   FileText,
   Filter,
+  Folder,
+  Pencil,
   Plus,
   QrCode,
   Search,
-  Send,
-  UploadCloud,
+  Trash2,
   X,
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import styles from "./documentos.module.css";
 
-type DocItem = {
+type FolderItem = {
   id: string;
-  protocol: string;
-  title: string;
-  category: "Contratos" | "Comprovantes" | "Ministério Público" | "Laudos";
-  propertyRef: string;
-  date: string;
-  status: "VÁLIDO" | "PENDENTE" | "ARQUIVADO";
-  fileSize: string;
+  name: string;
 };
 
-const initialDocuments: DocItem[] = [
-  {
-    id: "1",
-    protocol: "DOC-2026-081",
-    title: "Contrato de Locação Residencial",
-    category: "Contratos",
-    propertyRef: "IM-001 (João Pedro Cavalcanti)",
-    date: "10/10/2025",
-    status: "VÁLIDO",
-    fileSize: "2.4 MB",
-  },
-  {
-    id: "2",
-    protocol: "DOC-2026-075",
-    title: "Termo de Vistoria Inicial de Entrada",
-    category: "Laudos",
-    propertyRef: "IM-001 (Apto 402 - Graças)",
-    date: "08/10/2025",
-    status: "VÁLIDO",
-    fileSize: "5.1 MB",
-  },
-  {
-    id: "3",
-    protocol: "DOC-2026-068",
-    title: "Contrato de Locação Comercial",
-    category: "Contratos",
-    propertyRef: "IM-002 (Maria Helena Silva)",
-    date: "01/11/2025",
-    status: "VÁLIDO",
-    fileSize: "1.8 MB",
-  },
-  {
-    id: "4",
-    protocol: "DOC-2026-052",
-    title: "Ata de Reunião da Diretoria nº 14/2026",
-    category: "Ministério Público",
-    propertyRef: "Governança FMC",
-    date: "15/09/2026",
-    status: "VÁLIDO",
-    fileSize: "840 KB",
-  },
-  {
-    id: "5",
-    protocol: "DOC-2026-041",
-    title: "Relatório Semestral de Prestação de Contas (MP)",
-    category: "Ministério Público",
-    propertyRef: "Curadoria de Fundações",
-    date: "01/09/2026",
-    status: "PENDENTE",
-    fileSize: "4.6 MB",
-  },
-  {
-    id: "6",
-    protocol: "DOC-2026-033",
-    title: "Comprovante de Pagamento de IPTU - Exercício 2026",
-    category: "Comprovantes",
-    propertyRef: "IM-001 / IM-002",
-    date: "10/08/2026",
-    status: "VÁLIDO",
-    fileSize: "320 KB",
-  },
-  {
-    id: "7",
-    protocol: "DOC-2026-019",
-    title: "Laudo de Manutenção Hidráulica e Elétrica",
-    category: "Laudos",
-    propertyRef: "IM-001 (Prestador Rocha)",
-    date: "10/10/2026",
-    status: "VÁLIDO",
-    fileSize: "1.2 MB",
-  },
+type FileItem = {
+  id: string;
+  name: string;
+  folderId?: string;
+  size: string;
+};
+
+const initialFolders: FolderItem[] = [
+  { id: "1", name: "Ministério Público" },
+  { id: "2", name: "Pasta_01" },
+  { id: "3", name: "Pasta_02" },
+  { id: "4", name: "Pasta_03" },
+];
+
+const initialFiles: FileItem[] = [
+  { id: "1", name: "Documento_00", size: "2.4 MB" },
+  { id: "2", name: "Documento_01", size: "1.8 MB" },
+  { id: "3", name: "Documento_02", size: "840 KB" },
+  { id: "4", name: "Documento_03", size: "3.1 MB" },
+  { id: "5", name: "Documento_04", size: "1.2 MB" },
 ];
 
 export default function DocumentosPage() {
-  const [documents, setDocuments] = useState<DocItem[]>(initialDocuments);
+  const [folders, setFolders] = useState<FolderItem[]>(initialFolders);
+  const [files, setFiles] = useState<FileItem[]>(initialFiles);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("TODOS");
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   // Modais
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [newDocModalOpen, setNewDocModalOpen] = useState(false);
-  const [sendDocModalOpen, setSendDocModalOpen] = useState(false);
-  const [viewDocModal, setViewDocModal] = useState<DocItem | null>(null);
+  const [newModalOpen, setNewModalOpen] = useState(false);
+  const [newType, setNewType] = useState<"folder" | "file">("file");
+  const [newItemName, setNewItemName] = useState("");
 
-  // Formulário Novo Documento
-  const [newTitle, setNewTitle] = useState("");
-  const [newCategory, setNewCategory] = useState<DocItem["category"]>("Contratos");
-  const [newProperty, setNewProperty] = useState("IM-001");
-  const [newDate, setNewDate] = useState("2026-10-11");
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<{ id: string; type: "folder" | "file"; name: string } | null>(null);
 
-  // Formulário Envio
-  const [sendRecipient, setSendRecipient] = useState("Ministério Público - Curadoria");
-  const [sendDocId, setSendDocId] = useState("");
-  const [sendNotes, setSendNotes] = useState("");
+  const [viewDocModal, setViewDocModal] = useState<FileItem | null>(null);
 
-  // QR Code Simulator
-  const [qrCodeInput, setQrCodeInput] = useState("");
-  const [qrScanResult, setQrScanResult] = useState<string | null>(null);
+  // QR Code
+  const [qrInput, setQrInput] = useState("");
+  const [qrResult, setQrResult] = useState<string | null>(null);
 
   // Toast
   const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
-    const saved = localStorage.getItem("fmc_docs");
-    if (saved) {
+    const savedFolders = localStorage.getItem("fmc_folders_v2");
+    const savedFiles = localStorage.getItem("fmc_files_v2");
+    if (savedFolders) {
       try {
-        setDocuments(JSON.parse(saved) as DocItem[]);
-      } catch {
-        // mantém padrão
-      }
+        setFolders(JSON.parse(savedFolders));
+      } catch {}
+    }
+    if (savedFiles) {
+      try {
+        setFiles(JSON.parse(savedFiles));
+      } catch {}
     }
   }, []);
 
-  function saveDocuments(docs: DocItem[]) {
-    setDocuments(docs);
+  function saveFolders(items: FolderItem[]) {
+    setFolders(items);
     try {
-      localStorage.setItem("fmc_docs", JSON.stringify(docs));
-    } catch {
-      // ignora
-    }
+      localStorage.setItem("fmc_folders_v2", JSON.stringify(items));
+    } catch {}
+  }
+
+  function saveFiles(items: FileItem[]) {
+    setFiles(items);
+    try {
+      localStorage.setItem("fmc_files_v2", JSON.stringify(items));
+    } catch {}
   }
 
   function showToast(msg: string) {
@@ -159,56 +104,68 @@ export default function DocumentosPage() {
     }, 3500);
   }
 
-  // Filtragem
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesCategory =
-      selectedCategory === "TODOS" || doc.category === selectedCategory;
-    const term = searchTerm.toLowerCase();
-    const matchesSearch =
-      !term ||
-      doc.title.toLowerCase().includes(term) ||
-      doc.protocol.toLowerCase().includes(term) ||
-      doc.propertyRef.toLowerCase().includes(term);
-    return matchesCategory && matchesSearch;
-  });
+  // Filtragem pela busca
+  const term = searchTerm.toLowerCase();
+  const filteredFolders = folders.filter((f) => !term || f.name.toLowerCase().includes(term));
+  const filteredFiles = files.filter((f) => !term || f.name.toLowerCase().includes(term));
 
-  function handleCreateDocument(e: React.FormEvent) {
+  function handleCreateItem(e: React.FormEvent) {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    const name = newItemName.trim();
+    if (!name) return;
 
-    const newDoc: DocItem = {
-      id: String(Date.now()),
-      protocol: `DOC-2026-${Math.floor(100 + Math.random() * 900)}`,
-      title: newTitle.trim(),
-      category: newCategory,
-      propertyRef: newProperty.trim(),
-      date: newDate.split("-").reverse().join("/"),
-      status: "VÁLIDO",
-      fileSize: "1.5 MB",
-    };
+    if (newType === "folder") {
+      const updated = [...folders, { id: String(Date.now()), name }];
+      saveFolders(updated);
+      showToast(`Pasta "${name}" criada com sucesso!`);
+    } else {
+      const updated = [...files, { id: String(Date.now()), name, size: "1.5 MB" }];
+      saveFiles(updated);
+      showToast(`Documento "${name}" adicionado com sucesso!`);
+    }
 
-    const updated = [newDoc, ...documents];
-    saveDocuments(updated);
-    setNewDocModalOpen(false);
-    setNewTitle("");
-    showToast(`Documento ${newDoc.protocol} cadastrado com sucesso!`);
+    setNewItemName("");
+    setNewModalOpen(false);
   }
 
-  function handleSendDocument(e: React.FormEvent) {
+  function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault();
-    setSendDocModalOpen(false);
-    showToast(`Documento transmitido com protocolo oficial para: ${sendRecipient}`);
-    setSendNotes("");
+    if (!editingItem || !editingItem.name.trim()) return;
+
+    if (editingItem.type === "folder") {
+      const updated = folders.map((f) => (f.id === editingItem.id ? { ...f, name: editingItem.name.trim() } : f));
+      saveFolders(updated);
+      showToast(`Pasta renomeada para "${editingItem.name.trim()}".`);
+    } else {
+      const updated = files.map((f) => (f.id === editingItem.id ? { ...f, name: editingItem.name.trim() } : f));
+      saveFiles(updated);
+      showToast(`Documento renomeado para "${editingItem.name.trim()}".`);
+    }
+
+    setEditingItem(null);
+    setEditModalOpen(false);
+  }
+
+  function handleDeleteFolder(id: string, name: string) {
+    if (!confirm(`Deseja realmente excluir a pasta "${name}"?`)) return;
+    const updated = folders.filter((f) => f.id !== id);
+    saveFolders(updated);
+    showToast(`Pasta "${name}" excluída.`);
+  }
+
+  function handleDeleteFile(id: string, name: string) {
+    if (!confirm(`Deseja realmente excluir o documento "${name}"?`)) return;
+    const updated = files.filter((f) => f.id !== id);
+    saveFiles(updated);
+    showToast(`Documento "${name}" excluído.`);
   }
 
   function handleSimulateQrScan() {
-    const target = documents.find(
-      (d) => d.protocol.toLowerCase() === qrCodeInput.trim().toLowerCase()
-    );
-    if (target) {
-      setQrScanResult(`Autêntico: ${target.protocol} - ${target.title} (${target.status})`);
+    const found = files.find((f) => f.name.toLowerCase() === qrInput.trim().toLowerCase());
+    if (found) {
+      setQrResult(`Autêntico: ${found.name} (Validado no banco oficial da Fundação Manuel Cruz).`);
     } else {
-      setQrScanResult(`QR Code validado com sucesso na base FMC. Protocolo: FMC-REG-${Math.floor(10000 + Math.random() * 90000)}`);
+      setQrResult(`QR Code FMC-REG-${Math.floor(10000 + Math.random() * 90000)} validado com sucesso!`);
     }
   }
 
@@ -218,54 +175,59 @@ export default function DocumentosPage() {
 
       <main className={styles.documentosMain}>
         <div className={styles.documentosCanvas}>
-          {/* Toolbar Exata do Figma */}
+          {/* Top Toolbar Exata do Figma */}
           <div className={styles.topToolbar}>
             <div className={styles.leftActionGroup}>
-              {/* digitalize-o-codigo-qr 1 (32x32) */}
+              {/* digitalize-o-codigo-qr 1 */}
               <button
                 type="button"
                 className={`${styles.actionIconBtn} ${styles.qrIconBtn}`}
-                title="Escanear e validar QR Code de autenticidade documental"
+                title="Escanear e validar código QR"
                 aria-label="Digitalizar código QR"
                 onClick={() => {
-                  setQrScanResult(null);
-                  setQrCodeInput("");
+                  setQrResult(null);
+                  setQrInput("");
                   setQrModalOpen(true);
                 }}
               >
-                <QrCode size={32} />
+                <QrCode size={28} strokeWidth={1.8} />
               </button>
 
-              {/* mais 3 (40x40) */}
+              {/* mais 3 */}
               <button
                 type="button"
                 className={`${styles.actionIconBtn} ${styles.addIconBtn}`}
-                title="Adicionar novo documento à fundação"
-                aria-label="Adicionar documento"
-                onClick={() => setNewDocModalOpen(true)}
+                title="Criar nova pasta ou documento"
+                aria-label="Adicionar"
+                onClick={() => {
+                  setNewType("file");
+                  setNewItemName("");
+                  setNewModalOpen(true);
+                }}
               >
-                <Plus size={24} strokeWidth={2.5} />
+                <Plus size={30} strokeWidth={2.2} />
               </button>
 
-              {/* envio 1 (36x36) */}
+              {/* envio 1 */}
               <button
                 type="button"
                 className={`${styles.actionIconBtn} ${styles.sendIconBtn}`}
-                title="Enviar documento para Ministério Público ou Inquilino"
+                title="Fazer upload de documento"
                 aria-label="Enviar documento"
                 onClick={() => {
-                  setSendDocId(documents[0]?.protocol ?? "");
-                  setSendDocModalOpen(true);
+                  setNewType("file");
+                  setNewItemName("Documento_Novo");
+                  setNewModalOpen(true);
                 }}
               >
-                <Send size={32} />
+                <CloudUpload size={30} strokeWidth={1.8} />
               </button>
             </div>
 
             {/* Barra de Busca Exata: Rectangle 15, Rectangle 14, Rectangle 16 */}
             <div className={styles.searchBarContainer}>
               <div className={styles.searchIconBox} aria-hidden="true">
-                <Search size={22} />
+                <Search size={22} strokeWidth={2} />
               </div>
               <input
                 type="text"
@@ -277,163 +239,313 @@ export default function DocumentosPage() {
               />
               <button
                 type="button"
-                className={`${styles.filterIconBtn} ${showFilterMenu ? styles.filterIconBtnActive : ""}`}
-                title="Filtrar documentos por tipo"
+                className={styles.filterIconBtn}
+                title="Filtro"
                 aria-label="Filtro de documentos"
-                onClick={() => setShowFilterMenu((v) => !v)}
+                onClick={() => showToast("Filtro ativo")}
               >
-                <Filter size={20} />
+                <Filter size={20} strokeWidth={2} />
               </button>
             </div>
           </div>
 
-          {/* Categorias / Filtro Rápido */}
-          <nav className={styles.categoryTabs} aria-label="Categorias de documentos">
-            {["TODOS", "Contratos", "Ministério Público", "Comprovantes", "Laudos"].map(
-              (cat) => (
+          {/* Duas Colunas do Figma: Pastas e Documentos sem pasta */}
+          <div className={styles.documentosGrid}>
+            {/* Coluna 1: Pastas */}
+            <section className={styles.columnSection} aria-label="Pastas">
+              <div className={styles.columnHeader}>
+                <h2 className={styles.columnTitle}>Pastas</h2>
                 <button
-                  key={cat}
                   type="button"
-                  className={`${styles.tabBtn} ${
-                    selectedCategory === cat ? styles.tabBtnActive : ""
-                  }`}
-                  onClick={() => setSelectedCategory(cat)}
+                  className={styles.columnAddBtn}
+                  onClick={() => {
+                    setNewType("folder");
+                    setNewItemName("");
+                    setNewModalOpen(true);
+                  }}
+                  title="Criar nova pasta"
                 >
-                  {cat}
+                  <Plus size={14} />
+                  <span>Nova pasta</span>
                 </button>
-              )
-            )}
-          </nav>
-
-          {/* Painel com Tabela de Documentos */}
-          <section className={styles.documentsPanel}>
-            <div className={styles.panelTopHeader}>
-              <h2>ACERVO DOCUMENTAL DA FUNDAÇÃO MANUEL CRUZ</h2>
-              <span className={styles.panelCountBadge}>
-                {filteredDocuments.length} documento(s) encontrado(s)
-              </span>
-            </div>
-
-            {filteredDocuments.length === 0 ? (
-              <div className={styles.emptyDocs}>
-                Nenhum documento encontrado com os critérios de busca selecionados.
               </div>
-            ) : (
-              <table className={styles.docTable}>
-                <thead>
-                  <tr>
-                    <th>Protocolo</th>
-                    <th>Documento</th>
-                    <th>Categoria</th>
-                    <th>Referência / Imóvel</th>
-                    <th>Data</th>
-                    <th>Status</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDocuments.map((doc) => (
-                    <tr key={doc.id} className={styles.docRow}>
-                      <td>
-                        <span className={styles.protocolBadge}>{doc.protocol}</span>
-                      </td>
-                      <td>
-                        <div className={styles.docTitleCell}>
-                          <span className={styles.docTitle}>{doc.title}</span>
-                          <span className={styles.docSubtitle}>{doc.fileSize} · PDF Assinado Digitalmente</span>
-                        </div>
-                      </td>
-                      <td>{doc.category}</td>
-                      <td>{doc.propertyRef}</td>
-                      <td>{doc.date}</td>
-                      <td>
-                        <span
-                          className={`${styles.statusTag} ${
-                            doc.status === "VÁLIDO"
-                              ? styles.statusValido
-                              : doc.status === "PENDENTE"
-                              ? styles.statusPendente
-                              : styles.statusArquivado
-                          }`}
-                        >
-                          {doc.status}
-                        </span>
-                      </td>
-                      <td>
-                        <div className={styles.actionsCell}>
-                          <button
-                            type="button"
-                            className={styles.actionBtnSmall}
-                            title="Visualizar documento"
-                            aria-label={`Visualizar ${doc.title}`}
-                            onClick={() => setViewDocModal(doc)}
-                          >
-                            <Eye size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.actionBtnSmall}
-                            title="Baixar arquivo oficial"
-                            aria-label={`Baixar ${doc.title}`}
-                            onClick={() => showToast(`Download do arquivo ${doc.protocol}.pdf iniciado!`)}
-                          >
-                            <Download size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+
+              {filteredFolders.length === 0 ? (
+                <div className={styles.emptyStateCol}>Nenhuma pasta encontrada.</div>
+              ) : (
+                filteredFolders.map((folder) => (
+                  <div key={folder.id} className={styles.itemCardRow}>
+                    <div
+                      className={styles.itemCardLeft}
+                      onClick={() => showToast(`Abrindo pasta "${folder.name}"`)}
+                      title={`Abrir pasta ${folder.name}`}
+                    >
+                      <Folder size={22} className={styles.itemCardIcon} strokeWidth={1.8} />
+                      <span className={styles.itemCardName}>{folder.name}</span>
+                    </div>
+                    <div className={styles.itemCardActions}>
+                      <button
+                        type="button"
+                        className={styles.actionIconBtnRow}
+                        title="Renomear pasta"
+                        aria-label={`Renomear ${folder.name}`}
+                        onClick={() => {
+                          setEditingItem({ id: folder.id, type: "folder", name: folder.name });
+                          setEditModalOpen(true);
+                        }}
+                      >
+                        <Pencil size={18} strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.actionIconBtnRow}
+                        title="Excluir pasta"
+                        aria-label={`Excluir ${folder.name}`}
+                        onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                      >
+                        <Trash2 size={18} strokeWidth={1.8} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </section>
+
+            {/* Coluna 2: Documentos sem pasta */}
+            <section className={styles.columnSection} aria-label="Documentos sem pasta">
+              <div className={styles.columnHeader}>
+                <h2 className={styles.columnTitle}>Documentos sem pasta</h2>
+                <button
+                  type="button"
+                  className={styles.columnAddBtn}
+                  onClick={() => {
+                    setNewType("file");
+                    setNewItemName("");
+                    setNewModalOpen(true);
+                  }}
+                  title="Adicionar novo documento"
+                >
+                  <Plus size={14} />
+                  <span>Novo documento</span>
+                </button>
+              </div>
+
+              {filteredFiles.length === 0 ? (
+                <div className={styles.emptyStateCol}>Nenhum documento encontrado.</div>
+              ) : (
+                filteredFiles.map((file) => (
+                  <div key={file.id} className={styles.itemCardRow}>
+                    <div
+                      className={styles.itemCardLeft}
+                      onClick={() => setViewDocModal(file)}
+                      title={`Visualizar ${file.name}`}
+                    >
+                      <FileText size={22} className={styles.itemCardIcon} strokeWidth={1.8} />
+                      <span className={styles.itemCardName}>{file.name}</span>
+                    </div>
+                    <div className={styles.itemCardActions}>
+                      <button
+                        type="button"
+                        className={styles.actionIconBtnRow}
+                        title="Baixar documento"
+                        aria-label={`Baixar ${file.name}`}
+                        onClick={() => showToast(`Download de "${file.name}.pdf" iniciado.`)}
+                      >
+                        <Download size={18} strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.actionIconBtnRow}
+                        title="Renomear documento"
+                        aria-label={`Renomear ${file.name}`}
+                        onClick={() => {
+                          setEditingItem({ id: file.id, type: "file", name: file.name });
+                          setEditModalOpen(true);
+                        }}
+                      >
+                        <Pencil size={18} strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.actionIconBtnRow}
+                        title="Excluir documento"
+                        aria-label={`Excluir ${file.name}`}
+                        onClick={() => handleDeleteFile(file.id, file.name)}
+                      >
+                        <Trash2 size={18} strokeWidth={1.8} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </section>
+          </div>
         </div>
       </main>
 
-      {/* Modal 1: Leitor e Validador QR Code */}
-      {qrModalOpen ? (
-        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setQrModalOpen(false)}>
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+      {/* Modal: Criar Item (Pasta ou Documento) */}
+      {newModalOpen ? (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setNewModalOpen(false)}>
+          <div className={styles.docModalCard} role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
             <div className={styles.docModalHeader}>
-              <h2>DIGITALIZAÇÃO E VALIDAÇÃO QR CODE</h2>
+              <h2>{newType === "folder" ? "CRIAR NOVA PASTA" : "ADICIONAR DOCUMENTO"}</h2>
+              <button type="button" className={styles.closeCircleBtn} onClick={() => setNewModalOpen(false)} aria-label="Fechar">
+                <X size={14} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateItem}>
+              <div className={styles.formGroup}>
+                <label>Tipo:</label>
+                <select
+                  className={styles.formInput}
+                  value={newType}
+                  onChange={(e) => setNewType(e.target.value as "folder" | "file")}
+                >
+                  <option value="file">Documento</option>
+                  <option value="folder">Pasta</option>
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>{newType === "folder" ? "Nome da Pasta:" : "Nome do Documento:"}</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder={newType === "folder" ? "Ex: Pasta_04" : "Ex: Documento_05"}
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {newType === "file" ? (
+                <div className={styles.formGroup}>
+                  <label>Arquivo:</label>
+                  <div className={styles.fileDropzone} onClick={() => showToast("Arquivo anexado com sucesso.")}>
+                    <CloudUpload size={32} color="#092a54" />
+                    <span style={{ fontSize: "13px", fontWeight: 600 }}>Clique para anexar o arquivo</span>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>Formatos suportados: PDF, DOCX, Imagens</span>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.cancelBtn} onClick={() => setNewModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className={styles.confirmBtn}>
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal: Editar/Renomear Item */}
+      {editModalOpen && editingItem ? (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setEditModalOpen(false)}>
+          <div className={styles.docModalCard} role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+            <div className={styles.docModalHeader}>
+              <h2>RENOMEAR {editingItem.type === "folder" ? "PASTA" : "DOCUMENTO"}</h2>
+              <button type="button" className={styles.closeCircleBtn} onClick={() => setEditModalOpen(false)} aria-label="Fechar">
+                <X size={14} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit}>
+              <div className={styles.formGroup}>
+                <label>Novo Nome:</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  value={editingItem.name}
+                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.cancelBtn} onClick={() => setEditModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className={styles.confirmBtn}>
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal: Visualizar Documento */}
+      {viewDocModal ? (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setViewDocModal(null)}>
+          <div className={styles.docModalCard} role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+            <div className={styles.docModalHeader}>
+              <h2>VISUALIZAÇÃO DE DOCUMENTO</h2>
+              <button type="button" className={styles.closeCircleBtn} onClick={() => setViewDocModal(null)} aria-label="Fechar">
+                <X size={14} />
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "14px" }}>
+              <div><strong>Nome:</strong> {viewDocModal.name}</div>
+              <div><strong>Tamanho:</strong> {viewDocModal.size}</div>
+              <div><strong>Formato:</strong> PDF Digitalizado (FMC)</div>
+              <div><strong>Status:</strong> Assinado e Válido</div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button type="button" className={styles.cancelBtn} onClick={() => setViewDocModal(null)}>
+                Fechar
+              </button>
               <button
                 type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setQrModalOpen(false)}
-                aria-label="Fechar"
+                className={styles.confirmBtn}
+                onClick={() => {
+                  showToast(`Download de "${viewDocModal.name}.pdf" concluído.`);
+                  setViewDocModal(null);
+                }}
               >
+                Baixar Arquivo
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal: QR Code Scanner */}
+      {qrModalOpen ? (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setQrModalOpen(false)}>
+          <div className={styles.docModalCard} role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+            <div className={styles.docModalHeader}>
+              <h2>VALIDAÇÃO QR CODE</h2>
+              <button type="button" className={styles.closeCircleBtn} onClick={() => setQrModalOpen(false)} aria-label="Fechar">
                 <X size={14} />
               </button>
             </div>
 
             <div className={styles.scannerViewfinder}>
               <div className={styles.scanLine} />
-              <QrCode size={64} style={{ opacity: 0.4 }} />
-              <span style={{ marginTop: "12px", fontSize: "13px" }}>
-                Aponte a câmera ou insira o código abaixo para validar autenticidade
-              </span>
+              <QrCode size={56} style={{ opacity: 0.4 }} />
+              <span style={{ marginTop: "12px", fontSize: "13px" }}>Aponte para o QR Code impresso no documento</span>
             </div>
 
             <div className={styles.formGroup}>
-              <label>Código ou Hash do QR Code (ex: DOC-2026-081):</label>
+              <label>Ou digite o nome/protocolo:</label>
               <input
                 type="text"
                 className={styles.formInput}
-                placeholder="Insira o protocolo do documento..."
-                value={qrCodeInput}
-                onChange={(e) => setQrCodeInput(e.target.value)}
+                placeholder="Ex: Documento_00"
+                value={qrInput}
+                onChange={(e) => setQrInput(e.target.value)}
               />
             </div>
 
-            {qrScanResult ? (
+            {qrResult ? (
               <div
                 style={{
-                  padding: "12px",
+                  padding: "10px 14px",
                   background: "#dcfce7",
                   border: "1px solid #86efac",
                   borderRadius: "6px",
@@ -446,7 +558,7 @@ export default function DocumentosPage() {
                 }}
               >
                 <CheckCircle2 size={18} />
-                <span>{qrScanResult}</span>
+                <span>{qrResult}</span>
               </div>
             ) : null}
 
@@ -455,258 +567,7 @@ export default function DocumentosPage() {
                 Fechar
               </button>
               <button type="button" className={styles.confirmBtn} onClick={handleSimulateQrScan}>
-                Validar QR Code
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Modal 2: Adicionar Novo Documento */}
-      {newDocModalOpen ? (
-        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setNewDocModalOpen(false)}>
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className={styles.docModalHeader}>
-              <h2>CADASTRAR NOVO DOCUMENTO</h2>
-              <button
-                type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setNewDocModalOpen(false)}
-                aria-label="Fechar"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateDocument}>
-              <div className={styles.formGroup}>
-                <label>Título do Documento:</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Ex: Contrato de Locação - IM-003"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Categoria:</label>
-                <select
-                  className={styles.formInput}
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value as DocItem["category"])}
-                >
-                  <option value="Contratos">Contratos de Locação</option>
-                  <option value="Ministério Público">Ministério Público & Atas</option>
-                  <option value="Comprovantes">Comprovantes & Faturas</option>
-                  <option value="Laudos">Laudos e Vistorias</option>
-                </select>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Imóvel / Referência:</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Ex: IM-001 (Apto 402)"
-                  value={newProperty}
-                  onChange={(e) => setNewProperty(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Data de Emissão:</label>
-                <input
-                  type="date"
-                  className={styles.formInput}
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Arquivo Digital (PDF / Imagem):</label>
-                <div
-                  className={styles.fileDropzone}
-                  onClick={() => showToast("Arquivo pronto para upload.")}
-                >
-                  <UploadCloud size={32} color="#092a54" />
-                  <span style={{ fontSize: "13px", fontWeight: 600 }}>
-                    Clique ou arraste o documento em PDF aqui
-                  </span>
-                  <span style={{ fontSize: "11px", color: "#6b7280" }}>
-                    Tamanho máximo: 25 MB (Assinatura digital ICP-Brasil aceita)
-                  </span>
-                </div>
-              </div>
-
-              <div className={styles.modalFooter}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => setNewDocModalOpen(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className={styles.confirmBtn}>
-                  Salvar Documento
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Modal 3: Envio de Documento */}
-      {sendDocModalOpen ? (
-        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setSendDocModalOpen(false)}>
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className={styles.docModalHeader}>
-              <h2>TRANSMISSÃO OFICIAL DE DOCUMENTO</h2>
-              <button
-                type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setSendDocModalOpen(false)}
-                aria-label="Fechar"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSendDocument}>
-              <div className={styles.formGroup}>
-                <label>Documento a Enviar:</label>
-                <select
-                  className={styles.formInput}
-                  value={sendDocId}
-                  onChange={(e) => setSendDocId(e.target.value)}
-                >
-                  {documents.map((d) => (
-                    <option key={d.id} value={d.protocol}>
-                      {d.protocol} - {d.title} ({d.propertyRef})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Destinatário Oficial:</label>
-                <select
-                  className={styles.formInput}
-                  value={sendRecipient}
-                  onChange={(e) => setSendRecipient(e.target.value)}
-                >
-                  <option value="Ministério Público - Curadoria de Fundações">
-                    Ministério Público - Curadoria de Fundações
-                  </option>
-                  <option value="Inquilino / Locatário">Inquilino / Locatário</option>
-                  <option value="Assessoria Jurídica e Contábil">Assessoria Jurídica e Contábil</option>
-                  <option value="Conselho Fiscal e Curador da FMC">Conselho Fiscal e Curador da FMC</option>
-                </select>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Observações ou Despacho de Envio:</label>
-                <textarea
-                  className={styles.formTextarea}
-                  placeholder="Escreva detalhes do protocolo ou comprovante de transmissão..."
-                  value={sendNotes}
-                  onChange={(e) => setSendNotes(e.target.value)}
-                />
-              </div>
-
-              <div className={styles.modalFooter}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => setSendDocModalOpen(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className={styles.confirmBtn}>
-                  Transmitir Documento
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Modal 4: Visualizar Documento */}
-      {viewDocModal ? (
-        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setViewDocModal(null)}>
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className={styles.docModalHeader}>
-              <h2>DETALHES DO DOCUMENTO</h2>
-              <button
-                type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setViewDocModal(null)}
-                aria-label="Fechar"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "14px" }}>
-              <div>
-                <strong>Protocolo:</strong> {viewDocModal.protocol}
-              </div>
-              <div>
-                <strong>Título:</strong> {viewDocModal.title}
-              </div>
-              <div>
-                <strong>Categoria:</strong> {viewDocModal.category}
-              </div>
-              <div>
-                <strong>Imóvel / Destino:</strong> {viewDocModal.propertyRef}
-              </div>
-              <div>
-                <strong>Data de Registro:</strong> {viewDocModal.date}
-              </div>
-              <div>
-                <strong>Tamanho:</strong> {viewDocModal.fileSize}
-              </div>
-              <div>
-                <strong>Status de Validade:</strong>{" "}
-                <span style={{ color: viewDocModal.status === "VÁLIDO" ? "#166534" : "#854d0e", fontWeight: 700 }}>
-                  {viewDocModal.status}
-                </span>
-              </div>
-            </div>
-
-            <div className={styles.modalFooter}>
-              <button type="button" className={styles.cancelBtn} onClick={() => setViewDocModal(null)}>
-                Fechar
-              </button>
-              <button
-                type="button"
-                className={styles.confirmBtn}
-                onClick={() => {
-                  showToast(`Download de ${viewDocModal.protocol}.pdf concluído com sucesso!`);
-                  setViewDocModal(null);
-                }}
-              >
-                Baixar PDF
+                Validar
               </button>
             </div>
           </div>

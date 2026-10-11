@@ -62,25 +62,44 @@ button {
 
 .sidebar-brand {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
   width: 218px;
-  height: 218px;
+  height: 64px;
+  padding: 0 18px;
   background: #092a54;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.sidebar-brand-mark {
+.sidebar-brand-box {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-brand-avatar {
+  display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+.sidebar-brand-name {
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
 }
 
 .sidebar-nav {
-  padding-top: 0px;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .sidebar-link {
@@ -88,23 +107,29 @@ button {
   display: flex;
   align-items: center;
   width: 218px;
-  height: 36px;
-  padding: 0 0 0 41px;
+  height: 40px;
+  padding: 0 18px;
+  gap: 14px;
   color: #ffffff;
   font-family: "Inter", sans-serif;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   line-height: 17px;
   transition: background 160ms ease;
 }
 
+.sidebar-link-icon {
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-link-active {
   width: 205px;
-  height: 37px;
+  height: 40px;
   background: linear-gradient(89.98deg, #d4b35a 0.02%, rgba(249, 227, 142, 0) 98.03%);
   border-radius: 0px 20px 20px 0px;
 }
