@@ -703,19 +703,21 @@ export function FinancialDashboard() {
 
           <section className={styles.transactionsGrid}>
             <TransactionPanel
-              title="ENTRADAS:"
+              title="ENTRADA:"
+              month={month}
               items={incomes}
               emptyText="Nenhuma entrada registrada para este período."
-              actionLabel="Adicionar entrada"
+              actionLabel="Registrar entrada"
               onAction={openEntryModal}
               onDelete={handleDeleteTransaction}
             />
 
             <TransactionPanel
-              title="SAÍDAS:"
+              title="SAÍDA:"
+              month={month}
               items={expenses}
               emptyText="Nenhuma saída registrada para este período."
-              actionLabel="Adicionar saída"
+              actionLabel="Registrar saída"
               onAction={openExpenseModal}
               onDelete={handleDeleteTransaction}
             />
@@ -881,6 +883,7 @@ function SummaryCard({
 
 function TransactionPanel({
   title,
+  month,
   items,
   emptyText,
   actionLabel,
@@ -888,26 +891,45 @@ function TransactionPanel({
   onDelete,
 }: {
   title: string;
+  month?: string;
   items: FinancialMovement[];
   emptyText: string;
   actionLabel: string;
   onAction: () => void;
   onDelete?: (id: number, description: string) => void;
 }) {
+  const [showManualMenu, setShowManualMenu] = useState(false);
+
   return (
     <article className={styles.transactionPanel}>
       <div className={styles.panelHeader}>
-        <h2>{title}</h2>
+        <div className={styles.panelHeaderTitle}>
+          <h2>{title}</h2>
+          <span className={styles.panelMonth}>({month || "Mês"})</span>
+        </div>
         <button
           type="button"
           className={styles.iconButton}
           aria-label={actionLabel}
           title={actionLabel}
-          onClick={onAction}
+          onClick={() => setShowManualMenu((prev) => !prev)}
         >
           <Plus aria-hidden="true" />
         </button>
       </div>
+
+      {showManualMenu && (
+        <button
+          type="button"
+          className={styles.manualEntryButton}
+          onClick={() => {
+            setShowManualMenu(false);
+            onAction();
+          }}
+        >
+          Registra Manualmente
+        </button>
+      )}
 
       {items.length === 0 ? (
         <div className={styles.emptyState}>{emptyText}</div>
@@ -1051,12 +1073,12 @@ function EntryModal({
                 <button
                   type="button"
                   className={styles.clearDocumentType}
-                  title="Limpar inquilino"
-                  aria-label="Limpar identificação"
+                  title="Anular identificação"
+                  aria-label="Anular identificação"
                   onClick={() => onChange({ ...form, tenantName: "", document: "" })}
                   disabled={submitting}
                 >
-                  <X aria-hidden="true" />
+                  ANULAR
                 </button>
               </div>
 
@@ -1214,7 +1236,7 @@ function EntryModal({
                 title="Calcular valor líquido considerando encargos e multas"
                 onClick={() => calculateNet()}
               >
-                Valor Líquido
+                VALOR LÍQUIDO
               </button>
               {form.netCalculated !== null ? (
                 <span className={styles.netValueBadge}>
@@ -1233,7 +1255,7 @@ function EntryModal({
               onClick={onReset}
               disabled={submitting}
             >
-              Limpar Tudo
+              LIMPAR TUDO
             </button>
             <button type="submit" className={styles.primaryButton} disabled={submitting}>
               {submitting ? "SALVANDO..." : "FINALIZAR"}
@@ -1429,7 +1451,7 @@ function ExpenseModal({
                 title="Calcular valor líquido a pagar com retenções"
                 onClick={() => calculateNet()}
               >
-                Valor Líquido
+                VALOR LÍQUIDO
               </button>
               {form.netCalculated !== null ? (
                 <span className={styles.netValueBadge}>
@@ -1448,7 +1470,7 @@ function ExpenseModal({
               onClick={onReset}
               disabled={submitting}
             >
-              Limpar Tudo
+              LIMPAR TUDO
             </button>
             <button type="submit" className={styles.primaryButton} disabled={submitting}>
               {submitting ? "SALVANDO..." : "FINALIZAR"}

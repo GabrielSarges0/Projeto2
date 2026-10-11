@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Julius+Sans+One&family=Inter:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Jockey+One&family=Julius+Sans+One&family=Inter:wght@300;400;500;600;700;800&display=swap");
 
 :root {
   --fmc-blue: #092a54;
@@ -7,8 +7,8 @@
   --fmc-text: #020202;
   --fmc-muted: #6b7280;
   --fmc-panel-border: #000000;
-  --sidebar-width: 223px;
-  --content-width: 1132px;
+  --sidebar-width: 218px;
+  --content-width: 1148px;
 }
 
 * {
@@ -53,66 +53,66 @@ button {
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 20;
-  width: var(--sidebar-width);
+  width: 218px;
   min-height: 100vh;
   overflow: hidden;
-  background: var(--fmc-blue);
-  border-radius: 0 30px 30px 0;
+  background: #092a54;
+  border-radius: 0;
 }
 
 .sidebar-brand {
-  height: 56px;
-  background: rgba(217, 217, 217, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 218px;
+  height: 218px;
+  background: #092a54;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 60px;
-  height: 56px;
-  background: var(--fmc-blue);
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .sidebar-nav {
-  padding-top: 1px;
+  padding-top: 0px;
 }
 
 .sidebar-link {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 18px;
-  width: 223px;
-  height: 54px;
-  padding: 0 14px 0 17px;
+  width: 218px;
+  height: 36px;
+  padding: 0 0 0 41px;
   color: #ffffff;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 500;
   line-height: 17px;
-  transition: background 160ms ease, transform 160ms ease;
+  transition: background 160ms ease;
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .sidebar-link-active {
-  background: linear-gradient(90deg, #c3a95e 56.73%, rgba(127, 103, 35, 0) 100%);
+  width: 205px;
+  height: 37px;
+  background: linear-gradient(89.98deg, #d4b35a 0.02%, rgba(249, 227, 142, 0) 98.03%);
+  border-radius: 0px 20px 20px 0px;
 }
 
 .sidebar-link-active:hover {
-  background: linear-gradient(90deg, #c3a95e 56.73%, rgba(127, 103, 35, 0) 100%);
+  background: linear-gradient(89.98deg, #d4b35a 0.02%, rgba(249, 227, 142, 0) 98.03%);
 }
 
-.sidebar-icon {
-  flex: 0 0 auto;
-  width: 25px;
-  height: 25px;
-}
 
 .app-main {
   min-height: 100vh;

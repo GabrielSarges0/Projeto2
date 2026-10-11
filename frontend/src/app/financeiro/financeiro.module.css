@@ -1,172 +1,178 @@
 .financeShell {
   min-height: 100vh;
-  background: #ececec;
+  background: #ffffff;
   color: #000000;
 }
 
 .financeMain {
   min-height: 100vh;
-  margin-left: 223px;
-  background: #ececec;
+  margin-left: 218px;
+  background: #ffffff;
 }
 
 .financeCanvas {
   position: relative;
-  width: min(1132px, calc(100vw - 235px));
-  min-height: 738px;
-  margin-left: 6px;
-  padding-top: 10px;
-  padding-bottom: 9px;
+  width: min(1148px, calc(100vw - 218px));
+  min-height: 700px;
+  margin: 0 auto;
+  padding: 18px 24px 28px;
 }
 
 .pageTitle {
   width: max-content;
   margin: 0 auto;
   font-family: "Julius Sans One", Inter, "Segoe UI", Arial, sans-serif;
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 700;
   letter-spacing: 0.08em;
-  line-height: 24px;
+  line-height: 26px;
 }
 
 .periodControls {
   position: absolute;
-  top: 9px;
-  left: 5px;
+  top: 18px;
+  left: 24px;
   z-index: 2;
   display: flex;
-  gap: 26px;
+  gap: 20px;
 }
 
 .periodSelect,
 .periodSelectSmall {
   display: block;
-  height: 23px;
+  height: 26px;
 }
 
 .periodSelect select,
 .periodSelectSmall select {
-  height: 23px;
-  padding: 0 26px 0 12px;
-  border: 0;
-  border-radius: 1px;
+  height: 26px;
+  padding: 0 24px 0 12px;
+  border: 1px solid #c1c1c1;
+  border-radius: 4px;
   outline: 0;
-  background: #f3f3f3;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   color: #000000;
-  font-size: 15px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 18px;
   cursor: pointer;
 }
 
 .periodSelect select {
-  width: 123px;
+  width: 130px;
 }
 
 .periodSelectSmall select {
-  width: 105px;
+  width: 90px;
 }
 
 .summaryGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 12px;
+  gap: 16px;
+  margin-top: 22px;
 }
 
 .summaryCard {
-  display: grid;
-  grid-template-columns: 44px 1fr;
+  display: flex;
   align-items: center;
-  height: 67px;
+  justify-content: center;
+  height: 98px;
   min-width: 0;
   background: #ffffff;
-  border: 0.25px solid #c1c1c1;
+  border: 1px solid #c1c1c1;
   border-radius: 8px;
   box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
 }
 
 .summaryIcon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 100%;
-  color: #000000;
-}
-
-.summaryIcon svg {
-  width: 25px;
-  height: 25px;
-  stroke-width: 2.2;
+  display: none;
 }
 
 .summaryContent {
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  min-width: 0;
-  padding-right: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .summaryContent strong {
   color: #092a54;
-  font-family: "Julius Sans One", Inter, sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  line-height: 20px;
+  font-family: "Jockey One", sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 42px;
+  letter-spacing: 0.02em;
 }
 
 .summaryContent span {
-  margin-top: 1px;
+  margin-top: -2px;
   color: #000000;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 22px;
+  font-family: "Jockey One", sans-serif;
+  font-size: 35px;
+  font-weight: 400;
+  line-height: 49px;
   white-space: nowrap;
 }
 
 .transactionsGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 12px;
+  gap: 16px;
+  margin-top: 20px;
 }
 
 .transactionPanel {
   position: relative;
-  height: 433px;
+  height: 480px;
   min-width: 0;
   overflow: hidden;
   background: #ffffff;
-  border: 0.25px solid #c1c1c1;
+  border: 1px solid #000000;
   border-radius: 8px;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.15);
 }
+
 
 .panelHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 41px;
-  padding: 8px 16px 6px;
+  min-height: 48px;
+  padding: 14px 25px 10px;
+}
+
+.panelHeaderTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .panelHeader h2 {
   margin: 0;
-  color: #000000;
-  font-family: "Julius Sans One", Inter, sans-serif;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  line-height: 22px;
+  color: #0e1a29;
+  font-family: "Inter", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.panelMonth {
+  color: #312911;
+  font-family: "Inter", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 24px;
 }
 
 .iconButton {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 25px;
+  height: 25px;
   padding: 0;
   border: 1px solid #000000;
   border-radius: 50%;
@@ -182,36 +188,37 @@
 }
 
 .iconButton svg {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
 }
 
 .manualEntryButton {
   position: absolute;
-  z-index: 3;
-  top: 39px;
-  right: 17px;
-  width: 146px;
-  height: 22px;
-  padding: 0 15px;
-  border: 0;
-  background: #ececec;
+  z-index: 10;
+  top: 45px;
+  right: 25px;
+  width: 229px;
+  height: 28px;
+  padding: 0 16px;
+  border: 0.5px solid #000000;
+  background: #d9d9d9;
   color: #000000;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 13px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 16px;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .manualEntryButton:hover {
-  background: #afafaf;
+  background: #c8c8c8;
 }
 
 .emptyState {
   position: absolute;
-  inset: 41px 22px 0 16px;
+  inset: 48px 22px 0 16px;
   display: grid;
   place-items: center;
   color: #000000;
@@ -247,16 +254,16 @@
   display: grid;
   grid-template-columns: minmax(0, 954px) 167px;
   gap: 11px;
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
 .remindersPanel {
   position: relative;
   height: 163px;
   background: #ffffff;
-  border: 0.25px solid #c1c1c1;
+  border: 1px solid #000000;
   border-radius: 8px;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.15);
 }
 
 .reminderEmpty {
@@ -320,30 +327,30 @@
 .entryModal {
   position: relative;
   width: min(840px, 100%);
-  min-height: 607px;
+  min-height: 646px;
   max-height: calc(100vh - 48px);
   overflow: auto;
-  padding: 10px 22px 18px;
+  padding: 24px 32px;
   border-radius: 8px;
-  background: #bab6b6;
-  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.25);
+  background: #d7edff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
 .modalTitle {
-  margin: 0 auto 10px;
+  margin: 0 auto 16px;
   color: #000000;
-  font-family: "Julius Sans One", "Segoe UI", Arial, sans-serif;
-  font-size: 24px;
-  font-weight: 700;
+  font-family: "Julius Sans One", sans-serif;
+  font-size: 22px;
+  font-weight: 400;
   letter-spacing: 0.08em;
-  line-height: 28px;
+  line-height: 24px;
   text-align: center;
 }
 
 .modalClose {
   position: absolute;
-  top: 7px;
-  right: 8px;
+  top: 14px;
+  right: 18px;
   display: grid;
   place-items: center;
   width: 22px;
@@ -351,13 +358,14 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: transparent;
+  background: #bab6b6;
+  color: #000000;
   cursor: pointer;
 }
 
 .modalClose svg {
-  width: 22px;
-  height: 22px;
+  width: 14px;
+  height: 14px;
 }
 
 .entryForm {
@@ -389,12 +397,13 @@
 .blockTitle {
   padding: 0;
   color: #000000;
-  font-family: "Julius Sans One", Inter, sans-serif;
-  font-size: 20px;
+  font-family: "Inter", sans-serif;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  line-height: 26px;
+  letter-spacing: 0.02em;
+  line-height: 27px;
 }
+
 
 .documentTypeRow {
   display: flex;
@@ -420,22 +429,21 @@
 }
 
 .clearDocumentType {
-  display: grid;
-  place-items: center;
-  width: 21px;
-  height: 20px;
   margin-left: auto;
-  padding: 0;
+  padding: 2px 4px;
   border: 0;
-  border-radius: 3px;
-  background: #ac0000;
-  color: #ffffff;
+  background: transparent;
+  color: #ac0000;
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 12px;
   cursor: pointer;
+  text-transform: uppercase;
 }
 
-.clearDocumentType svg {
-  width: 12px;
-  height: 12px;
+.clearDocumentType:hover {
+  text-decoration: underline;
 }
 
 .textInput {
@@ -599,13 +607,15 @@
 
 .netValueButton {
   width: 153px;
-  height: 43px;
+  height: 46px;
   border: 0;
   border-radius: 8px;
   background: #22487a;
   color: #ffffff;
-  font-size: 18px;
+  font-family: "Inter", sans-serif;
+  font-size: 20px;
   font-weight: 700;
+  line-height: 24px;
   cursor: pointer;
   transition: background 140ms ease;
 }
@@ -644,26 +654,30 @@
 
 .secondaryButton {
   width: 143px;
-  height: 43px;
+  height: 46px;
   border: 0;
   border-radius: 8px;
   background: #22487a;
   color: #ffffff;
-  font-size: 18px;
+  font-family: "Inter", sans-serif;
+  font-size: 20px;
   font-weight: 700;
+  line-height: 24px;
   cursor: pointer;
   transition: background 140ms ease;
 }
 
 .primaryButton {
-  width: 143px;
-  height: 43px;
+  width: 137px;
+  height: 46px;
   border: 0;
   border-radius: 8px;
   background: #004aad;
   color: #ffffff;
-  font-size: 18px;
+  font-family: "Inter", sans-serif;
+  font-size: 20px;
   font-weight: 700;
+  line-height: 24px;
   cursor: pointer;
   transition: background 140ms ease;
 }

@@ -1,0 +1,536 @@
+.documentosShell {
+  min-height: 100vh;
+  background: #ffffff;
+  color: #000000;
+}
+
+.documentosMain {
+  min-height: 100vh;
+  margin-left: 218px;
+  background: #ffffff;
+}
+
+.documentosCanvas {
+  position: relative;
+  width: min(1148px, calc(100vw - 218px));
+  min-height: 700px;
+  margin: 0 auto;
+  padding: 37px 24px 40px;
+}
+
+/* Toolbar de Ações e Busca do Figma */
+.topToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 43px;
+  margin-bottom: 28px;
+}
+
+.leftActionGroup {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.actionIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #092a54;
+  cursor: pointer;
+  transition: transform 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.actionIconBtn:hover {
+  transform: scale(1.1);
+  color: #31739c;
+}
+
+.qrIconBtn {
+  width: 32px;
+  height: 32px;
+}
+
+.addIconBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #092a54;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(9, 42, 84, 0.25);
+}
+
+.addIconBtn:hover {
+  background: #31739c;
+  color: #ffffff;
+}
+
+.sendIconBtn {
+  width: 36px;
+  height: 36px;
+  color: #092a54;
+}
+
+/* Barra de Busca Exata do Figma */
+.searchBarContainer {
+  display: flex;
+  align-items: center;
+  height: 43px;
+}
+
+.searchIconBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 43px;
+  height: 43px;
+  background: #485057;
+  border-radius: 4px 0px 0px 4px;
+  color: #ffffff;
+  border: 0;
+  padding: 0;
+}
+
+.searchInput {
+  width: 467px;
+  max-width: calc(100vw - 420px);
+  height: 43px;
+  padding: 0 16px;
+  background: #ffffff;
+  border-width: 1px 0px;
+  border-style: solid;
+  border-color: #485057;
+  color: #000000;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 17px;
+  outline: 0;
+}
+
+.searchInput::placeholder {
+  color: #000000;
+  opacity: 0.85;
+}
+
+.filterIconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 43px;
+  height: 43px;
+  background: #485057;
+  border-radius: 0px 4px 4px 0px;
+  color: #ffffff;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.filterIconBtn:hover {
+  background: #343a40;
+}
+
+.filterIconBtnActive {
+  background: #092a54;
+}
+
+/* Categorias / Abas */
+.categoryTabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.tabBtn {
+  padding: 8px 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 20px;
+  background: #f9fafb;
+  color: #374151;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 140ms ease;
+}
+
+.tabBtn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.tabBtnActive {
+  background: #092a54;
+  color: #ffffff;
+  border-color: #092a54;
+  box-shadow: 0 2px 4px rgba(9, 42, 84, 0.2);
+}
+
+/* Área de Listagem de Documentos */
+.documentsPanel {
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 8px;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.panelTopHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.panelTopHeader h2 {
+  margin: 0;
+  color: #0e1a29;
+  font-family: "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.panelCountBadge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.docTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+  font-family: "Inter", sans-serif;
+}
+
+.docTable th {
+  padding: 12px 20px;
+  font-weight: 600;
+  color: #4b5563;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+.docTable td {
+  padding: 14px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+  vertical-align: middle;
+}
+
+.docRow:hover {
+  background: #f8fafc;
+}
+
+.protocolBadge {
+  font-family: monospace;
+  font-weight: 700;
+  color: #092a54;
+  background: #eef2ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.docTitleCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.docTitle {
+  font-weight: 600;
+  color: #111827;
+}
+
+.docSubtitle {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.statusTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusValido {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusPendente {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.statusArquivado {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.actionsCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionBtnSmall {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.actionBtnSmall:hover {
+  background: #092a54;
+  color: #ffffff;
+  border-color: #092a54;
+}
+
+.emptyDocs {
+  padding: 48px 24px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Modais Específicos de Documentos */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.docModalCard {
+  position: relative;
+  width: min(620px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 28px 32px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  border: 1px solid #c1c1c1;
+}
+
+.docModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.docModalHeader h2 {
+  margin: 0;
+  color: #092a54;
+  font-family: "Inter", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.closeCircleBtn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #bab6b6;
+  color: #000000;
+  cursor: pointer;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.formGroup label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.formInput {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #000000;
+  outline: 0;
+}
+
+.formInput:focus {
+  border-color: #092a54;
+  box-shadow: 0 0 0 2px rgba(9, 42, 84, 0.2);
+}
+
+.formTextarea {
+  min-height: 70px;
+  padding: 8px 12px;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #000000;
+  outline: 0;
+  resize: vertical;
+}
+
+.fileDropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  border: 2px dashed #9ca3af;
+  border-radius: 6px;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+  text-align: center;
+  gap: 8px;
+}
+
+.fileDropzone:hover {
+  border-color: #092a54;
+  background: #f0fdf4;
+}
+
+.modalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cancelBtn {
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirmBtn {
+  height: 40px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 6px;
+  background: #092a54;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.confirmBtn:hover {
+  background: #18395f;
+}
+
+/* Scanner QR Viewfinder */
+.scannerViewfinder {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  background: #111827;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.scanLine {
+  position: absolute;
+  top: 20%;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  animation: scanAnim 2.5s infinite ease-in-out;
+}
+
+@keyframes scanAnim {
+  0%, 100% {
+    top: 20%;
+  }
+  50% {
+    top: 80%;
+  }
+}
+
+.toastAlert {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  border-left: 4px solid #22c55e;
+  font-size: 14px;
+  font-weight: 500;
+}
