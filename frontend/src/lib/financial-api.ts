@@ -69,6 +69,43 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+export type PropertyItem = {
+  id: number;
+  registrationCode: string;
+  address: string;
+  currentTenant: string;
+  monthlyRent: number;
+  status: string;
+};
+
+export type PropertyMetrics = {
+  totalProperties: number;
+  occupied: number;
+  available: number;
+  underMaintenance: number;
+};
+
+export type LeaseContract = {
+  id: number;
+  propertyRegistration: string;
+  tenantName: string;
+  startDate: string;
+  endDate: string;
+  monthlyAmount: number;
+  status: string;
+};
+
+export type ReminderItem = {
+  id: number;
+  text: string;
+  done: boolean;
+  createdAt: string;
+};
+
+export type CreateReminderRequest = {
+  text: string;
+};
+
 function periodQuery(month: number, year: number) {
   return `?month=${encodeURIComponent(month)}&year=${encodeURIComponent(year)}`;
 }
@@ -79,6 +116,9 @@ export const financialApi = {
 
   movements: (month: number, year: number) =>
     request<FinancialMovement[]>(`/api/v1/financial/movements${periodQuery(month, year)}`),
+
+  allMovements: () =>
+    request<FinancialMovement[]>("/api/v1/financial/all"),
 
   createIncome: (payload: CreateIncomeRequest) =>
     request<FinancialMovement>("/api/v1/financial/incomes", {
@@ -97,3 +137,36 @@ export const financialApi = {
       method: "DELETE",
     }),
 };
+
+export const propertiesApi = {
+  list: () =>
+    request<PropertyItem[]>("/api/v1/properties"),
+
+  metrics: () =>
+    request<PropertyMetrics>("/api/v1/properties/metrics"),
+
+  expiringContracts: () =>
+    request<LeaseContract[]>("/api/v1/properties/contracts/expiring"),
+};
+
+export const remindersApi = {
+  list: () =>
+    request<ReminderItem[]>("/api/v1/reminders"),
+
+  create: (payload: CreateReminderRequest) =>
+    request<ReminderItem>("/api/v1/reminders", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  toggle: (id: number) =>
+    request<ReminderItem>(`/api/v1/reminders/${id}/toggle`, {
+      method: "PATCH",
+    }),
+
+  delete: (id: number) =>
+    request<void>(`/api/v1/reminders/${id}`, {
+      method: "DELETE",
+    }),
+};
+

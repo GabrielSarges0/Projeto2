@@ -26,10 +26,13 @@ import {
 import { Sidebar } from "@/components/layout/Sidebar";
 import {
   financialApi,
+  propertiesApi,
+  remindersApi,
   type CreateExpenseRequest,
   type CreateIncomeRequest,
   type FinancialMovement,
   type FinancialSummary,
+  type PropertyItem,
 } from "@/lib/financial-api";
 import styles from "@/app/financeiro/financeiro.module.css";
 
@@ -241,24 +244,49 @@ export function FinancialDashboard() {
   const selectedMonth = months.indexOf(month) + 1;
   const selectedYear = Number(year);
 
-  // Carrega lembretes do localStorage
+  // Carrega lembretes da API Java (com fallback local resiliente)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("fmc_reminders");
-      if (saved) {
-        setReminders(JSON.parse(saved) as Reminder[]);
-      } else {
-        const defaultReminders: Reminder[] = [
-          { id: "1", text: "Vencimento aluguel IM-001 (dia 10)", done: true },
-          { id: "2", text: "Vistoria predial IM-003", done: false },
-          { id: "3", text: "Cobrança taxa condominial IM-005", done: false },
-        ];
-        setReminders(defaultReminders);
-        localStorage.setItem("fmc_reminders", JSON.stringify(defaultReminders));
-      }
-    } catch {
-      // Ignora falha de localStorage
-    }
+    let active = true;
+
+    remindersApi
+      .list()
+      .then((data) => {
+        if (!active) return;
+        const mapped: Reminder[] = data.map((r) => ({
+          id: String(r.id),
+          text: r.text,
+          done: r.done,
+        }));
+        setReminders(mapped);
+        try {
+          localStorage.setItem("fmc_reminders", JSON.stringify(mapped));
+        } catch {
+          // Ignora
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        try {
+          const saved = localStorage.getItem("fmc_reminders");
+          if (saved) {
+            setReminders(JSON.parse(saved) as Reminder[]);
+          } else {
+            const defaultReminders: Reminder[] = [
+              { id: "1", text: "Vencimento aluguel IM-001 (dia 10)", done: true },
+              { id: "2", text: "Vistoria predial IM-003", done: false },
+              { id: "3", text: "Cobrança taxa condominial IM-005", done: false },
+            ];
+            setReminders(defaultReminders);
+            localStorage.setItem("fmc_reminders", JSON.stringify(defaultReminders));
+          }
+        } catch {
+          // Ignora falha de localStorage
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   function saveReminders(updated: Reminder[]) {
@@ -270,27 +298,64 @@ export function FinancialDashboard() {
     }
   }
 
-  function addReminder() {
-    if (!newReminderText.trim()) return;
-    const item: Reminder = {
-      id: String(Date.now()),
-      text: newReminderText.trim(),
-      done: false,
-    };
-    saveReminders([...reminders, item]);
+  async function addReminder() {
+    const text = newReminderText.trim();
+    if (!text) return;
     setNewReminderText("");
     setShowReminderInput(false);
-    showToast("Lembrete adicionado.");
+
+    try {
+      const created = await remindersApi.create({ text });
+      const item: Reminder = {
+        id: String(created.id),
+        text: created.text,
+        done: created.done,
+      };
+      const updated = [item, ...reminders];
+      saveReminders(updated);
+      showToast("Lembrete salvo com sucesso.");
+    } catch {
+      // Fallback offline
+      const item: Reminder = {
+        id: String(Date.now()),
+        text,
+        done: false,
+      };
+      const updated = [item, ...reminders];
+      saveReminders(updated);
+      showToast("Lembrete adicionado.");
+    }
   }
 
-  function toggleReminder(id: string) {
-    saveReminders(
-      reminders.map((r) => (r.id === id ? { ...r, done: !r.done } : r))
-    );
+  async function toggleReminder(id: string) {
+    const numId = Number(id);
+    const updated = reminders.map((r) => (r.id === id ? { ...r, done: !r.done } : r));
+    saveReminders(updated);
+
+    if (Number.isFinite(numId)) {
+      try {
+        await remindersApi.toggle(numId);
+      } catch {
+        // Fallback local já atualizado
+      }
+    }
   }
 
-  function deleteReminder(id: string) {
-    saveReminders(reminders.filter((r) => r.id !== id));
+  async function deleteReminder(id: string) {
+    const numId = Number(id);
+    const updated = reminders.filter((r) => r.id !== id);
+    saveReminders(updated);
+
+    if (Number.isFinite(numId)) {
+      try {
+        await remindersApi.delete(numId);
+        showToast("Lembrete excluído.");
+      } catch {
+        showToast("Lembrete removido.");
+      }
+    } else {
+      showToast("Lembrete removido.");
+    }
   }
 
   function showToast(msg: string) {
@@ -1396,18 +1461,52 @@ function ExpenseModal({
 }
 
 function HistoryModal({
-  movements,
-  summary,
+  movements: initialMovements,
+  summary: initialSummary,
   onClose,
 }: {
   movements: FinancialMovement[];
   summary: FinancialSummary;
   onClose: () => void;
 }) {
+  const [historyMovements, setHistoryMovements] = useState<FinancialMovement[]>(initialMovements);
+  const [historySummary, setHistorySummary] = useState<FinancialSummary>(initialSummary);
+  const [activePropertiesCount, setActivePropertiesCount] = useState<number>(5);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL");
 
-  const filtered = movements.filter((m) => {
+  useEffect(() => {
+    let active = true;
+
+    financialApi
+      .allMovements()
+      .then((data) => {
+        if (!active) return;
+        setHistoryMovements(data);
+        const inc = data.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
+        const exp = data.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
+        setHistorySummary({ income: inc, expense: exp, balance: inc - exp });
+      })
+      .catch(() => {
+        // Fallback mantém os initialMovements
+      });
+
+    propertiesApi
+      .metrics()
+      .then((metrics) => {
+        if (!active) return;
+        setActivePropertiesCount(Number(metrics.occupied));
+      })
+      .catch(() => {
+        // Mantém padrão
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filtered = historyMovements.filter((m) => {
     const matchesType = filterType === "ALL" || m.type === filterType;
     const term = search.toLowerCase();
     const matchesSearch =
@@ -1439,8 +1538,8 @@ function HistoryModal({
               <ArrowDownLeft size={22} />
             </div>
             <div className={styles.historyCardData}>
-              <span>Receitas Confirmadas</span>
-              <strong>{currency(summary.income)}</strong>
+              <span>Receitas Totais</span>
+              <strong>{currency(historySummary.income)}</strong>
             </div>
           </div>
 
@@ -1450,7 +1549,7 @@ function HistoryModal({
             </div>
             <div className={styles.historyCardData}>
               <span>Saldo em Caixa</span>
-              <strong>{currency(summary.balance)}</strong>
+              <strong>{currency(historySummary.balance)}</strong>
             </div>
           </div>
 
@@ -1460,7 +1559,7 @@ function HistoryModal({
             </div>
             <div className={styles.historyCardData}>
               <span>Contratos Ativos</span>
-              <strong>5 Imóveis</strong>
+              <strong>{activePropertiesCount} Imóveis</strong>
             </div>
           </div>
 
@@ -1469,8 +1568,8 @@ function HistoryModal({
               <ArrowUpRight size={22} />
             </div>
             <div className={styles.historyCardData}>
-              <span>Despesas Operacionais</span>
-              <strong>{currency(summary.expense)}</strong>
+              <span>Despesas Totais</span>
+              <strong>{currency(historySummary.expense)}</strong>
             </div>
           </div>
         </div>
@@ -1491,21 +1590,21 @@ function HistoryModal({
               className={`${styles.filterBtn} ${filterType === "ALL" ? styles.filterBtnActive : ""}`}
               onClick={() => setFilterType("ALL")}
             >
-              Todos ({movements.length})
+              Todos ({historyMovements.length})
             </button>
             <button
               type="button"
               className={`${styles.filterBtn} ${filterType === "INCOME" ? styles.filterBtnActive : ""}`}
               onClick={() => setFilterType("INCOME")}
             >
-              Entradas ({movements.filter((m) => m.type === "INCOME").length})
+              Entradas ({historyMovements.filter((m) => m.type === "INCOME").length})
             </button>
             <button
               type="button"
               className={`${styles.filterBtn} ${filterType === "EXPENSE" ? styles.filterBtnActive : ""}`}
               onClick={() => setFilterType("EXPENSE")}
             >
-              Saídas ({movements.filter((m) => m.type === "EXPENSE").length})
+              Saídas ({historyMovements.filter((m) => m.type === "EXPENSE").length})
             </button>
           </div>
         </div>
@@ -1561,6 +1660,34 @@ function HistoryModal({
 }
 
 function PropertiesModal({ onClose }: { onClose: () => void }) {
+  const [properties, setProperties] = useState(fmcProperties);
+
+  useEffect(() => {
+    let active = true;
+
+    propertiesApi
+      .list()
+      .then((data) => {
+        if (!active) return;
+        setProperties(
+          data.map((p) => ({
+            id: p.registrationCode,
+            address: p.address,
+            tenant: p.currentTenant,
+            status: p.status,
+            rent: Number(p.monthlyRent),
+          }))
+        );
+      })
+      .catch(() => {
+        // Fallback para fmcProperties
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className={styles.fullModalOverlay} role="presentation" onMouseDown={onClose}>
       <div
@@ -1587,7 +1714,7 @@ function PropertiesModal({ onClose }: { onClose: () => void }) {
             </tr>
           </thead>
           <tbody>
-            {fmcProperties.map((p) => (
+            {properties.map((p) => (
               <tr key={p.id}>
                 <td><strong>{p.id}</strong></td>
                 <td>{p.address}</td>

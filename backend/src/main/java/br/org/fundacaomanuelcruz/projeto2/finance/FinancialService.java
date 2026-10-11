@@ -37,6 +37,13 @@ public class FinancialService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<FinancialMovementResponse> allMovements() {
+        return repository.findAllByOrderByTransactionDateDescIdDesc().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     @Transactional
     public FinancialMovementResponse createIncome(CreateIncomeRequest request) {
         if (!documentValidator.isValid(request.documentType(), request.documentNumber())) {

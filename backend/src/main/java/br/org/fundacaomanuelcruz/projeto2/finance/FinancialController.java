@@ -43,6 +43,11 @@ public class FinancialController {
         return service.movements(month, year);
     }
 
+    @GetMapping("/all")
+    public List<FinancialMovementResponse> allMovements() {
+        return service.allMovements();
+    }
+
     @PostMapping("/incomes")
     public ResponseEntity<FinancialMovementResponse> createIncome(
             @Valid @RequestBody CreateIncomeRequest request) {

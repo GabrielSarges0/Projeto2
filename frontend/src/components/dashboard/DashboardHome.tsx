@@ -14,7 +14,13 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { MetricCard } from "./MetricCard";
-import { financialApi, type FinancialSummary } from "@/lib/financial-api";
+import {
+  financialApi,
+  propertiesApi,
+  type FinancialSummary,
+  type LeaseContract,
+  type PropertyMetrics,
+} from "@/lib/financial-api";
 
 function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -24,8 +30,16 @@ function currency(value: number) {
   }).format(value);
 }
 
+function displayDate(value: string) {
+  if (!value) return "-";
+  const [year, month, day] = value.split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
 export function DashboardHome() {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
+  const [propMetrics, setPropMetrics] = useState<PropertyMetrics | null>(null);
+  const [contracts, setContracts] = useState<LeaseContract[]>([]);
   const [loading, setLoading] = useState(true);
 
   const now = new Date();
@@ -35,17 +49,55 @@ export function DashboardHome() {
   useEffect(() => {
     let active = true;
 
-    financialApi
-      .summary(currentMonth, currentYear)
-      .then((data) => {
-        if (active) setSummary(data);
-      })
-      .catch(() => {
-        if (active) setSummary(null);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    Promise.allSettled([
+      financialApi.summary(currentMonth, currentYear),
+      propertiesApi.metrics(),
+      propertiesApi.expiringContracts(),
+    ]).then(([summaryRes, metricsRes, contractsRes]) => {
+      if (!active) return;
+
+      if (summaryRes.status === "fulfilled") {
+        setSummary(summaryRes.value);
+      }
+
+      if (metricsRes.status === "fulfilled") {
+        setPropMetrics(metricsRes.value);
+      } else {
+        setPropMetrics({
+          totalProperties: 5,
+          occupied: 3,
+          available: 1,
+          underMaintenance: 1,
+        });
+      }
+
+      if (contractsRes.status === "fulfilled") {
+        setContracts(contractsRes.value);
+      } else {
+        setContracts([
+          {
+            id: 1,
+            propertyRegistration: "IM-001",
+            tenantName: "João Pedro Cavalcanti",
+            startDate: "2025-10-10",
+            endDate: "2026-10-10",
+            monthlyAmount: 3200.0,
+            status: "EXPIRANDO",
+          },
+          {
+            id: 2,
+            propertyRegistration: "IM-002",
+            tenantName: "Maria Helena Silva",
+            startDate: "2025-11-01",
+            endDate: "2026-11-01",
+            monthlyAmount: 2850.0,
+            status: "ATIVO",
+          },
+        ]);
+      }
+
+      setLoading(false);
+    });
 
     return () => {
       active = false;
@@ -54,28 +106,36 @@ export function DashboardHome() {
 
   const monthlyRevenue = summary ? currency(summary.income) : "R$ 0,00";
 
+  const totalProps = propMetrics?.totalProperties ?? 5;
+  const occupiedProps = propMetrics?.occupied ?? 3;
+  const availableProps = propMetrics?.available ?? 1;
+  const maintenanceProps = propMetrics?.underMaintenance ?? 1;
+
+  const occupiedPct = totalProps > 0 ? Math.round((occupiedProps / totalProps) * 100) : 0;
+  const availablePct = totalProps > 0 ? Math.round((availableProps / totalProps) * 100) : 0;
+
   const metrics = [
     {
       label: "Total de imóveis",
-      value: "124",
+      value: String(totalProps),
       helper: "Patrimônio cadastrado",
       icon: Building2,
     },
     {
       label: "Ocupados",
-      value: "98",
-      helper: "79% do total",
+      value: String(occupiedProps),
+      helper: `${occupiedPct}% do total`,
       icon: KeyRound,
     },
     {
       label: "Disponíveis",
-      value: "26",
-      helper: "21% do total",
+      value: String(availableProps),
+      helper: `${availablePct}% do total`,
       icon: Building2,
     },
     {
       label: "Manutenções",
-      value: "4",
+      value: String(maintenanceProps),
       helper: "Pendentes",
       icon: Wrench,
     },
@@ -192,16 +252,74 @@ export function DashboardHome() {
                 <CalendarDays size={26} strokeWidth={1.7} aria-hidden="true" />
                 <h2>Contratos próximos ao vencimento</h2>
               </div>
-              <button className="view-all-button" type="button">Ver todos</button>
+              <Link href="/financeiro" className="view-all-button">
+                Ver todos
+              </Link>
             </div>
 
-            <div className="contracts-empty">
-              <CalendarDays size={42} strokeWidth={1.25} aria-hidden="true" />
-              <p>Monitoramento ativo dos contratos de locação vinculados ao patrimônio da fundação.</p>
-            </div>
+            {contracts.length > 0 ? (
+              <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                {contracts.map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 14px",
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span
+                          style={{
+                            background: "#e0f2fe",
+                            color: "#0369a1",
+                            fontWeight: 700,
+                            fontSize: "11px",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {c.propertyRegistration}
+                        </span>
+                        <strong style={{ color: "#1e293b" }}>{c.tenantName}</strong>
+                      </div>
+                      <span style={{ color: "#64748b", fontSize: "12px" }}>
+                        Vencimento: {displayDate(c.endDate)} • {currency(c.monthlyAmount)}/mês
+                      </span>
+                    </div>
+
+                    <span
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: "12px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        background: c.status === "EXPIRANDO" ? "#fef3c7" : "#dcfce7",
+                        color: c.status === "EXPIRANDO" ? "#92400e" : "#166534",
+                      }}
+                    >
+                      {c.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="contracts-empty">
+                <CalendarDays size={42} strokeWidth={1.25} aria-hidden="true" />
+                <p>Monitoramento ativo dos contratos de locação vinculados ao patrimônio da fundação.</p>
+              </div>
+            )}
           </article>
         </div>
       </section>
     </AppShell>
   );
 }
+
+

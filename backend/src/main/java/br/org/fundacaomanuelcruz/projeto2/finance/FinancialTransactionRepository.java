@@ -10,4 +10,6 @@ public interface FinancialTransactionRepository extends JpaRepository<FinancialT
     List<FinancialTransaction> findByTransactionDateBetweenOrderByTransactionDateDescIdDesc(
             LocalDate start,
             LocalDate end);
+
+    List<FinancialTransaction> findAllByOrderByTransactionDateDescIdDesc();
 }
