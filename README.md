@@ -22,9 +22,16 @@ O projeto é dividido em uma arquitetura desacoplada:
   - **Ícones**: Lucide React.
   - **Módulos**: Visão Geral (Dashboard Home), Painel Financeiro, Estoque, Funcionários, Governança, Ministério Público, Documentos e Configurações.
 
+## 🌐 Acesso Online (Vercel)
+
+- **Produção Principal:** [https://projeto-dois.vercel.app](https://projeto-dois.vercel.app)
+- **Links Alternativos:**
+  - [https://projeto2-sarges.vercel.app](https://projeto2-sarges.vercel.app)
+  - [https://projeto2-fmc.vercel.app](https://projeto2-fmc.vercel.app)
+
 ---
 
-## 🚀 Como Executar
+## 🚀 Como Executar Localmente
 
 ### Opção 1: Inicialização em 1 Clique (Recomendado)
 Execute no terminal na raiz de `ProjetoDois`:
