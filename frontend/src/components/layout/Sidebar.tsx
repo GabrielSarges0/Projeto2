@@ -9,7 +9,6 @@ import {
   FileText,
   Home,
   Image as ImageIcon,
-  Lock,
   Scale,
   Settings,
 } from "lucide-react";
@@ -21,7 +20,6 @@ const items = [
   { href: "/ministerio-publico", label: "Ministério Público", icon: Scale },
   { href: "/funcionarios", label: "Funcionários", icon: Contact },
   { href: "/estoque", label: "Estoque", icon: Boxes },
-  { href: "/governanca", label: "Acesso e Governança", icon: Lock },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
