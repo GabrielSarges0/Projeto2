@@ -1,3 +1,5 @@
+import { clearAuthToken, getAuthToken } from "./auth";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export type FinancialSummary = {
@@ -36,16 +38,30 @@ type ApiErrorBody = {
   fieldErrors?: Record<string, string>;
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("Usuário ou senha inválidos.");
+    this.name = "UnauthorizedError";
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit, token: string | null = getAuthToken()): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Basic ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
   });
+
+  if (response.status === 401) {
+    // O AuthGate observa a sessão e leva para /login.
+    clearAuthToken();
+    throw new UnauthorizedError();
+  }
 
   if (!response.ok) {
     let message = `Falha na API Java (HTTP ${response.status}).`;
@@ -170,3 +186,13 @@ export const remindersApi = {
     }),
 };
 
+
+export type CurrentUser = {
+  username: string;
+};
+
+export const authApi = {
+  // Valida as credenciais antes de gravá-las: usa o token informado, não o da sessão.
+  verify: (token: string) =>
+    request<CurrentUser>("/api/v1/auth/me", undefined, token),
+};

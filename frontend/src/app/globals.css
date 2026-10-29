@@ -138,6 +138,28 @@ button {
   background: linear-gradient(89.98deg, #d4b35a 0.02%, rgba(249, 227, 142, 0) 98.03%);
 }
 
+.sidebar-logout {
+  margin-top: 12px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-logout:focus-visible {
+  outline: 2px solid var(--fmc-gold);
+  outline-offset: -2px;
+}
+
+.auth-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  color: var(--fmc-muted);
+  font-size: 14px;
+}
+
 
 .app-main {
   min-height: 100vh;
