@@ -37,10 +37,17 @@ O projeto é dividido em uma arquitetura desacoplada:
 
 ## 🌐 Acesso Online (Vercel)
 
-- **Produção Principal:** [https://projeto-dois.vercel.app](https://projeto-dois.vercel.app)
-- **Links Alternativos:**
-  - [https://projeto2-sarges.vercel.app](https://projeto2-sarges.vercel.app)
-  - [https://projeto2-fmc.vercel.app](https://projeto2-fmc.vercel.app)
+- **Produção:** [https://projetocesarschool.vercel.app](https://projetocesarschool.vercel.app) (projeto `projeto_dois` na Vercel)
+- **API:** [https://projeto2-fmc-api.onrender.com/actuator/health](https://projeto2-fmc-api.onrender.com/actuator/health)
+
+## 💻 Editar de qualquer computador (GitHub Codespaces)
+
+1. No GitHub: **Code → Codespaces → Create codespace on main**.
+2. O `.devcontainer/` instala Java 21, Node 24 e as dependências; a cada início faz `git pull`.
+3. Frontend com os dados reais: `cd frontend && npm run dev` (usa a API publicada, definida no secret `NEXT_PUBLIC_API_URL`).
+4. Backend local: `cd backend && ./mvnw spring-boot:run` usa H2 local. Com `SPRING_PROFILES_ACTIVE=prod` usa o banco real e aplica nele as migrations pendentes.
+
+Os segredos ficam em **Settings → Secrets and variables → Codespaces**: `NEXT_PUBLIC_API_URL`, `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, `APP_ADMIN_USER`, `APP_ADMIN_PASSWORD`.
 
 ---
 
