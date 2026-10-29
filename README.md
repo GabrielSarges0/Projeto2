@@ -11,7 +11,7 @@ O projeto é dividido em uma arquitetura desacoplada:
 - **Backend (`/backend`)**:
   - **Framework**: Spring Boot 4 (Java 21).
   - **Persistência**: Spring Data JPA com Hibernate.
-  - **Banco de Dados**: H2 em modo arquivo (`./data/projeto2`), com compatibilidade para PostgreSQL.
+  - **Banco de Dados**: PostgreSQL no Supabase (projeto `Projeto2-FMC`, schema `projeto2`) em produção; H2 em modo arquivo (`./data/projeto2`) só para rodar localmente.
   - **Migrações**: Flyway (`db/migration/V3__financial_transactions.sql`).
   - **Segurança**: Spring Security com CORS configurado para Next.js.
   - **Validações**: Bean Validation com validador de CPF/CNPJ brasileiro.
@@ -21,6 +21,18 @@ O projeto é dividido em uma arquitetura desacoplada:
   - **Estilização**: CSS Modules + Tailwind CSS v4.
   - **Ícones**: Lucide React.
   - **Módulos**: Visão Geral (Dashboard Home), Painel Financeiro, Estoque, Funcionários, Governança, Ministério Público, Documentos e Configurações.
+
+## ☁️ Produção (nada depende de computador local)
+
+| Parte | Onde roda | Como publica |
+|---|---|---|
+| Frontend (`/frontend`) | Vercel | A cada push na `main` (integração Vercel ↔ GitHub, *Root Directory* = `frontend`) |
+| Backend (`/backend`) | Render, plano free (`render.yaml`, `backend/Dockerfile`) | A cada push na `main` que altere `backend/` |
+| Banco | Supabase `Projeto2-FMC` (sa-east-1), schema `projeto2`, usuário `projeto2_app` | Migrations Flyway rodam ao iniciar o backend |
+
+- O backend usa o perfil `prod` (`application-prod.properties`) e lê `DATABASE_URL`, `DATABASE_USER` e `DATABASE_PASSWORD` do Render — nunca do Git.
+- O frontend lê a URL da API de `frontend/.env.production` (`NEXT_PUBLIC_API_URL`).
+- No plano gratuito o Render hiberna após 15 min sem acesso: a primeira requisição depois disso leva ~1 min.
 
 ## 🌐 Acesso Online (Vercel)
 

@@ -1,0 +1,27 @@
+# Blueprint do Render: backend Java da API (o frontend fica na Vercel).
+services:
+  - type: web
+    name: projeto2-fmc-api
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # Formato JDBC (não a URI postgresql:// do Supabase):
+      #   jdbc:postgresql://<host>:5432/postgres?sslmode=require
+      # <host> está em Supabase > Projeto2-FMC > Connect > Session pooler.
+      # Usuário (projeto2_app.<ref do projeto>) e senha vão nas duas variáveis abaixo.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USER
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
