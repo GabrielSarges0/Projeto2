@@ -1,0 +1,24 @@
+# Blueprint do Render: backend Java da API (o frontend fica na Vercel).
+services:
+  - type: web
+    name: projeto2-fmc-api
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # Copie do Supabase (projeto Projeto2-FMC > Connect > Session pooler).
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USER
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
