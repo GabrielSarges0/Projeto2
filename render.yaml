@@ -15,7 +15,10 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      # Copie do Supabase (projeto Projeto2-FMC > Connect > Session pooler).
+      # Formato JDBC (não a URI postgresql:// do Supabase):
+      #   jdbc:postgresql://<host>:5432/postgres?sslmode=require
+      # <host> está em Supabase > Projeto2-FMC > Connect > Session pooler.
+      # Usuário (projeto2_app.<ref do projeto>) e senha vão nas duas variáveis abaixo.
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_USER
