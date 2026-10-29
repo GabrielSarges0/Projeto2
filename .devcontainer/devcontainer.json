@@ -1,0 +1,40 @@
+{
+  "name": "Projeto2 · nuvem",
+  "image": "mcr.microsoft.com/devcontainers/java:1-21-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "hostRequirements": { "cpus": 2, "memory": "8gb" },
+  "forwardPorts": [3000, 8080],
+  "portsAttributes": {
+    "3000": { "label": "Frontend (Next.js)", "visibility": "private", "onAutoForward": "notify" },
+    "8080": { "label": "Backend (Spring Boot)", "visibility": "private", "onAutoForward": "silent" }
+  },
+  "containerEnv": { "NEXT_TELEMETRY_DISABLED": "1" },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "secrets": {
+    "NEXT_PUBLIC_API_URL": { "description": "API usada pelo frontend em `npm run dev` (produção: https://projeto2-fmc-api.onrender.com)." },
+    "DATABASE_URL": { "description": "JDBC do Supabase Projeto2-FMC. Só é usada com SPRING_PROFILES_ACTIVE=prod." },
+    "DATABASE_USER": { "description": "Usuário projeto2_app do Supabase." },
+    "DATABASE_PASSWORD": { "description": "Senha do usuário projeto2_app." },
+    "APP_ADMIN_USER": { "description": "Login do painel no perfil prod." },
+    "APP_ADMIN_PASSWORD": { "description": "Senha do painel no perfil prod (mínimo de 8 caracteres)." }
+  },
+  "customizations": {
+    "codespaces": { "openFiles": ["README.md"] },
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-spring-boot",
+        "dbaeumer.vscode-eslint",
+        "github.vscode-pull-request-github"
+      ],
+      "settings": {
+        "git.autofetch": true,
+        "files.eol": "\n"
+      }
+    }
+  }
+}

@@ -50,4 +50,15 @@ class AuthSecurityTest {
                 .andExpect(header().string("Access-Control-Allow-Origin", "https://projeto-dois.vercel.app"));
         mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
     }
+
+    @Test
+    void frontendNoCodespaceAcessaApi() throws Exception {
+        String codespace = "https://exemplo-3000.app.github.dev";
+        mockMvc.perform(options("/api/v1/auth/me")
+                        .header("Origin", codespace)
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "authorization"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", codespace));
+    }
 }
