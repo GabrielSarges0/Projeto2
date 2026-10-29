@@ -30,7 +30,8 @@ O projeto é dividido em uma arquitetura desacoplada:
 | Backend (`/backend`) | Render, plano free (`render.yaml`, `backend/Dockerfile`) | A cada push na `main` que altere `backend/` |
 | Banco | Supabase `Projeto2-FMC` (sa-east-1), schema `projeto2`, usuário `projeto2_app` | Migrations Flyway rodam ao iniciar o backend |
 
-- O backend usa o perfil `prod` (`application-prod.properties`) e lê `DATABASE_URL`, `DATABASE_USER` e `DATABASE_PASSWORD` do Render — nunca do Git.
+- O backend usa o perfil `prod` (`application-prod.properties`) e lê `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, `APP_ADMIN_USER` e `APP_ADMIN_PASSWORD` do Render — nunca do Git.
+- **Login:** toda a API exige usuário e senha (HTTP Basic sobre HTTPS); o frontend pede em `/login` e guarda só na aba aberta (`sessionStorage`). Localmente, sem variáveis, o login é `admin` / `admin12345`.
 - O frontend lê a URL da API de `frontend/.env.production` (`NEXT_PUBLIC_API_URL`).
 - No plano gratuito o Render hiberna após 15 min sem acesso: a primeira requisição depois disso leva ~1 min.
 
@@ -83,7 +84,10 @@ Base URL: `http://localhost:8080/api/v1/financial`
 | `POST` | `/incomes` | Registra nova receita de aluguel (com validação de CPF/CNPJ) |
 | `POST` | `/expenses` | Registra nova saída/despesa operacional (prestador, reforma, etc.) |
 | `DELETE` | `/transactions/{id}` | Exclui movimentação financeira por ID |
-| `GET` | `/actuator/health` | Health check da aplicação |
+| `GET` | `/actuator/health` | Health check da aplicação (público) |
+| `GET` | `/api/v1/auth/me` | Valida o login e devolve o usuário |
+
+Todas as rotas `/api/**` exigem `Authorization: Basic …`.
 
 ---
 

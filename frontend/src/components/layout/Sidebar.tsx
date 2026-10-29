@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
   CircleDollarSign,
@@ -9,9 +9,11 @@ import {
   FileText,
   Home,
   Image as ImageIcon,
+  LogOut,
   Scale,
   Settings,
 } from "lucide-react";
+import { clearAuthToken } from "@/lib/auth";
 
 const items = [
   { href: "/", label: "Painel", icon: Home },
@@ -25,6 +27,12 @@ const items = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  function handleLogout() {
+    clearAuthToken();
+    router.replace("/login");
+  }
 
   return (
     <aside className="sidebar" aria-label="Navegação principal">
@@ -53,6 +61,10 @@ export function Sidebar() {
             </Link>
           );
         })}
+        <button type="button" className="sidebar-link sidebar-logout" onClick={handleLogout}>
+          <LogOut size={18} className="sidebar-link-icon" aria-hidden="true" />
+          <span>Sair</span>
+        </button>
       </nav>
     </aside>
   );

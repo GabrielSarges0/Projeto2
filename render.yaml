@@ -25,3 +25,8 @@ services:
         sync: false
       - key: DATABASE_PASSWORD
         sync: false
+      # Login do painel (senha com no mínimo 8 caracteres).
+      - key: APP_ADMIN_USER
+        sync: false
+      - key: APP_ADMIN_PASSWORD
+        sync: false
