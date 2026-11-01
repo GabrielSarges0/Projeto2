@@ -52,6 +52,17 @@ const MONTHS = [
 
 const YEARS = [2024, 2025, 2026, 2027];
 
+const CONTRACT_STATUS: Record<string, { label: string; background: string; color: string }> = {
+  PROXIMO_AO_VENCIMENTO: { label: "Próximo ao vencimento", background: "#fef3c7", color: "#92400e" },
+  EXPIRANDO: { label: "Próximo ao vencimento", background: "#fef3c7", color: "#92400e" },
+  VENCIDO: { label: "Vencido", background: "#fee2e2", color: "#991b1b" },
+  ATIVO: { label: "Ativo", background: "#dcfce7", color: "#166534" },
+};
+
+function contractStatus(status: string) {
+  return CONTRACT_STATUS[status] ?? { label: status, background: "#e2e8f0", color: "#334155" };
+}
+
 type SeasonalConfig = {
   incMult: number;
   expMult: number;
@@ -107,6 +118,8 @@ export function DashboardHome() {
   const [propMetrics, setPropMetrics] = useState<PropertyMetrics | null>(null);
   const [contracts, setContracts] = useState<LeaseContract[]>([]);
   const [monthlyMovements, setMonthlyMovements] = useState<FinancialMovement[]>([]);
+  // true quando os dados do mês vieram da API Java (mesmo que o mês esteja vazio)
+  const [financeFromApi, setFinanceFromApi] = useState(false);
 
   // Filtros dinâmicos de Mês e Ano
   const [selectedMonthNum, setSelectedMonthNum] = useState<number>(10);
@@ -201,6 +214,8 @@ export function DashboardHome() {
       } else {
         setMonthlyMovements([]);
       }
+
+      setFinanceFromApi(summaryRes.status === "fulfilled" && movementsRes.status === "fulfilled");
     });
 
     return () => {
@@ -216,8 +231,9 @@ export function DashboardHome() {
     let incomePoints: number[] = [];
     let expensePoints: number[] = [];
 
-    // Se temos movimentos reais vindos do backend para este mês, agregamos por checkpoint
-    if (monthlyMovements.length > 0) {
+    // Com dados reais do backend agregamos por checkpoint (mês sem lançamentos fica zerado);
+    // o modelo sazonal só é usado quando a API está indisponível
+    if (financeFromApi) {
       const incByDay = new Map<number, number>();
       const expByDay = new Map<number, number>();
 
@@ -326,22 +342,19 @@ export function DashboardHome() {
       yMarks,
       yAxisMax,
     };
-  }, [monthlyMovements, selectedMonthNum, selectedYearNum, chartMode]);
+  }, [monthlyMovements, financeFromApi, selectedMonthNum, selectedYearNum, chartMode]);
 
-  const totalProps = propMetrics?.totalProperties ?? 124;
-  const occupiedProps = propMetrics?.occupied ?? 92;
-  const availableProps = propMetrics?.available ?? 32;
-  const maintenanceProps = propMetrics?.underMaintenance ?? 32;
+  // Enquanto a API responde mostramos "—" em vez de números fictícios
+  const LOADING = "—";
+  const totalProps = propMetrics ? String(propMetrics.totalProperties) : LOADING;
+  const occupiedProps = propMetrics ? String(propMetrics.occupied) : LOADING;
+  const availableProps = propMetrics ? String(propMetrics.available) : LOADING;
+  const maintenanceProps = propMetrics ? String(propMetrics.underMaintenance) : LOADING;
 
-  const currentSummary = summary ?? {
-    income: 24750,
-    expense: 9900,
-    balance: 14850,
-  };
-
-  const monthlyRevenue = currency(currentSummary.income);
-  const monthlyExpense = currency(currentSummary.expense);
-  const monthlyBalance = currency(currentSummary.balance);
+  const currentBalance = summary?.balance ?? 0;
+  const monthlyRevenue = summary ? currency(summary.income) : LOADING;
+  const monthlyExpense = summary ? currency(summary.expense) : LOADING;
+  const monthlyBalance = summary ? currency(summary.balance) : LOADING;
 
   const selectedMonthName = MONTHS.find((m) => m.value === selectedMonthNum)?.label ?? "Outubro";
 
@@ -349,28 +362,28 @@ export function DashboardHome() {
   const metricCards = [
     {
       label: "Total de imóveis",
-      value: String(totalProps),
+      value: totalProps,
       icon: Building2,
       bgColor: "#E0F2FE",
       iconColor: "#0284C7",
     },
     {
       label: "Ocupados",
-      value: String(occupiedProps),
+      value: occupiedProps,
       icon: KeyRound,
       bgColor: "#FEE2E2",
       iconColor: "#EF4444",
     },
     {
       label: "Disponíveis",
-      value: String(availableProps),
+      value: availableProps,
       icon: Home,
       bgColor: "#DCFCE7",
       iconColor: "#16A34A",
     },
     {
       label: "Manutenções",
-      value: String(maintenanceProps),
+      value: maintenanceProps,
       icon: Wrench,
       bgColor: "#FEF9C3",
       iconColor: "#CA8A04",
@@ -388,14 +401,7 @@ export function DashboardHome() {
     <AppShell>
       <section className="dashboard-home" aria-label="Painel de gestão">
         {/* 5 Cards de Métricas do Topo Dinâmicos */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-            gap: "16px",
-            marginBottom: "24px",
-          }}
-        >
+        <div className="home-metrics-grid">
           {metricCards.map((c) => {
             const Icon = c.icon;
             return (
@@ -459,13 +465,7 @@ export function DashboardHome() {
         </div>
 
         {/* Grade Central: Gráfico de Linha à Esquerda + Contratos à Direita */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.65fr 1fr",
-            gap: "20px",
-          }}
-        >
+        <div className="home-panels-grid">
           {/* Card Esquerdo: Receitas x Despesas (mês) com Gráfico Dinâmico */}
           <article
             style={{
@@ -507,7 +507,7 @@ export function DashboardHome() {
               </div>
 
               {/* Controles Dinâmicos: Seletor de Mês, Ano e Modo */}
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
                 {/* Seletor de Modo: Acumulado / Diário */}
                 <div
                   style={{
@@ -898,6 +898,8 @@ export function DashboardHome() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "12px",
                 marginTop: "16px",
                 paddingTop: "14px",
                 borderTop: "1px solid #f1f5f9",
@@ -962,7 +964,7 @@ export function DashboardHome() {
                   style={{
                     fontSize: "15px",
                     fontWeight: 700,
-                    color: currentSummary.balance >= 0 ? "#16a34a" : "#dc2626",
+                    color: currentBalance >= 0 ? "#16a34a" : "#dc2626",
                   }}
                 >
                   {monthlyBalance}
@@ -1024,6 +1026,8 @@ export function DashboardHome() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "8px",
                       padding: "12px 14px",
                       background: "#f8fafc",
                       border: "1px solid #e2e8f0",
@@ -1058,11 +1062,12 @@ export function DashboardHome() {
                         borderRadius: "12px",
                         fontSize: "11px",
                         fontWeight: 600,
-                        background: c.status === "EXPIRANDO" ? "#fef3c7" : "#dcfce7",
-                        color: c.status === "EXPIRANDO" ? "#92400e" : "#166534",
+                        whiteSpace: "nowrap",
+                        background: contractStatus(c.status).background,
+                        color: contractStatus(c.status).color,
                       }}
                     >
-                      {c.status}
+                      {contractStatus(c.status).label}
                     </span>
                   </div>
                 ))}

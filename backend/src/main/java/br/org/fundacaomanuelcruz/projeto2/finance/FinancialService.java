@@ -47,7 +47,7 @@ public class FinancialService {
     @Transactional
     public FinancialMovementResponse createIncome(CreateIncomeRequest request) {
         if (!documentValidator.isValid(request.documentType(), request.documentNumber())) {
-            throw new IllegalArgumentException("CPF/CNPJ invalido para o tipo selecionado.");
+            throw new IllegalArgumentException("CPF/CNPJ inválido para o tipo selecionado.");
         }
 
         FinancialTransaction transaction = FinancialTransaction.income(
@@ -85,7 +85,7 @@ public class FinancialService {
         try {
             start = LocalDate.of(year, month, 1);
         } catch (DateTimeException exception) {
-            throw new IllegalArgumentException("Mes/ano invalido.");
+            throw new IllegalArgumentException("Mês/ano inválido.");
         }
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
         return repository.findByTransactionDateBetweenOrderByTransactionDateDescIdDesc(start, end);

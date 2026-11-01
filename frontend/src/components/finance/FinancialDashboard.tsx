@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useEffect,
   useMemo,
@@ -13,7 +12,6 @@ import {
   ArrowUpRight,
   Building,
   CalendarDays,
-  Check,
   CheckCircle2,
   CircleDollarSign,
   FileText,
@@ -30,6 +28,7 @@ import {
 import { Sidebar } from "@/components/layout/Sidebar";
 import {
   financialApi,
+  isApiError,
   propertiesApi,
   remindersApi,
   type CreateExpenseRequest,
@@ -37,6 +36,7 @@ import {
   type FinancialMovement,
   type FinancialSummary,
   type PropertyItem,
+  type PropertyMetrics,
 } from "@/lib/financial-api";
 import styles from "@/app/financeiro/financeiro.module.css";
 
@@ -178,6 +178,46 @@ const figmaHistoryRows = [
   { id: "6", data: "IM-006", tipo: "Saída", responsavel: "Bruno", item: "Projetor", details: "Empréstimo de projetor multimídia para reunião da Curadoria de Fundações." },
 ];
 
+type PropertyRow = (typeof figmaProperties)[number];
+type HistoryRow = (typeof figmaHistoryRows)[number];
+
+const fallbackPropertyMetrics: PropertyMetrics = {
+  totalProperties: 124,
+  occupied: 98,
+  available: 26,
+  underMaintenance: 4,
+};
+
+// Converte o status do backend para os rótulos e cores usados na tabela do Figma
+function toPropertyRow(property: PropertyItem): PropertyRow {
+  const status = property.status.toLowerCase();
+  const isOccupied = status.startsWith("ocupad");
+  const isAvailable = status.startsWith("dispon") || status.startsWith("livre");
+
+  return {
+    id: String(property.id),
+    code: property.registrationCode,
+    address: property.address,
+    situation: isOccupied ? "Ocupado" : isAvailable ? "Livre" : "Manutenção",
+    statusType: isOccupied ? "green" : isAvailable ? "yellow" : "red",
+    value: property.monthlyRent > 0 ? currency(property.monthlyRent) : "-",
+    details: `Inquilino atual: ${property.currentTenant}. Status cadastrado: ${property.status}.`,
+  };
+}
+
+function toHistoryRow(movement: FinancialMovement): HistoryRow {
+  const isIncome = movement.type === "INCOME";
+
+  return {
+    id: String(movement.id),
+    data: displayDate(movement.date),
+    tipo: isIncome ? "Entrada" : "Saída",
+    responsavel: movement.tenantName,
+    item: movement.propertyRegistration,
+    details: `${isIncome ? "Receita" : "Despesa"} de ${currency(movement.amount)} referente ao imóvel ${movement.propertyRegistration}.`,
+  };
+}
+
 function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -267,8 +307,49 @@ export function FinancialDashboard() {
 
   const [submitting, setSubmitting] = useState(false);
 
+  const [propertyRows, setPropertyRows] = useState<PropertyRow[]>(figmaProperties);
+  const [propertyMetrics, setPropertyMetrics] = useState<PropertyMetrics>(fallbackPropertyMetrics);
+  const [historyRows, setHistoryRows] = useState<HistoryRow[]>(figmaHistoryRows);
+
   const selectedMonth = months.indexOf(month) + 1;
   const selectedYear = Number(year);
+
+  // Imóveis cadastrados e métricas reais da API (mantém os dados do Figma se o backend estiver offline)
+  useEffect(() => {
+    if (currentView !== "IMOVEIS") return;
+    let active = true;
+
+    void Promise.allSettled([propertiesApi.list(), propertiesApi.metrics()]).then(
+      ([listRes, metricsRes]) => {
+        if (!active) return;
+        if (listRes.status === "fulfilled") setPropertyRows(listRes.value.map(toPropertyRow));
+        if (metricsRes.status === "fulfilled") setPropertyMetrics(metricsRes.value);
+      }
+    );
+
+    return () => {
+      active = false;
+    };
+  }, [currentView]);
+
+  // Histórico completo de movimentações (recarrega quando o mês muda ou há novos lançamentos)
+  useEffect(() => {
+    if (currentView !== "HISTORICO") return;
+    let active = true;
+
+    financialApi
+      .allMovements()
+      .then((data) => {
+        if (active) setHistoryRows(data.map(toHistoryRow));
+      })
+      .catch(() => {
+        // Mantém os dados de demonstração
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentView, movements]);
 
   // Carrega lembretes da API Java (com fallback local resiliente)
   useEffect(() => {
@@ -552,7 +633,12 @@ export function FinancialDashboard() {
       setEntryModalOpen(false);
       showToast("Entrada registrada com sucesso!");
       await refreshFinanceFromEvent();
-    } catch {
+    } catch (error) {
+      // Backend respondeu com erro (ex: CPF/CNPJ inválido): mantém o modal aberto e mostra o motivo
+      if (isApiError(error)) {
+        setFormMessage(error.message);
+        return;
+      }
       // Fallback para modo local/offline (ex: demo Vercel)
       const newEntry: FinancialMovement = {
         id: Date.now(),
@@ -616,7 +702,11 @@ export function FinancialDashboard() {
       setExpenseModalOpen(false);
       showToast("Despesa registrada com sucesso!");
       await refreshFinanceFromEvent();
-    } catch {
+    } catch (error) {
+      if (isApiError(error)) {
+        setExpenseFormMessage(error.message);
+        return;
+      }
       // Fallback local
       const newExpense: FinancialMovement = {
         id: Date.now(),
@@ -653,7 +743,11 @@ export function FinancialDashboard() {
       await financialApi.deleteTransaction(id);
       showToast("Movimentação removida.");
       await refreshFinanceFromEvent();
-    } catch {
+    } catch (error) {
+      if (isApiError(error)) {
+        showToast(error.message);
+        return;
+      }
       // Fallback local
       const updated = movements.filter((m) => m.id !== id);
       setMovements(updated);
@@ -713,17 +807,17 @@ export function FinancialDashboard() {
 
               <section className={styles.summaryGrid} aria-label="Resumo do mês">
                 <SummaryCard
-                  label="Entradas:"
+                  label="ENTRADA:"
                   value={currency(summary.income)}
                   icon={<ArrowDownLeft aria-hidden="true" />}
                 />
                 <SummaryCard
-                  label="Saídas:"
+                  label="SAÍDA:"
                   value={currency(summary.expense)}
                   icon={<ArrowUpRight aria-hidden="true" />}
                 />
                 <SummaryCard
-                  label="Saldo:"
+                  label="SALDO:"
                   value={currency(summary.balance)}
                   icon={<CircleDollarSign aria-hidden="true" />}
                 />
@@ -777,7 +871,7 @@ export function FinancialDashboard() {
                     <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
                       Total de imóveis
                     </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>124</strong>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{propertyMetrics.totalProperties}</strong>
                   </div>
                 </div>
 
@@ -789,7 +883,7 @@ export function FinancialDashboard() {
                     <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
                       Ocupados
                     </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>92</strong>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{propertyMetrics.occupied}</strong>
                   </div>
                 </div>
 
@@ -801,7 +895,7 @@ export function FinancialDashboard() {
                     <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
                       Disponíveis
                     </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>32</strong>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{propertyMetrics.available}</strong>
                   </div>
                 </div>
 
@@ -813,7 +907,7 @@ export function FinancialDashboard() {
                     <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
                       Manutenções
                     </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>32</strong>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{propertyMetrics.underMaintenance}</strong>
                   </div>
                 </div>
               </div>
@@ -854,7 +948,7 @@ export function FinancialDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {figmaProperties
+                    {propertyRows
                       .filter(
                         (p) =>
                           !imoveisSearch.trim() ||
@@ -953,7 +1047,7 @@ export function FinancialDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {figmaHistoryRows
+                    {historyRows
                       .filter(
                         (h) =>
                           !historicoSearch.trim() ||

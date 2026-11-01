@@ -45,6 +45,18 @@ export class UnauthorizedError extends Error {
   }
 }
 
+// Erro devolvido pelo backend (HTTP 4xx/5xx). Falhas de rede continuam como TypeError do fetch.
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
 async function request<T>(path: string, init?: RequestInit, token: string | null = getAuthToken()): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -78,7 +90,7 @@ async function request<T>(path: string, init?: RequestInit, token: string | null
       // Mantem a mensagem HTTP quando o backend nao devolve JSON.
     }
 
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   if (response.status === 204) return undefined as T;
@@ -185,7 +197,6 @@ export const remindersApi = {
       method: "DELETE",
     }),
 };
-
 
 export type CurrentUser = {
   username: string;

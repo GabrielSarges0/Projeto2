@@ -18,7 +18,7 @@ public record CreateIncomeRequest(
         String tenantName,
 
         @NotBlank(message = "Informe o CPF/CNPJ.")
-        @Size(max = 20, message = "CPF/CNPJ invalido.")
+        @Size(max = 20, message = "CPF/CNPJ inválido.")
         String documentNumber,
 
         @NotBlank(message = "Informe o registro do imovel.")
@@ -30,6 +30,6 @@ public record CreateIncomeRequest(
 
         @NotNull(message = "Informe o valor bruto.")
         @DecimalMin(value = "0.01", message = "O valor bruto deve ser maior que zero.")
-        @Digits(integer = 17, fraction = 2, message = "Valor bruto invalido.")
+        @Digits(integer = 17, fraction = 2, message = "Valor bruto inválido.")
         BigDecimal grossAmount) {
 }
