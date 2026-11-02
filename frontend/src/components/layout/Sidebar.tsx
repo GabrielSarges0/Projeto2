@@ -13,11 +13,13 @@ import {
   LogOut,
   Scale,
   Settings,
+  Users,
 } from "lucide-react";
 import { clearAuthToken } from "@/lib/auth";
 
 const items = [
   { href: "/", label: "Painel", icon: Home },
+  { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/documentos", label: "Documentos", icon: FileText },
   { href: "/formulario", label: "Formulários", icon: FileSignature },
   { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },

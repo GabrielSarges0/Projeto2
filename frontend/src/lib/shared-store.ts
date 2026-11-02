@@ -248,3 +248,346 @@ export function saveMovement(movement: FMCSharedMovement) {
     window.dispatchEvent(new Event("fmc_movements_updated"));
   } catch {}
 }
+
+// --- CLIENTES (INQUILINOS E FIADORES - BP11) ---
+export type FMCClient = {
+  id: string;
+  name: string;
+  cpf: string;
+  age: number;
+  phone: string;
+  email: string;
+  residentsCount: number; // quantas pessoas moram na casa
+  profession: string;
+  assetsDeclared: string; // se tem bens para pagar o aluguel
+  propertyCode: string; // Imóvel alugado
+  propertyAddress: string;
+  monthlyRent: number; // quanto paga de aluguel
+  contractStatus: "Ativo" | "Próximo ao Vencimento" | "Renovado" | "Em Análise";
+  contractStartDate: string; // data em que foi adicionado / início
+  contractEndDate: string; // data limite de vencimento
+  guarantorName: string; // Fiador
+  guarantorCpf: string;
+  guarantorRelationship: string;
+  guarantorPhone: string;
+  guarantorAssets: string;
+  documents: { id: string; name: string; category: string }[];
+};
+
+export const DEFAULT_CLIENTS: FMCClient[] = [
+  {
+    id: "cli-1",
+    name: "João Pedro Cavalcanti",
+    cpf: "123.456.789-01",
+    age: 42,
+    phone: "(92) 98112-3401",
+    email: "joao.cavalcanti@email.com",
+    residentsCount: 3,
+    profession: "Engenheiro Civil",
+    assetsDeclared: "Veículo próprio quitado (R$ 65.000) e renda comprovada 4x valor do aluguel",
+    propertyCode: "IM-001",
+    propertyAddress: "Rua A, 120 - Boa Vista",
+    monthlyRent: 1200,
+    contractStatus: "Próximo ao Vencimento",
+    contractStartDate: "15/11/2025",
+    contractEndDate: "15/11/2026",
+    guarantorName: "Roberto Cavalcanti",
+    guarantorCpf: "234.567.890-12",
+    guarantorRelationship: "Irmão",
+    guarantorPhone: "(92) 99234-5678",
+    guarantorAssets: "Imóvel residencial próprio em Manaus matriculado sob nº 45.120",
+    documents: [
+      { id: "doc-1", name: "Contrato_Locacao_IM001.pdf", category: "Contratos" },
+      { id: "doc-2", name: "Comprovante_Renda_JoaoPedro.pdf", category: "Documentos Pessoais" },
+      { id: "doc-3", name: "Doc_Fiador_RobertoCavalcanti.pdf", category: "Documentos Pessoais" },
+    ],
+  },
+  {
+    id: "cli-2",
+    name: "Maria Helena Silva",
+    cpf: "345.678.901-23",
+    age: 38,
+    phone: "(92) 98223-4567",
+    email: "maria.helena@silvaadv.com",
+    residentsCount: 2,
+    profession: "Advogada",
+    assetsDeclared: "Imóvel comercial próprio e aplicação de liquidez diária",
+    propertyCode: "IM-002",
+    propertyAddress: "Rua A, 26 - Sala Comercial",
+    monthlyRent: 1800,
+    contractStatus: "Próximo ao Vencimento",
+    contractStartDate: "20/11/2025",
+    contractEndDate: "20/11/2026",
+    guarantorName: "Patrícia Helena Silva",
+    guarantorCpf: "456.789.012-34",
+    guarantorRelationship: "Irmã",
+    guarantorPhone: "(92) 99345-6789",
+    guarantorAssets: "Imóvel próprio e vínculo público estatutário",
+    documents: [
+      { id: "doc-4", name: "Contrato_Locacao_IM002_Comercial.pdf", category: "Contratos" },
+      { id: "doc-5", name: "Termo_Vistoria_IM002.pdf", category: "Vistorias" },
+    ],
+  },
+  {
+    id: "cli-3",
+    name: "Marcos Antônio Ferreira",
+    cpf: "567.890.123-45",
+    age: 49,
+    phone: "(92) 98456-7890",
+    email: "marcos.antonio@ferreira.com.br",
+    residentsCount: 4,
+    profession: "Comerciante",
+    assetsDeclared: "Capital social da empresa matriz e dois veículos comerciais",
+    propertyCode: "IM-006",
+    propertyAddress: "Av. Constantino Nery, 410",
+    monthlyRent: 2400,
+    contractStatus: "Ativo",
+    contractStartDate: "10/12/2025",
+    contractEndDate: "10/12/2026",
+    guarantorName: "Paulo Ferreira",
+    guarantorCpf: "678.901.234-56",
+    guarantorRelationship: "Pai",
+    guarantorPhone: "(92) 98765-4321",
+    guarantorAssets: "Terreno urbano escriturado",
+    documents: [
+      { id: "doc-6", name: "Contrato_Locacao_IM006.pdf", category: "Contratos" },
+      { id: "doc-7", name: "Recibo_Ultimo_Aluguel_IM006.pdf", category: "Recibos" },
+    ],
+  },
+  {
+    id: "cli-4",
+    name: "Beatriz Albuquerque",
+    cpf: "789.012.345-67",
+    age: 29,
+    phone: "(92) 98567-8901",
+    email: "beatriz.albuquerque@gov.br",
+    residentsCount: 1,
+    profession: "Servidora Pública",
+    assetsDeclared: "Renda estável de servidora pública estadual (concurso público)",
+    propertyCode: "IM-007",
+    propertyAddress: "Rua Saldanha Marinho, 88",
+    monthlyRent: 2100,
+    contractStatus: "Ativo",
+    contractStartDate: "05/01/2026",
+    contractEndDate: "05/01/2027",
+    guarantorName: "Cecília Albuquerque",
+    guarantorCpf: "890.123.456-78",
+    guarantorRelationship: "Mãe",
+    guarantorPhone: "(92) 99876-5432",
+    guarantorAssets: "Casa própria quitada no bairro Adrianópolis",
+    documents: [
+      { id: "doc-8", name: "Contrato_Locacao_IM007.pdf", category: "Contratos" },
+      { id: "doc-9", name: "Contracheque_Beatriz.pdf", category: "Documentos Pessoais" },
+    ],
+  },
+];
+
+export function getStoredClients(): FMCClient[] {
+  if (typeof window === "undefined") return DEFAULT_CLIENTS;
+  try {
+    const saved = localStorage.getItem("fmc_clients_store_v1");
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return DEFAULT_CLIENTS;
+}
+
+export function saveClients(list: FMCClient[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("fmc_clients_store_v1", JSON.stringify(list));
+    window.dispatchEvent(new Event("fmc_clients_updated"));
+  } catch {}
+}
+
+// --- ESTOQUE E GESTÃO DML (COM QUANTIDADE POR PACOTE - BP08) ---
+export type FMCInventoryItem = {
+  id: string;
+  name: string;
+  packageSpec: string; // Ex: detergente 540ml; tinta 1l; papel higiênico 10x (Pedido do cliente)
+  unitPrice: number;
+  quantity: number;
+  purchaseDate: string;
+  category: "Limpeza" | "Obra / Manutenção" | "Escritório";
+};
+
+export const DEFAULT_INVENTORY: FMCInventoryItem[] = [
+  {
+    id: "est-1",
+    name: "Papel Higiênico",
+    packageSpec: "Pacote c/ 10 rolos (10x)",
+    unitPrice: 4.5,
+    quantity: 50,
+    purchaseDate: "15/10/2026",
+    category: "Limpeza",
+  },
+  {
+    id: "est-2",
+    name: "Detergente",
+    packageSpec: "Frasco 540ml",
+    unitPrice: 2.29,
+    quantity: 20,
+    purchaseDate: "15/10/2026",
+    category: "Limpeza",
+  },
+  {
+    id: "est-3",
+    name: "Esponja",
+    packageSpec: "Unidade individual",
+    unitPrice: 0.8,
+    quantity: 15,
+    purchaseDate: "15/10/2026",
+    category: "Limpeza",
+  },
+  {
+    id: "est-4",
+    name: "Saco de Lixo",
+    packageSpec: "Pacote 100L c/ 30 unidades",
+    unitPrice: 10.0,
+    quantity: 30,
+    purchaseDate: "15/10/2026",
+    category: "Limpeza",
+  },
+  {
+    id: "est-5",
+    name: "Tinta",
+    packageSpec: "Galão / Lata 1L (1l)",
+    unitPrice: 52.91,
+    quantity: 5,
+    purchaseDate: "15/10/2026",
+    category: "Obra / Manutenção",
+  },
+];
+
+export function getStoredInventory(): FMCInventoryItem[] {
+  if (typeof window === "undefined") return DEFAULT_INVENTORY;
+  try {
+    const saved = localStorage.getItem("fmc_inventory_store_v1");
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return DEFAULT_INVENTORY;
+}
+
+export function saveInventory(list: FMCInventoryItem[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("fmc_inventory_store_v1", JSON.stringify(list));
+    window.dispatchEvent(new Event("fmc_inventory_updated"));
+  } catch {}
+}
+
+// --- FUNCIONÁRIOS E PRESENÇA (COM HORÁRIO DE SAÍDA - BP07) ---
+export type FMCEmployeeAttendance = {
+  id: string;
+  name: string;
+  role: string;
+  status: "Presente" | "Ausente" | "Folga";
+  entryTime: string; // Horário de Entrada (ex: 08:02)
+  exitTime: string; // Horário de Saída (ex: 17:00) (Pedido do cliente)
+  date: string;
+  cpf: string;
+};
+
+export type FMCAbsenceJustification = {
+  id: string;
+  employeeName: string;
+  date: string;
+  reason: string;
+  approved: boolean;
+};
+
+export const DEFAULT_ATTENDANCE: FMCEmployeeAttendance[] = [
+  {
+    id: "func-1",
+    name: "Ana Souza",
+    role: "Administrativo",
+    status: "Presente",
+    entryTime: "08:02",
+    exitTime: "17:00",
+    date: "15/10/2026",
+    cpf: "111.222.333-44",
+  },
+  {
+    id: "func-2",
+    name: "Carlos Lima",
+    role: "Técnico",
+    status: "Ausente",
+    entryTime: "-",
+    exitTime: "-",
+    date: "15/10/2026",
+    cpf: "222.333.444-55",
+  },
+  {
+    id: "func-3",
+    name: "Fernandes Alves",
+    role: "Serviços Gerais",
+    status: "Presente",
+    entryTime: "08:15",
+    exitTime: "17:10",
+    date: "15/10/2026",
+    cpf: "333.444.555-66",
+  },
+  {
+    id: "func-4",
+    name: "João Pereira",
+    role: "Limpeza",
+    status: "Presente",
+    entryTime: "08:20",
+    exitTime: "17:05",
+    date: "15/10/2026",
+    cpf: "444.555.666-77",
+  },
+  {
+    id: "func-5",
+    name: "Mariana Costa",
+    role: "Porteiro",
+    status: "Presente",
+    entryTime: "08:10",
+    exitTime: "18:00",
+    date: "15/10/2026",
+    cpf: "555.666.777-88",
+  },
+];
+
+export const DEFAULT_JUSTIFICATIONS: FMCAbsenceJustification[] = [
+  {
+    id: "just-1",
+    employeeName: "Carlos Lima",
+    date: "15/10/2026",
+    reason: "Consulta médica preventiva com atestado de dispensa anexado.",
+    approved: true,
+  },
+];
+
+export function getStoredAttendance(): FMCEmployeeAttendance[] {
+  if (typeof window === "undefined") return DEFAULT_ATTENDANCE;
+  try {
+    const saved = localStorage.getItem("fmc_attendance_store_v1");
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return DEFAULT_ATTENDANCE;
+}
+
+export function saveAttendance(list: FMCEmployeeAttendance[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("fmc_attendance_store_v1", JSON.stringify(list));
+    window.dispatchEvent(new Event("fmc_attendance_updated"));
+  } catch {}
+}
+
+export function getStoredJustifications(): FMCAbsenceJustification[] {
+  if (typeof window === "undefined") return DEFAULT_JUSTIFICATIONS;
+  try {
+    const saved = localStorage.getItem("fmc_justifications_store_v1");
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return DEFAULT_JUSTIFICATIONS;
+}
+
+export function saveJustifications(list: FMCAbsenceJustification[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("fmc_justifications_store_v1", JSON.stringify(list));
+    window.dispatchEvent(new Event("fmc_justifications_updated"));
+  } catch {}
+}
