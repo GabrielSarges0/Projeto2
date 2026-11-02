@@ -6,17 +6,21 @@ import {
   Boxes,
   CircleDollarSign,
   Contact,
+  FileSignature,
   FileText,
   Home,
   LogOut,
   Scale,
   Settings,
+  Users,
 } from "lucide-react";
 import { clearAuthToken } from "@/lib/auth";
 
 const items = [
   { href: "/", label: "Painel", icon: Home },
+  { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/documentos", label: "Documentos", icon: FileText },
+  { href: "/formulario", label: "Formulários", icon: FileSignature },
   { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
   { href: "/ministerio-publico", label: "Ministério Público", icon: Scale },
   { href: "/funcionarios", label: "Funcionários", icon: Contact },
@@ -30,7 +34,7 @@ export function Sidebar() {
 
   function handleLogout() {
     clearAuthToken();
-    router.replace("/login");
+    router.replace("/");
   }
 
   return (

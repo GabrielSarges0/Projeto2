@@ -10,6 +10,7 @@ import {
   Home,
   KeyRound,
   Wrench,
+  TrendingUp,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
@@ -20,6 +21,11 @@ import {
   type LeaseContract,
   type PropertyMetrics,
 } from "@/lib/financial-api";
+import {
+  getPropertyMetricsFromStore,
+  getStoredMovements,
+  type FMCSharedMovement,
+} from "@/lib/shared-store";
 
 function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -113,6 +119,7 @@ function getMonthlyFallbackData(month: number, year: number) {
   };
 }
 
+
 export function DashboardHome() {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [propMetrics, setPropMetrics] = useState<PropertyMetrics | null>(null);
@@ -136,30 +143,28 @@ export function DashboardHome() {
     yExpense: number;
   } | null>(null);
 
-  // Efeito para carregar métricas de imóveis e contratos (executado uma vez)
+  // Carrega métricas sincronizadas da loja de imóveis e contratos
+  function syncPropertyMetrics() {
+    const storeMetrics = getPropertyMetricsFromStore();
+    setPropMetrics({
+      totalProperties: storeMetrics.totalProperties,
+      occupied: storeMetrics.occupied,
+      available: storeMetrics.available,
+      underMaintenance: storeMetrics.underMaintenance,
+    });
+  }
+
   useEffect(() => {
-    let active = true;
+    syncPropertyMetrics();
 
-    Promise.allSettled([
-      propertiesApi.metrics(),
-      propertiesApi.expiringContracts(),
-    ]).then(([metricsRes, contractsRes]) => {
-      if (!active) return;
+    // Ouve atualizações de situação de imóveis feitas no Financeiro
+    const handlePropUpdate = () => syncPropertyMetrics();
+    window.addEventListener("fmc_properties_updated", handlePropUpdate);
 
-      if (metricsRes.status === "fulfilled") {
-        setPropMetrics(metricsRes.value);
-      } else {
-        setPropMetrics({
-          totalProperties: 124,
-          occupied: 92,
-          available: 32,
-          underMaintenance: 32,
-        });
-      }
-
-      if (contractsRes.status === "fulfilled") {
-        setContracts(contractsRes.value);
-      } else {
+    propertiesApi
+      .expiringContracts()
+      .then((data) => setContracts(data))
+      .catch(() => {
         setContracts([
           {
             id: 1,
@@ -180,50 +185,119 @@ export function DashboardHome() {
             status: "ATIVO",
           },
         ]);
-      }
-    });
+      });
 
     return () => {
-      active = false;
+      window.removeEventListener("fmc_properties_updated", handlePropUpdate);
     };
   }, []);
 
-  // Efeito dinâmico para carregar dados financeiros quando Mês ou Ano são alterados
-  useEffect(() => {
-    let active = true;
+  // Efeito dinâmico para carregar dados financeiros e movimentos
+  function loadMovements() {
+    const shared = getStoredMovements(selectedMonthNum, selectedYearNum);
 
     Promise.allSettled([
       financialApi.summary(selectedMonthNum, selectedYearNum),
       financialApi.movements(selectedMonthNum, selectedYearNum),
     ]).then(([summaryRes, movementsRes]) => {
-      if (!active) return;
-
-      if (summaryRes.status === "fulfilled" && summaryRes.value) {
-        setSummary(summaryRes.value);
-      } else {
-        const fallback = getMonthlyFallbackData(selectedMonthNum, selectedYearNum);
-        setSummary({
-          income: fallback.totalIncome,
-          expense: fallback.totalExpense,
-          balance: fallback.totalIncome - fallback.totalExpense,
-        });
-      }
+      let combined: FinancialMovement[] = [];
 
       if (movementsRes.status === "fulfilled" && Array.isArray(movementsRes.value)) {
-        setMonthlyMovements(movementsRes.value);
+        combined = [...movementsRes.value];
+      }
+
+      // Adiciona movimentos cadastrados localmente se ainda não estiverem no array
+      if (shared.length > 0) {
+        for (const s of shared) {
+          if (!combined.some((c) => String(c.id) === String(s.id))) {
+            combined.push({
+              id: typeof s.id === "number" ? s.id : Math.floor(Math.random() * 100000),
+              date: s.date,
+              tenantName: s.tenantName,
+              propertyRegistration: s.propertyRegistration,
+              amount: s.amount,
+              type: s.type,
+            });
+          }
+        }
+      }
+
+      // Se nenhum lançamento foi inserido na base para Outubro 2026, fornece a base inicial
+      if (combined.length === 0 && selectedMonthNum === 10 && selectedYearNum === 2026) {
+        combined = [
+          {
+            id: 1,
+            date: "2026-10-05",
+            tenantName: "João Pedro Cavalcanti (IM-001)",
+            propertyRegistration: "IM-001",
+            amount: 3200.0,
+            type: "INCOME",
+          },
+          {
+            id: 2,
+            date: "2026-10-10",
+            tenantName: "Maria Helena Silva (IM-002)",
+            propertyRegistration: "IM-002",
+            amount: 2850.0,
+            type: "INCOME",
+          },
+          {
+            id: 3,
+            date: "2026-10-12",
+            tenantName: "Manutenção Rocha Hidráulica",
+            propertyRegistration: "IM-004",
+            amount: 750.0,
+            type: "EXPENSE",
+          },
+          {
+            id: 4,
+            date: "2026-10-20",
+            tenantName: "Tech Soluções Ltda (IM-005)",
+            propertyRegistration: "IM-005",
+            amount: 4500.0,
+            type: "INCOME",
+          },
+          {
+            id: 5,
+            date: "2026-10-25",
+            tenantName: "Reforma Elétrica Predial",
+            propertyRegistration: "IM-003",
+            amount: 1400.0,
+            type: "EXPENSE",
+          },
+        ];
+      }
+
+      setMonthlyMovements(combined);
+
+      const totalInc = combined.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
+      const totalExp = combined.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
+
+      if (summaryRes.status === "fulfilled" && summaryRes.value && combined.length === 0) {
+        setSummary(summaryRes.value);
       } else {
-        setMonthlyMovements([]);
+        setSummary({
+          income: totalInc,
+          expense: totalExp,
+          balance: totalInc - totalExp,
+        });
       }
 
       setFinanceFromApi(summaryRes.status === "fulfilled" && movementsRes.status === "fulfilled");
     });
+  }
 
+  useEffect(() => {
+    loadMovements();
+
+    const handleMovementsUpdate = () => loadMovements();
+    window.addEventListener("fmc_movements_updated", handleMovementsUpdate);
     return () => {
-      active = false;
+      window.removeEventListener("fmc_movements_updated", handleMovementsUpdate);
     };
   }, [selectedMonthNum, selectedYearNum]);
 
-  // Cálculos reativos dos dados do gráfico com base na seleção
+  // Cálculos reativos dos dados do gráfico estritamente baseados nos lançamentos inseridos dia a dia
   const chartData = useMemo(() => {
     const fallback = getMonthlyFallbackData(selectedMonthNum, selectedYearNum);
     const days = [1, 5, 10, 15, 20, 25, 30];
@@ -289,9 +363,10 @@ export function DashboardHome() {
       }
     }
 
-    // Determinar o teto do eixo Y de forma limpa e proporcional
-    const maxVal = Math.max(...incomePoints, ...expensePoints, 5000);
-    let step = 5000;
+    const hasData = monthlyMovements.length > 0;
+    const maxVal = hasData ? Math.max(...incomePoints, ...expensePoints, 1000) : 5000;
+
+    let step = 1000;
     if (maxVal <= 5000) step = 1000;
     else if (maxVal <= 15000) step = 2500;
     else if (maxVal <= 35000) step = 5000;
@@ -299,8 +374,6 @@ export function DashboardHome() {
 
     const yAxisMax = Math.ceil(maxVal / step) * step;
 
-    // Mapeamento de coordenadas SVG
-    // viewBox="0 0 540 210", X de 60 a 480, Y de 180 (base) a 20 (topo)
     const xCoordinates = [60, 130, 200, 270, 340, 410, 480];
     const yBase = 180;
     const yHeight = 160;
@@ -325,7 +398,6 @@ export function DashboardHome() {
     const incomePointsString = mappedPoints.map((p) => `${p.x},${p.yIncome}`).join(" ");
     const expensePointsString = mappedPoints.map((p) => `${p.x},${p.yExpense}`).join(" ");
 
-    // 5 marcas no Eixo Y
     const yMarks = [
       { y: 20, value: yAxisMax },
       { y: 52, value: Math.round(yAxisMax * 0.8) },
@@ -336,6 +408,7 @@ export function DashboardHome() {
     ];
 
     return {
+      hasData,
       mappedPoints,
       incomePointsString,
       expensePointsString,
@@ -356,9 +429,9 @@ export function DashboardHome() {
   const monthlyExpense = summary ? currency(summary.expense) : LOADING;
   const monthlyBalance = summary ? currency(summary.balance) : LOADING;
 
+
   const selectedMonthName = MONTHS.find((m) => m.value === selectedMonthNum)?.label ?? "Outubro";
 
-  // Cards de métricas do topo sincronizados dinamicamente
   const metricCards = [
     {
       label: "Total de imóveis",
@@ -467,6 +540,7 @@ export function DashboardHome() {
         {/* Grade Central: Gráfico de Linha à Esquerda + Contratos à Direita */}
         <div className="home-panels-grid">
           {/* Card Esquerdo: Receitas x Despesas (mês) com Gráfico Dinâmico */}
+
           <article
             style={{
               background: "#ffffff",
@@ -502,13 +576,14 @@ export function DashboardHome() {
                   Receitas x Despesas (mês)
                 </h2>
                 <span style={{ fontSize: "12px", color: "#64748b" }}>
-                  Evolução financeira de {selectedMonthName} de {selectedYearNum}
+                  Evolução financeira moldada dia a dia • {selectedMonthName} de {selectedYearNum}
                 </span>
               </div>
 
               {/* Controles Dinâmicos: Seletor de Mês, Ano e Modo */}
               <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
                 {/* Seletor de Modo: Acumulado / Diário */}
+
                 <div
                   style={{
                     display: "inline-flex",
@@ -715,7 +790,6 @@ export function DashboardHome() {
                   />
                 ))}
 
-                {/* Rótulo Eixo Y - Cifrão */}
                 <text
                   x="5"
                   y="100"
@@ -727,7 +801,6 @@ export function DashboardHome() {
                   R$
                 </text>
 
-                {/* Rótulos Dinâmicos do Eixo Y */}
                 {chartData.yMarks.map((m, idx) => (
                   <text
                     key={idx}
@@ -741,7 +814,6 @@ export function DashboardHome() {
                   </text>
                 ))}
 
-                {/* Rótulos do Eixo X (Dias) */}
                 {chartData.mappedPoints.map((p) => (
                   <text
                     key={p.day}
@@ -766,7 +838,7 @@ export function DashboardHome() {
                   Dias ({selectedMonthName})
                 </text>
 
-                {/* Linha de Receitas (Azul Escuro #092A54) */}
+                {/* Linha de Receitas */}
                 <polyline
                   fill="none"
                   stroke="#092A54"
@@ -805,7 +877,7 @@ export function DashboardHome() {
                   );
                 })}
 
-                {/* Linha de Despesas (Dourado #D4B35A) */}
+                {/* Linha de Despesas */}
                 <polyline
                   fill="none"
                   stroke="#D4B35A"
@@ -891,6 +963,29 @@ export function DashboardHome() {
                 </div>
               )}
             </div>
+
+            {/* Aviso quando não há dados ainda para o mês */}
+            {!chartData.hasData && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  padding: "8px 12px",
+                  background: "#f8fafc",
+                  border: "1px dashed #cbd5e1",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  color: "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <TrendingUp size={16} color="#092A54" />
+                <span>
+                  O gráfico se molda automaticamente à medida que as entradas e saídas são inseridas no Painel Financeiro.
+                </span>
+              </div>
+            )}
 
             {/* Rodapé Dinâmico com Métricas Calculadas em Tempo Real */}
             <div
