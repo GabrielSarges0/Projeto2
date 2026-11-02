@@ -3,13 +3,9 @@
 import { useEffect, useState } from "react";
 import {
   Calendar,
-  CheckCircle2,
   Clock,
-  FileText,
-  Plus,
   UserCheck,
   UserPlus,
-  Users,
   X,
 } from "lucide-react";
 import {
@@ -23,8 +19,8 @@ import {
 import styles from "./funcionarios.module.css";
 
 export default function FuncionariosPage() {
-  const [attendanceList, setAttendanceList] = useState<FMCEmployeeAttendance[]>([]);
-  const [justifications, setJustifications] = useState<FMCAbsenceJustification[]>([]);
+  const [attendanceList, setAttendanceList] = useState<FMCEmployeeAttendance[]>(() => getStoredAttendance());
+  const [justifications, setJustifications] = useState<FMCAbsenceJustification[]>(() => getStoredJustifications());
   const [selectedDate, setSelectedDate] = useState("2026-10-15");
   const [isRegisterPresenceOpen, setIsRegisterPresenceOpen] = useState(false);
   const [isRegisterEmployeeOpen, setIsRegisterEmployeeOpen] = useState(false);
@@ -46,9 +42,6 @@ export default function FuncionariosPage() {
   const [justReason, setJustReason] = useState("");
 
   useEffect(() => {
-    setAttendanceList(getStoredAttendance());
-    setJustifications(getStoredJustifications());
-
     function handleUpdate() {
       setAttendanceList(getStoredAttendance());
       setJustifications(getStoredJustifications());

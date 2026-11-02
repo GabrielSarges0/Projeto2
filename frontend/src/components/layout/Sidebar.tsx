@@ -35,7 +35,7 @@ export function Sidebar() {
 
   function handleLogout() {
     clearAuthToken();
-    router.replace("/login");
+    router.replace("/");
   }
 
   return (

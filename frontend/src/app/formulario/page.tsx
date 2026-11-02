@@ -41,6 +41,7 @@ export default function FormularioPage() {
   const [totalReceitas, setTotalReceitas] = useState("24.750,00");
   const [totalDespesas, setTotalDespesas] = useState("9.900,00");
   const [destinacao, setDestinacao] = useState("Manutenção patrimonial e assistência social filantrópica");
+  const [authKey] = useState("FMC-728104-AUTH");
 
   const [toastMessage, setToastMessage] = useState("");
 
@@ -436,7 +437,7 @@ export default function FormularioPage() {
 
               <div className={styles.previewFooterStamp}>
                 <span>Data de Registro: {dataEmissao}</span>
-                <span>Chave Digital: FMC-{Math.floor(100000 + Math.random() * 900000)}-AUTH</span>
+                <span>Chave Digital: {authKey}</span>
               </div>
             </div>
           </div>

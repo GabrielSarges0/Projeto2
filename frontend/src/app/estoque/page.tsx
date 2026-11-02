@@ -4,14 +4,8 @@ import { useEffect, useState } from "react";
 import {
   Boxes,
   Calendar,
-  DollarSign,
-  Download,
-  Filter,
   Minus,
-  PackageCheck,
   Plus,
-  Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import {
@@ -23,7 +17,7 @@ import {
 import styles from "./estoque.module.css";
 
 export default function EstoquePage() {
-  const [items, setItems] = useState<FMCInventoryItem[]>([]);
+  const [items, setItems] = useState<FMCInventoryItem[]>(() => getStoredInventory());
   const [selectedYear, setSelectedYear] = useState("2026");
   const [selectedMonth, setSelectedMonth] = useState("Outubro");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -44,8 +38,6 @@ export default function EstoquePage() {
   const [withdrawReason, setWithdrawReason] = useState("Limpeza rotineira dos blocos A e B");
 
   useEffect(() => {
-    setItems(getStoredInventory());
-
     function handleUpdate() {
       setItems(getStoredInventory());
     }
@@ -150,7 +142,7 @@ export default function EstoquePage() {
 
       {/* Barra de Filtros e Gasto Total do Figma */}
       <div className={styles.filterBar}>
-        <div className={periodControlsClass(styles)}>
+        <div className={styles.periodControls}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Calendar size={18} color="#092a54" />
             <select
@@ -443,8 +435,4 @@ export default function EstoquePage() {
       {toastMessage && <div className={styles.toast}>{toastMessage}</div>}
     </div>
   );
-}
-
-function periodControlsClass(styles: any) {
-  return styles.periodControls;
 }

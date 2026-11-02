@@ -5,10 +5,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Building2,
-  Calendar,
-  CheckCircle2,
   ExternalLink,
-  FileCheck2,
   FileText,
   Home,
   Plus,
@@ -28,22 +25,14 @@ import {
 import styles from "./clientes.module.css";
 
 export default function ClientesPage() {
-  const [clients, setClients] = useState<FMCClient[]>([]);
+  const [clients, setClients] = useState<FMCClient[]>(() => getStoredClients());
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("TODOS");
   const [selectedClient, setSelectedClient] = useState<FMCClient | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
-  const [metrics, setMetrics] = useState({
-    totalProperties: 124,
-    occupied: 92,
-    available: 32,
-    underMaintenance: 32,
-    sampleOccupied: 2,
-    sampleAvailable: 2,
-    sampleMaintenance: 1,
-  });
+  const [metrics, setMetrics] = useState(() => getPropertyMetricsFromStore());
 
   // Formulário de Novo Cliente
   const [newName, setNewName] = useState("");
@@ -61,9 +50,6 @@ export default function ClientesPage() {
   const [newGuarantorAssets, setNewGuarantorAssets] = useState("");
 
   useEffect(() => {
-    setClients(getStoredClients());
-    setMetrics(getPropertyMetricsFromStore());
-
     function handleUpdate() {
       setClients(getStoredClients());
       setMetrics(getPropertyMetricsFromStore());
@@ -685,6 +671,16 @@ export default function ClientesPage() {
                       placeholder="111.222.333-44"
                       value={newGuarantorCpf}
                       onChange={(e) => setNewGuarantorCpf(e.target.value)}
+                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                    />
+                  </div>
+                  <div className={styles.detailItem}>
+                    <label className={styles.detailLabel}>Parentesco / Vínculo</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Irmão, Pai, Amigo"
+                      value={newGuarantorRel}
+                      onChange={(e) => setNewGuarantorRel(e.target.value)}
                       style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
                     />
                   </div>
