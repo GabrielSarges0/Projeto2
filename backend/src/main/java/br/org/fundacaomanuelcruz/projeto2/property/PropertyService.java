@@ -1,5 +1,6 @@
 package br.org.fundacaomanuelcruz.projeto2.property;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -7,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PropertyService {
+
+    private static final int EXPIRING_WINDOW_DAYS = 30;
 
     private final PropertyRepository propertyRepository;
     private final LeaseContractRepository contractRepository;
@@ -41,7 +44,9 @@ public class PropertyService {
 
     @Transactional(readOnly = true)
     public List<LeaseContractResponse> listExpiringContracts() {
-        return contractRepository.findTop5ByOrderByEndDateAsc().stream()
+        // Somente contratos que vencem nos próximos 30 dias (mesma regra exibida no Painel)
+        LocalDate today = LocalDate.now();
+        return contractRepository.findTop5ByEndDateBetweenOrderByEndDateAsc(today, today.plusDays(EXPIRING_WINDOW_DAYS)).stream()
                 .map(this::toContractResponse)
                 .toList();
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { saveMovement } from "@/lib/shared-store";
 import {
@@ -190,25 +190,21 @@ const initialFiles: FileItem[] = [
 ];
 
 export default function DocumentosPage() {
-  const [folders, setFolders] = useState<FolderItem[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("fmc_folders_v3");
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return initialFolders;
-  });
+  // Começa com os dados padrão (iguais no servidor e no cliente) e só depois lê o localStorage,
+  // evitando erro de hidratação quando o usuário já tem pastas/documentos salvos.
+  const [folders, setFolders] = useState<FolderItem[]>(initialFolders);
+  const [files, setFiles] = useState<FileItem[]>(initialFiles);
 
-  const [files, setFiles] = useState<FileItem[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("fmc_files_v3");
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return initialFiles;
-  });
+  useEffect(() => {
+    try {
+      const savedFolders = localStorage.getItem("fmc_folders_v3");
+      const savedFiles = localStorage.getItem("fmc_files_v3");
+      /* eslint-disable react-hooks/set-state-in-effect -- leitura do localStorage precisa ocorrer após a hidratação */
+      if (savedFolders) setFolders(JSON.parse(savedFolders) as FolderItem[]);
+      if (savedFiles) setFiles(JSON.parse(savedFiles) as FileItem[]);
+      /* eslint-enable react-hooks/set-state-in-effect */
+    } catch {}
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");

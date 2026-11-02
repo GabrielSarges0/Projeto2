@@ -9,7 +9,6 @@ import {
   FileSignature,
   FileText,
   Home,
-  Image as ImageIcon,
   LogOut,
   Scale,
   Settings,
@@ -40,15 +39,6 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar" aria-label="Navegação principal">
-      <div className="sidebar-brand" aria-label="Manuel Cruz">
-        <div className="sidebar-brand-box">
-          <div className="sidebar-brand-avatar">
-            <ImageIcon size={20} strokeWidth={1.8} />
-          </div>
-          <span className="sidebar-brand-name">Manuel Cruz</span>
-        </div>
-      </div>
-
       <nav className="sidebar-nav">
         {items.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);

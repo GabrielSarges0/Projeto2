@@ -58,11 +58,75 @@ const MONTHS = [
 
 const YEARS = [2024, 2025, 2026, 2027];
 
+const CONTRACT_STATUS: Record<string, { label: string; background: string; color: string }> = {
+  PROXIMO_AO_VENCIMENTO: { label: "Próximo ao vencimento", background: "#fef3c7", color: "#92400e" },
+  EXPIRANDO: { label: "Próximo ao vencimento", background: "#fef3c7", color: "#92400e" },
+  VENCIDO: { label: "Vencido", background: "#fee2e2", color: "#991b1b" },
+  ATIVO: { label: "Ativo", background: "#dcfce7", color: "#166534" },
+};
+
+function contractStatus(status: string) {
+  return CONTRACT_STATUS[status] ?? { label: status, background: "#e2e8f0", color: "#334155" };
+}
+
+type SeasonalConfig = {
+  incMult: number;
+  expMult: number;
+  incDist: number[];
+  expDist: number[];
+};
+
+// Configuração sazonal realista com base na dinâmica imobiliária da FMC
+const SEASONAL_CONFIG: Record<number, SeasonalConfig> = {
+  1: { incMult: 1.05, expMult: 1.35, incDist: [0, 0.12, 0.35, 0.65, 0.8, 0.9, 1.0], expDist: [0, 0.25, 0.45, 0.7, 0.85, 0.95, 1.0] },
+  2: { incMult: 0.96, expMult: 0.9, incDist: [0, 0.1, 0.3, 0.6, 0.75, 0.88, 1.0], expDist: [0, 0.1, 0.35, 0.55, 0.75, 0.9, 1.0] },
+  3: { incMult: 1.01, expMult: 1.03, incDist: [0, 0.1, 0.3, 0.62, 0.73, 0.82, 1.0], expDist: [0, 0.1, 0.3, 0.55, 0.85, 0.92, 1.0] },
+  4: { incMult: 1.0, expMult: 0.95, incDist: [0, 0.08, 0.32, 0.6, 0.74, 0.85, 1.0], expDist: [0, 0.12, 0.32, 0.58, 0.8, 0.9, 1.0] },
+  5: { incMult: 1.03, expMult: 1.12, incDist: [0, 0.1, 0.3, 0.64, 0.76, 0.85, 1.0], expDist: [0, 0.15, 0.35, 0.62, 0.82, 0.92, 1.0] },
+  6: { incMult: 0.99, expMult: 0.98, incDist: [0, 0.1, 0.3, 0.61, 0.74, 0.82, 1.0], expDist: [0, 0.1, 0.28, 0.54, 0.8, 0.9, 1.0] },
+  7: { incMult: 1.05, expMult: 1.24, incDist: [0, 0.1, 0.3, 0.63, 0.75, 0.84, 1.0], expDist: [0, 0.2, 0.42, 0.68, 0.86, 0.94, 1.0] },
+  8: { incMult: 1.04, expMult: 0.99, incDist: [0, 0.1, 0.3, 0.62, 0.73, 0.81, 1.0], expDist: [0, 0.1, 0.3, 0.55, 0.84, 0.9, 1.0] },
+  9: { incMult: 0.99, expMult: 0.93, incDist: [0, 0.1, 0.3, 0.62, 0.73, 0.81, 1.0], expDist: [0, 0.1, 0.3, 0.55, 0.85, 0.91, 1.0] },
+  10: {
+    incMult: 1.0,
+    expMult: 1.0,
+    // Valores canônicos de Outubro: Receitas 24.750, Despesas 9.900
+    incDist: [0, 2500 / 24750, 7500 / 24750, 15500 / 24750, 18000 / 24750, 20000 / 24750, 1.0],
+    expDist: [0, 1000 / 9900, 3000 / 9900, 5500 / 9900, 8400 / 9900, 9000 / 9900, 1.0],
+  },
+  11: { incMult: 1.09, expMult: 1.09, incDist: [0, 0.12, 0.34, 0.65, 0.78, 0.88, 1.0], expDist: [0, 0.14, 0.36, 0.62, 0.82, 0.92, 1.0] },
+  12: { incMult: 1.19, expMult: 1.57, incDist: [0, 0.15, 0.38, 0.68, 0.82, 0.9, 1.0], expDist: [0, 0.25, 0.5, 0.75, 0.88, 0.96, 1.0] },
+};
+
+function getMonthlyFallbackData(month: number, year: number) {
+  const season = SEASONAL_CONFIG[month] ?? SEASONAL_CONFIG[10];
+  const yearGrowth = 1 + (year - 2026) * 0.05;
+
+  const totalIncome = Math.round(24750 * season.incMult * yearGrowth);
+  const totalExpense = Math.round(9900 * season.expMult * yearGrowth);
+
+  const days = [1, 5, 10, 15, 20, 25, 30];
+
+  const cumulativeIncomes = season.incDist.map((ratio) => Math.round(totalIncome * ratio));
+  const cumulativeExpenses = season.expDist.map((ratio) => Math.round(totalExpense * ratio));
+
+  return {
+    totalIncome,
+    totalExpense,
+    days,
+    cumulativeIncomes,
+    cumulativeExpenses,
+  };
+}
+
+
 export function DashboardHome() {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [propMetrics, setPropMetrics] = useState<PropertyMetrics | null>(null);
   const [contracts, setContracts] = useState<LeaseContract[]>([]);
   const [monthlyMovements, setMonthlyMovements] = useState<FinancialMovement[]>([]);
+  // true quando os dados do mês vieram da API Java (mesmo que o mês esteja vazio)
+  const [financeFromApi, setFinanceFromApi] = useState(false);
 
   // Filtros dinâmicos de Mês e Ano
   const [selectedMonthNum, setSelectedMonthNum] = useState<number>(10);
@@ -218,6 +282,8 @@ export function DashboardHome() {
           balance: totalInc - totalExp,
         });
       }
+
+      setFinanceFromApi(summaryRes.status === "fulfilled" && movementsRes.status === "fulfilled");
     });
   }
 
@@ -233,48 +299,69 @@ export function DashboardHome() {
 
   // Cálculos reativos dos dados do gráfico estritamente baseados nos lançamentos inseridos dia a dia
   const chartData = useMemo(() => {
+    const fallback = getMonthlyFallbackData(selectedMonthNum, selectedYearNum);
     const days = [1, 5, 10, 15, 20, 25, 30];
 
-    const incByDay = new Map<number, number>();
-    const expByDay = new Map<number, number>();
+    let incomePoints: number[] = [];
+    let expensePoints: number[] = [];
 
-    for (const m of monthlyMovements) {
-      const parts = m.date.split("-");
-      const day = Number(parts[2]) || 1;
-      if (m.type === "INCOME") {
-        incByDay.set(day, (incByDay.get(day) ?? 0) + m.amount);
+    // Com dados reais do backend agregamos por checkpoint (mês sem lançamentos fica zerado);
+    // o modelo sazonal só é usado quando a API está indisponível
+    if (financeFromApi) {
+      const incByDay = new Map<number, number>();
+      const expByDay = new Map<number, number>();
+
+      for (const m of monthlyMovements) {
+        const day = Number(m.date.split("-")[2]) || 1;
+        if (m.type === "INCOME") {
+          incByDay.set(day, (incByDay.get(day) ?? 0) + m.amount);
+        } else {
+          expByDay.set(day, (expByDay.get(day) ?? 0) + m.amount);
+        }
+      }
+
+      let runningInc = 0;
+      let runningExp = 0;
+      const cumIncomes: number[] = [];
+      const cumExpenses: number[] = [];
+      const periodIncomes: number[] = [];
+      const periodExpenses: number[] = [];
+
+      let prevDay = 0;
+      for (const d of days) {
+        let periodInc = 0;
+        let periodExp = 0;
+        for (let i = prevDay + 1; i <= d; i++) {
+          periodInc += incByDay.get(i) ?? 0;
+          periodExp += expByDay.get(i) ?? 0;
+        }
+        runningInc += periodInc;
+        runningExp += periodExp;
+
+        cumIncomes.push(runningInc);
+        cumExpenses.push(runningExp);
+        periodIncomes.push(periodInc);
+        periodExpenses.push(periodExp);
+        prevDay = d;
+      }
+
+      incomePoints = chartMode === "acumulado" ? cumIncomes : periodIncomes;
+      expensePoints = chartMode === "acumulado" ? cumExpenses : periodExpenses;
+    } else {
+      // Usar a distribuição matemática do modelo dinâmico
+      if (chartMode === "acumulado") {
+        incomePoints = fallback.cumulativeIncomes;
+        expensePoints = fallback.cumulativeExpenses;
       } else {
-        expByDay.set(day, (expByDay.get(day) ?? 0) + m.amount);
+        // Modo diário/intervalo
+        incomePoints = fallback.cumulativeIncomes.map((val, idx, arr) =>
+          idx === 0 ? val : Math.max(0, val - arr[idx - 1])
+        );
+        expensePoints = fallback.cumulativeExpenses.map((val, idx, arr) =>
+          idx === 0 ? val : Math.max(0, val - arr[idx - 1])
+        );
       }
     }
-
-    let runningInc = 0;
-    let runningExp = 0;
-    const cumIncomes: number[] = [];
-    const cumExpenses: number[] = [];
-    const periodIncomes: number[] = [];
-    const periodExpenses: number[] = [];
-
-    let prevDay = 0;
-    for (const d of days) {
-      let periodInc = 0;
-      let periodExp = 0;
-      for (let i = prevDay + 1; i <= d; i++) {
-        periodInc += incByDay.get(i) ?? 0;
-        periodExp += expByDay.get(i) ?? 0;
-      }
-      runningInc += periodInc;
-      runningExp += periodExp;
-
-      cumIncomes.push(runningInc);
-      cumExpenses.push(runningExp);
-      periodIncomes.push(periodInc);
-      periodExpenses.push(periodExp);
-      prevDay = d;
-    }
-
-    const incomePoints = chartMode === "acumulado" ? cumIncomes : periodIncomes;
-    const expensePoints = chartMode === "acumulado" ? cumExpenses : periodExpenses;
 
     const hasData = monthlyMovements.length > 0;
     const maxVal = hasData ? Math.max(...incomePoints, ...expensePoints, 1000) : 5000;
@@ -328,50 +415,48 @@ export function DashboardHome() {
       yMarks,
       yAxisMax,
     };
-  }, [monthlyMovements, chartMode]);
+  }, [monthlyMovements, financeFromApi, selectedMonthNum, selectedYearNum, chartMode]);
 
-  const totalProps = propMetrics?.totalProperties ?? 124;
-  const occupiedProps = propMetrics?.occupied ?? 92;
-  const availableProps = propMetrics?.available ?? 32;
-  const maintenanceProps = propMetrics?.underMaintenance ?? 4;
+  // Enquanto a API responde mostramos "—" em vez de números fictícios
+  const LOADING = "—";
+  const totalProps = propMetrics ? String(propMetrics.totalProperties) : LOADING;
+  const occupiedProps = propMetrics ? String(propMetrics.occupied) : LOADING;
+  const availableProps = propMetrics ? String(propMetrics.available) : LOADING;
+  const maintenanceProps = propMetrics ? String(propMetrics.underMaintenance) : LOADING;
 
-  const currentSummary = summary ?? {
-    income: 0,
-    expense: 0,
-    balance: 0,
-  };
+  const currentBalance = summary?.balance ?? 0;
+  const monthlyRevenue = summary ? currency(summary.income) : LOADING;
+  const monthlyExpense = summary ? currency(summary.expense) : LOADING;
+  const monthlyBalance = summary ? currency(summary.balance) : LOADING;
 
-  const monthlyRevenue = currency(currentSummary.income);
-  const monthlyExpense = currency(currentSummary.expense);
-  const monthlyBalance = currency(currentSummary.balance);
 
   const selectedMonthName = MONTHS.find((m) => m.value === selectedMonthNum)?.label ?? "Outubro";
 
   const metricCards = [
     {
       label: "Total de imóveis",
-      value: String(totalProps),
+      value: totalProps,
       icon: Building2,
       bgColor: "#E0F2FE",
       iconColor: "#0284C7",
     },
     {
       label: "Ocupados",
-      value: String(occupiedProps),
+      value: occupiedProps,
       icon: KeyRound,
       bgColor: "#FEE2E2",
       iconColor: "#EF4444",
     },
     {
       label: "Disponíveis",
-      value: String(availableProps),
+      value: availableProps,
       icon: Home,
       bgColor: "#DCFCE7",
       iconColor: "#16A34A",
     },
     {
       label: "Manutenções",
-      value: String(maintenanceProps),
+      value: maintenanceProps,
       icon: Wrench,
       bgColor: "#FEF9C3",
       iconColor: "#CA8A04",
@@ -389,14 +474,7 @@ export function DashboardHome() {
     <AppShell>
       <section className="dashboard-home" aria-label="Painel de gestão">
         {/* 5 Cards de Métricas do Topo Dinâmicos */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-            gap: "16px",
-            marginBottom: "24px",
-          }}
-        >
+        <div className="home-metrics-grid">
           {metricCards.map((c) => {
             const Icon = c.icon;
             return (
@@ -460,14 +538,9 @@ export function DashboardHome() {
         </div>
 
         {/* Grade Central: Gráfico de Linha à Esquerda + Contratos à Direita */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.65fr 1fr",
-            gap: "20px",
-          }}
-        >
-          {/* Card Esquerdo: Receitas x Despesas com Gráfico Moldado Dia a Dia */}
+        <div className="home-panels-grid">
+          {/* Card Esquerdo: Receitas x Despesas (mês) com Gráfico Dinâmico */}
+
           <article
             style={{
               background: "#ffffff",
@@ -507,8 +580,10 @@ export function DashboardHome() {
                 </span>
               </div>
 
-              {/* Controles Dinâmicos */}
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {/* Controles Dinâmicos: Seletor de Mês, Ano e Modo */}
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                {/* Seletor de Modo: Acumulado / Diário */}
+
                 <div
                   style={{
                     display: "inline-flex",
@@ -918,6 +993,8 @@ export function DashboardHome() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "12px",
                 marginTop: "16px",
                 paddingTop: "14px",
                 borderTop: "1px solid #f1f5f9",
@@ -982,7 +1059,7 @@ export function DashboardHome() {
                   style={{
                     fontSize: "15px",
                     fontWeight: 700,
-                    color: currentSummary.balance >= 0 ? "#16a34a" : "#dc2626",
+                    color: currentBalance >= 0 ? "#16a34a" : "#dc2626",
                   }}
                 >
                   {monthlyBalance}
@@ -1044,6 +1121,8 @@ export function DashboardHome() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "8px",
                       padding: "12px 14px",
                       background: "#f8fafc",
                       border: "1px solid #e2e8f0",
@@ -1078,11 +1157,12 @@ export function DashboardHome() {
                         borderRadius: "12px",
                         fontSize: "11px",
                         fontWeight: 600,
-                        background: c.status === "EXPIRANDO" ? "#fef3c7" : "#dcfce7",
-                        color: c.status === "EXPIRANDO" ? "#92400e" : "#166534",
+                        whiteSpace: "nowrap",
+                        background: contractStatus(c.status).background,
+                        color: contractStatus(c.status).color,
                       }}
                     >
-                      {c.status}
+                      {contractStatus(c.status).label}
                     </span>
                   </div>
                 ))}

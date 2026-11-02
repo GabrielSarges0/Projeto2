@@ -19,14 +19,14 @@ public class ApiExceptionHandler {
         Map<String, String> fields = new LinkedHashMap<>();
         exception.getBindingResult().getFieldErrors().forEach(error ->
                 fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
-        return response(HttpStatus.BAD_REQUEST, "Dados invalidos.", fields);
+        return response(HttpStatus.BAD_REQUEST, "Dados inválidos.", fields);
     }
 
     @ExceptionHandler({ IllegalArgumentException.class, HttpMessageNotReadableException.class })
     ResponseEntity<ApiErrorResponse> badRequest(Exception exception) {
         String message = exception instanceof IllegalArgumentException
                 ? exception.getMessage()
-                : "JSON, data ou valor em formato invalido.";
+                : "JSON, data ou valor em formato inválido.";
         return response(HttpStatus.BAD_REQUEST, message, Map.of());
     }
 
