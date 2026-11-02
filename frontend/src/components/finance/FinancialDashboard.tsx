@@ -26,8 +26,24 @@ import {
   Trash2,
   Wrench,
   X,
+  Pencil,
+  Paperclip,
+  Upload,
+  Tag,
+  Clock,
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import {
+  getStoredProperties,
+  updatePropertySituation,
+  getPropertyMetricsFromStore,
+  getStoredReminders,
+  saveReminders as saveSharedReminders,
+  saveMovement,
+  type FMCProperty,
+  type FMCReminder,
+  type PropertySituation,
+} from "@/lib/shared-store";
 import {
   financialApi,
   propertiesApi,
@@ -56,6 +72,8 @@ type EntryForm = {
   finesDesc: string;
   finesAmount: string;
   netCalculated: number | null;
+  attachedDocId?: string;
+  attachedDocName?: string;
 };
 
 type ExpenseForm = {
@@ -90,6 +108,8 @@ const initialForm: EntryForm = {
   finesDesc: "",
   finesAmount: "",
   netCalculated: null,
+  attachedDocId: "",
+  attachedDocName: "",
 };
 
 const initialExpenseForm: ExpenseForm = {
@@ -241,6 +261,36 @@ export function FinancialDashboard() {
   const [historicoSearch, setHistoricoSearch] = useState("");
   const [selectedDetailModal, setSelectedDetailModal] = useState<{ title: string; content: string } | null>(null);
 
+  // Estados de Imóveis e Modificação de Situação (Sprint 3)
+  const [propertiesList, setPropertiesList] = useState<FMCProperty[]>(() => getStoredProperties());
+  const [editingProperty, setEditingProperty] = useState<FMCProperty | null>(null);
+  const [imoveisFilterSituation, setImoveisFilterSituation] = useState<string>("ALL");
+  const [imoveisFilterPrice, setImoveisFilterPrice] = useState<string>("ALL");
+  const [imoveisFilterOpen, setImoveisFilterOpen] = useState(false);
+
+  // Estados de Filtro do Histórico (Sprint 3)
+  const [historicoFilterTipo, setHistoricoFilterTipo] = useState<string>("ALL");
+  const [historicoFilterResp, setHistoricoFilterResp] = useState<string>("ALL");
+  const [historicoFilterOpen, setHistoricoFilterOpen] = useState(false);
+
+  // Estados de Lembretes Estruturados e Detalhes Expandidos (Sprint 3)
+  const [structuredReminders, setStructuredReminders] = useState<FMCReminder[]>(() => getStoredReminders());
+  const [selectedReminderModal, setSelectedReminderModal] = useState<FMCReminder | null>(null);
+  const [createReminderModalOpen, setCreateReminderModalOpen] = useState(false);
+
+  // Documentos cadastrados disponíveis para vínculo
+  const [availableDocs, setAvailableDocs] = useState<{ id: string; name: string; protocol?: string }[]>([]);
+
+
+
+  useEffect(() => {
+    const handlePropsUpdated = () => {
+      setPropertiesList(getStoredProperties());
+    };
+    window.addEventListener("fmc_properties_updated", handlePropsUpdated);
+    return () => window.removeEventListener("fmc_properties_updated", handlePropsUpdated);
+  }, []);
+
   const [month, setMonth] = useState(months[now.getMonth()]);
   const [year, setYear] = useState(String(now.getFullYear()));
   const [summary, setSummary] = useState<FinancialSummary>(emptySummary);
@@ -257,6 +307,18 @@ export function FinancialDashboard() {
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [expenseForm, setExpenseForm] = useState<ExpenseForm>(initialExpenseForm);
   const [expenseFormMessage, setExpenseFormMessage] = useState("");
+
+  useEffect(() => {
+    try {
+      const savedDocs = localStorage.getItem("fmc_files_v3");
+      if (savedDocs) {
+        const parsed = JSON.parse(savedDocs);
+        if (Array.isArray(parsed)) {
+          setAvailableDocs(parsed.map((d: any) => ({ id: d.id, name: d.name, protocol: d.protocol })));
+        }
+      }
+    } catch {}
+  }, [entryModalOpen, expenseModalOpen]);
 
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [propertiesModalOpen, setPropertiesModalOpen] = useState(false);
@@ -551,6 +613,15 @@ export function FinancialDashboard() {
       resetForm();
       setEntryModalOpen(false);
       showToast("Entrada registrada com sucesso!");
+      saveMovement({
+        id: Date.now(),
+        date: form.date,
+        tenantName: form.tenantName.trim(),
+        propertyRegistration: form.propertyRegistration.trim(),
+        amount: form.netCalculated ?? grossAmount,
+        type: "INCOME",
+        documentName: form.attachedDocName,
+      });
       await refreshFinanceFromEvent();
     } catch {
       // Fallback para modo local/offline (ex: demo Vercel)
@@ -789,7 +860,7 @@ export function FinancialDashboard() {
                     <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
                       Ocupados
                     </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>92</strong>
+                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{Math.round((propertiesList.filter(p => p.situation === "Ocupado").length / Math.max(1, propertiesList.length)) * 124)}</strong>
                   </div>
                 </div>
 
@@ -1089,6 +1160,7 @@ export function FinancialDashboard() {
           onClose={closeEntryModal}
           onReset={resetForm}
           onSubmit={submitEntry}
+          availableDocs={availableDocs}
         />
       ) : null}
 
@@ -1102,6 +1174,7 @@ export function FinancialDashboard() {
           onClose={closeExpenseModal}
           onReset={resetExpenseForm}
           onSubmit={submitExpense}
+          availableDocs={availableDocs}
         />
       ) : null}
 
@@ -1118,6 +1191,62 @@ export function FinancialDashboard() {
       {propertiesModalOpen ? (
         <PropertiesModal onClose={() => setPropertiesModalOpen(false)} />
       ) : null}
+
+      {/* Modal de Edição de Imóvel (Sprint 3) */}
+      {editingProperty && (
+        <EditPropertyModal
+          property={editingProperty}
+          onClose={() => setEditingProperty(null)}
+          onSave={(updatedProp) => {
+            const updated = updatePropertySituation(updatedProp.id, updatedProp.situation, {
+              address: updatedProp.address,
+              value: updatedProp.value,
+              tenant: updatedProp.tenant,
+              details: updatedProp.details,
+            });
+            setPropertiesList(updated);
+            setEditingProperty(null);
+            showToast(`Imóvel ${updatedProp.code} atualizado com sucesso!`);
+          }}
+        />
+      )}
+
+      {/* Modal de Criação de Lembrete Estruturado (Sprint 3) */}
+      {createReminderModalOpen && (
+        <CreateReminderModal
+          onClose={() => setCreateReminderModalOpen(false)}
+          onSave={(newRem) => {
+            const updated = [newRem, ...structuredReminders];
+            setStructuredReminders(updated);
+            saveSharedReminders(updated);
+            setCreateReminderModalOpen(false);
+            showToast("Lembrete cadastrado com sucesso!");
+          }}
+        />
+      )}
+
+      {/* Modal de Detalhes Expandidos do Lembrete (Sprint 3) */}
+      {selectedReminderModal && (
+        <ReminderDetailModal
+          reminder={selectedReminderModal}
+          onClose={() => setSelectedReminderModal(null)}
+          onToggle={() => {
+            const updated = structuredReminders.map((item) =>
+              item.id === selectedReminderModal.id ? { ...item, done: !item.done } : item
+            );
+            setStructuredReminders(updated);
+            saveSharedReminders(updated);
+            setSelectedReminderModal({ ...selectedReminderModal, done: !selectedReminderModal.done });
+          }}
+          onDelete={() => {
+            const updated = structuredReminders.filter((item) => item.id !== selectedReminderModal.id);
+            setStructuredReminders(updated);
+            saveSharedReminders(updated);
+            setSelectedReminderModal(null);
+            showToast("Lembrete excluído com sucesso.");
+          }}
+        />
+      )}
 
       {/* Modal 5: Informações Detalhadas do Imóvel ou Registro */}
       {selectedDetailModal ? (
@@ -1296,6 +1425,7 @@ function EntryModal({
   onClose,
   onReset,
   onSubmit,
+  availableDocs,
 }: {
   form: EntryForm;
   message: string;
@@ -1304,6 +1434,7 @@ function EntryModal({
   onClose: () => void;
   onReset: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  availableDocs: { id: string; name: string; protocol?: string }[];
 }) {
   function patch<K extends keyof EntryForm>(key: K, value: EntryForm[K]) {
     onChange({ ...form, [key]: value });
@@ -1563,7 +1694,83 @@ function EntryModal({
             </div>
           </div>
 
+                    {/* Vínculo com Recibos / Comprovantes (Sprint 3) */}
+          <div style={{ gridColumn: "1 / -1", background: "#f8fafc", padding: "12px 16px", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#092a54", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+              <Paperclip size={16} /> VINCULAR RECIBO OU DOCUMENTO DIGITALIZADO (OPCIONAL):
+            </span>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div>
+                <label style={{ fontSize: "11px", color: "#64748b", display: "block", marginBottom: "2px" }}>
+                  Selecionar documento da Central de Documentos:
+                </label>
+                <select
+                  className={styles.filterSelect}
+                  value={form.attachedDocName ?? ""}
+                  onChange={(e) => patch("attachedDocName", e.target.value)}
+                >
+                  <option value="">Nenhum documento vinculado</option>
+                  {availableDocs.map((doc) => (
+                    <option key={doc.id} value={doc.name}>
+                      {doc.name} {doc.protocol ? `(${doc.protocol})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: "11px", color: "#64748b", display: "block", marginBottom: "2px" }}>
+                  Ou informe o número / identificador do recibo:
+                </label>
+                <input
+                  type="text"
+                  className={styles.filterSelect}
+                  placeholder="Ex.: Recibo #8820 / Comprovante Pix"
+                  value={form.attachedDocName && !availableDocs.some(d => d.name === form.attachedDocName) ? form.attachedDocName : ""}
+                  onChange={(e) => patch("attachedDocName", e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
           {message ? <p className={styles.formMessage}>{message}</p> : null}
+
+                    {/* Vínculo com Nota Fiscal / Comprovante de Despesa */}
+          <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: "8px", border: "1px dashed #cbd5e1", marginTop: "12px" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#991b1b", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+              <Paperclip size={16} /> ANEXAR COMPROVANTE / NOTA FISCAL (OPCIONAL):
+            </span>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div>
+                <label style={{ fontSize: "11px", color: "#64748b", display: "block", marginBottom: "2px" }}>
+                  Selecionar documento existente:
+                </label>
+                <select
+                  className={styles.filterSelect}
+                  value={form.attachedDocName ?? ""}
+                  onChange={(e) => patch("attachedDocName", e.target.value)}
+                >
+                  <option value="">Nenhum documento vinculado</option>
+                  {availableDocs.map((doc) => (
+                    <option key={doc.id} value={doc.name}>
+                      {doc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: "11px", color: "#64748b", display: "block", marginBottom: "2px" }}>
+                  Ou informe o número da NF / Recibo:
+                </label>
+                <input
+                  type="text"
+                  className={styles.filterSelect}
+                  placeholder="Ex.: NF-e 4920 / Recibo de Reforma"
+                  value={form.attachedDocName && !availableDocs.some(d => d.name === form.attachedDocName) ? form.attachedDocName : ""}
+                  onChange={(e) => patch("attachedDocName", e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
 
           <div className={styles.modalActions}>
             <button
@@ -1592,6 +1799,7 @@ function ExpenseModal({
   onClose,
   onReset,
   onSubmit,
+  availableDocs,
 }: {
   form: ExpenseForm;
   message: string;
@@ -1600,6 +1808,7 @@ function ExpenseModal({
   onClose: () => void;
   onReset: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  availableDocs: { id: string; name: string; protocol?: string }[];
 }) {
   function patch<K extends keyof ExpenseForm>(key: K, value: ExpenseForm[K]) {
     onChange({ ...form, [key]: value });
@@ -2077,6 +2286,409 @@ function PropertiesModal({ onClose }: { onClose: () => void }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+// --- NOVOS MODAIS SPRINT 3 (FMC) ---
+
+function EditPropertyModal({
+  property,
+  onClose,
+  onSave,
+}: {
+  property: FMCProperty;
+  onClose: () => void;
+  onSave: (prop: FMCProperty) => void;
+}) {
+  const [situation, setSituation] = useState<PropertySituation>(property.situation);
+  const [address, setAddress] = useState(property.address);
+  const [value, setValue] = useState(property.value);
+  const [tenant, setTenant] = useState(property.tenant);
+  const [details, setDetails] = useState(property.details);
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    onSave({
+      ...property,
+      situation,
+      statusType: situation === "Ocupado" ? "green" : situation === "Livre" ? "yellow" : "red",
+      address,
+      value,
+      tenant,
+      details,
+    });
+  }
+
+  return (
+    <div className={styles.propertyModalOverlay} role="presentation" onMouseDown={onClose}>
+      <div
+        className={styles.propertyModalCard}
+        role="dialog"
+        aria-modal="true"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className={styles.propertyModalHeader}>
+          <h3>MODIFICAR SITUAÇÃO DO IMÓVEL {property.code}</h3>
+          <button type="button" className={styles.modalClose} onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className={styles.propertyModalBody}>
+          <div>
+            <label style={{ fontSize: "13px", fontWeight: 700, color: "#334155", display: "block" }}>
+              Situação Atual do Imóvel:
+            </label>
+            <div className={styles.situationButtonsGrid}>
+              <button
+                type="button"
+                className={`${styles.situationBtn} ${situation === "Ocupado" ? styles.situationBtnActiveGreen : ""}`}
+                onClick={() => {
+                  setSituation("Ocupado");
+                  if (tenant === "Disponível para locação" || tenant === "Em Manutenção") setTenant("");
+                }}
+              >
+                <span className={styles.dotGreen} /> Ocupado
+              </button>
+              <button
+                type="button"
+                className={`${styles.situationBtn} ${situation === "Livre" ? styles.situationBtnActiveYellow : ""}`}
+                onClick={() => {
+                  setSituation("Livre");
+                  setTenant("Disponível para locação");
+                }}
+              >
+                <span className={styles.dotYellow} /> Livre
+              </button>
+              <button
+                type="button"
+                className={`${styles.situationBtn} ${situation === "Manutenção" ? styles.situationBtnActiveRed : ""}`}
+                onClick={() => {
+                  setSituation("Manutenção");
+                  setTenant("Em Manutenção");
+                }}
+              >
+                <span className={styles.dotRed} /> Manutenção
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+              Endereço Completo:
+            </label>
+            <input
+              type="text"
+              className={styles.filterSelect}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              required
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div>
+              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+                Inquilino Atual:
+              </label>
+              <input
+                type="text"
+                className={styles.filterSelect}
+                value={tenant}
+                onChange={(e) => setTenant(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+                Valor de Locação / Avaliação:
+              </label>
+              <input
+                type="text"
+                className={styles.filterSelect}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+              Observações / Histórico:
+            </label>
+            <textarea
+              className={styles.filterSelect}
+              rows={3}
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.modalFooterActions}>
+            <button type="button" className={styles.modalCancelBtn} onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className={styles.modalConfirmBtn}>
+              Salvar Alterações
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CreateReminderModal({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void;
+  onSave: (rem: FMCReminder) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<FMCReminder["category"]>("Financeiro");
+  const [priority, setPriority] = useState<FMCReminder["priority"]>("Alta");
+  const [deadline, setDeadline] = useState("");
+  const [responsible, setResponsible] = useState("Gabriel Sarges");
+  const [description, setDescription] = useState("");
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onSave({
+      id: String(Date.now()),
+      title: title.trim(),
+      category,
+      priority,
+      deadline: deadline || new Date().toISOString().split("T")[0],
+      responsible,
+      description: description.trim(),
+      done: false,
+      createdAt: new Date().toISOString().split("T")[0],
+    });
+  }
+
+  return (
+    <div className={styles.propertyModalOverlay} role="presentation" onMouseDown={onClose}>
+      <div
+        className={styles.propertyModalCard}
+        role="dialog"
+        aria-modal="true"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className={styles.propertyModalHeader}>
+          <h3>CRIAR NOVO LEMBRETE OPERACIONAL / FINANCEIRO</h3>
+          <button type="button" className={styles.modalClose} onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className={styles.propertyModalBody}>
+          <div>
+            <label style={{ fontSize: "13px", fontWeight: 700, color: "#334155", display: "block", marginBottom: 4 }}>
+              Título / Assunto do Lembrete:
+            </label>
+            <input
+              type="text"
+              className={styles.filterSelect}
+              placeholder="Ex.: Vistoria no IM-003, Cobrança de aluguel..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div>
+              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+                Categoria:
+              </label>
+              <select
+                className={styles.filterSelect}
+                value={category}
+                onChange={(e) => setCategory(e.target.value as any)}
+              >
+                <option value="Financeiro">Financeiro</option>
+                <option value="Imóvel / Reforma">Imóvel / Reforma</option>
+                <option value="Prestação MP">Prestação MP</option>
+                <option value="Contrato">Contrato</option>
+                <option value="Operacional">Operacional</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+                Prioridade:
+              </label>
+              <select
+                className={styles.filterSelect}
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as any)}
+              >
+                <option value="Alta">Alta (Urgente)</option>
+                <option value="Média">Média</option>
+                <option value="Baixa">Baixa</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div>
+              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+                Data Limite / Prazo:
+              </label>
+              <input
+                type="date"
+                className={styles.filterSelect}
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+                Responsável:
+              </label>
+              <select
+                className={styles.filterSelect}
+                value={responsible}
+                onChange={(e) => setResponsible(e.target.value)}
+              >
+                <option value="Gabriel Sarges">Gabriel Sarges</option>
+                <option value="Flávio">Flávio</option>
+                <option value="Daniel">Daniel</option>
+                <option value="Lara">Lara</option>
+                <option value="Hannah">Hannah</option>
+                <option value="Emilly">Emilly</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
+              Descrição / Detalhes:
+            </label>
+            <textarea
+              className={styles.filterSelect}
+              rows={3}
+              placeholder="Instruções e dados necessários para a execução desta atividade..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.modalFooterActions}>
+            <button type="button" className={styles.modalCancelBtn} onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className={styles.modalConfirmBtn}>
+              Salvar Lembrete
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ReminderDetailModal({
+  reminder,
+  onClose,
+  onToggle,
+  onDelete,
+}: {
+  reminder: FMCReminder;
+  onClose: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className={styles.propertyModalOverlay} role="presentation" onMouseDown={onClose}>
+      <div
+        className={styles.propertyModalCard}
+        role="dialog"
+        aria-modal="true"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className={styles.propertyModalHeader}>
+          <h3>DETALHES DO LEMBRETE</h3>
+          <button type="button" className={styles.modalClose} onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className={styles.propertyModalBody}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h2 style={{ margin: 0, fontSize: "18px", color: "#0f172a" }}>{reminder.title}</h2>
+            <span
+              className={`${styles.reminderPriorityBadge} ${
+                reminder.priority === "Alta"
+                  ? styles.priorityAlta
+                  : reminder.priority === "Média"
+                  ? styles.priorityMedia
+                  : styles.priorityBaixa
+              }`}
+            >
+              {reminder.priority}
+            </span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", background: "#f8fafc", padding: "12px", borderRadius: "6px" }}>
+            <div>
+              <span style={{ fontSize: "11px", color: "#64748b", display: "block" }}>Categoria:</span>
+              <strong style={{ fontSize: "13px", color: "#1e293b" }}>{reminder.category}</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: "11px", color: "#64748b", display: "block" }}>Prazo Limite:</span>
+              <strong style={{ fontSize: "13px", color: "#1e293b" }}>{displayDate(reminder.deadline)}</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: "11px", color: "#64748b", display: "block" }}>Responsável:</span>
+              <strong style={{ fontSize: "13px", color: "#1e293b" }}>{reminder.responsible}</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: "11px", color: "#64748b", display: "block" }}>Status:</span>
+              <strong style={{ fontSize: "13px", color: reminder.done ? "#16a34a" : "#dc2626" }}>
+                {reminder.done ? "Concluído" : "Pendente"}
+              </strong>
+            </div>
+          </div>
+
+          <div>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>
+              Descrição Completa:
+            </span>
+            <p style={{ margin: 0, fontSize: "14px", color: "#1e293b", lineHeight: "20px", background: "#ffffff", padding: "12px", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
+              {reminder.description || "Nenhuma observação adicional informada."}
+            </p>
+          </div>
+
+          <div className={styles.modalFooterActions} style={{ justifyContent: "space-between" }}>
+            <button
+              type="button"
+              onClick={onDelete}
+              style={{ background: "#fee2e2", border: "1px solid #fca5a5", color: "#dc2626", padding: "8px 14px", borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+            >
+              Excluir Lembrete
+            </button>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={onToggle}
+                style={{ background: reminder.done ? "#fef9c3" : "#dcfce7", border: "1px solid #cbd5e1", color: reminder.done ? "#854d0e" : "#166534", padding: "8px 14px", borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+              >
+                {reminder.done ? "Marcar como Pendente" : "Marcar como Concluído"}
+              </button>
+              <button type="button" className={styles.modalConfirmBtn} onClick={onClose}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

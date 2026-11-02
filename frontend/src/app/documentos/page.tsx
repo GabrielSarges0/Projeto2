@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
+import { saveMovement } from "@/lib/shared-store";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -8,6 +10,7 @@ import {
   CloudUpload,
   Download,
   FileCheck,
+  FileSignature,
   FileText,
   Filter,
   Folder,
@@ -210,6 +213,18 @@ export default function DocumentosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
 
+  // Estados da Sprint 3 (Confirmação de exclusão, Filtros e Vínculo Financeiro)
+  const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<FileItem | null>(null);
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [signatureFilter, setSignatureFilter] = useState<"ALL" | "SIGNED" | "PENDING">("ALL");
+
+  const [uploadLinkFinance, setUploadLinkFinance] = useState(false);
+  const [uploadFinanceType, setUploadFinanceType] = useState<"INCOME" | "EXPENSE">("INCOME");
+  const [uploadFinanceAmount, setUploadFinanceAmount] = useState("");
+  const [uploadFinanceProperty, setUploadFinanceProperty] = useState("IM-001");
+  const [uploadFinanceTenant, setUploadFinanceTenant] = useState("");
+  const [uploadFinanceDate, setUploadFinanceDate] = useState(new Date().toISOString().split("T")[0]);
+
   // Estado de Navegação Dinâmica de Pastas
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 
@@ -284,7 +299,8 @@ export default function DocumentosPage() {
       f.protocol.toLowerCase().includes(term) ||
       f.category.toLowerCase().includes(term);
     const matchCat = categoryFilter === "ALL" || f.category === categoryFilter;
-    return matchTerm && matchCat;
+    const matchSig = signatureFilter === "ALL" || (signatureFilter === "SIGNED" && f.signed) || (signatureFilter === "PENDING" && !f.signed);
+    return matchTerm && matchCat && matchSig;
   });
 
   // Arquivos dentro da pasta aberta
@@ -381,12 +397,17 @@ export default function DocumentosPage() {
     showToast(`Pasta "${name}" excluída.`);
   }
 
-  function handleDeleteFile(id: string, name: string) {
-    if (!confirm(`Deseja realmente excluir o documento "${name}"?`)) return;
-    const updated = files.filter((f) => f.id !== id);
+  function requestDeleteFile(file: FileItem) {
+    setDeleteConfirmDoc(file);
+  }
+
+  function confirmDeleteFile() {
+    if (!deleteConfirmDoc) return;
+    const updated = files.filter((f) => f.id !== deleteConfirmDoc.id);
     saveFiles(updated);
-    if (viewDocModal?.id === id) setViewDocModal(null);
-    showToast(`Documento "${name}" excluído.`);
+    if (viewDocModal?.id === deleteConfirmDoc.id) setViewDocModal(null);
+    showToast(`Documento "${deleteConfirmDoc.name}" excluído.`);
+    setDeleteConfirmDoc(null);
   }
 
   // --- UPLOAD DINÂMICO ---
@@ -785,7 +806,7 @@ Este documento é cópia autêntica do original arquivado no repositório digita
                           className={styles.actionIconBtnRow}
                           title="Excluir documento"
                           aria-label={`Excluir ${file.name}`}
-                          onClick={() => handleDeleteFile(file.id, file.name)}
+                          onClick={() => requestDeleteFile(file)}
                         >
                           <Trash2 size={18} strokeWidth={1.8} />
                         </button>
@@ -967,7 +988,7 @@ Este documento é cópia autêntica do original arquivado no repositório digita
                           className={styles.actionIconBtnRow}
                           title="Excluir documento"
                           aria-label={`Excluir ${file.name}`}
-                          onClick={() => handleDeleteFile(file.id, file.name)}
+                          onClick={() => requestDeleteFile(file)}
                         >
                           <Trash2 size={18} strokeWidth={1.8} />
                         </button>
