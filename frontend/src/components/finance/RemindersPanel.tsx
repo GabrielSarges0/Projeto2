@@ -12,6 +12,7 @@ import {
   REMINDER_PRIORITY_LABEL,
   errorMessage,
   isApiError,
+  notifyFinanceChanged,
   remindersApi,
   type ReminderCategory,
   type ReminderItem,
@@ -69,6 +70,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
     replace({ ...reminder, done: !reminder.done });
     try {
       replace(await remindersApi.toggle(reminder.id));
+      notifyFinanceChanged();
     } catch (error) {
       replace(reminder);
       notify(errorMessage(error), "error");
@@ -81,6 +83,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
     setReminders((current) => current.filter((item) => item.id !== toDelete.id));
     setDetail(null);
     setToDelete(null);
+    notifyFinanceChanged();
     notify("Lembrete excluído.");
   }
 
@@ -91,6 +94,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
     });
     setDetail((current) => (current?.id === reminder.id ? reminder : current));
     setFormTarget(null);
+    notifyFinanceChanged();
     notify(created ? "Lembrete criado." : "Lembrete atualizado.");
   }
 

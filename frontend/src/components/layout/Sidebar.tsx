@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Bell,
   Boxes,
   Building2,
   CircleDollarSign,
@@ -14,6 +15,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useAlerts } from "@/lib/alerts";
 import { logout } from "@/lib/logout";
 import { useCan } from "@/lib/permissions";
 
@@ -33,7 +35,13 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const canManageTeam = useCan("team");
-  const visibleItems = canManageTeam ? [...items, { href: "/equipe", label: "Equipe", icon: ShieldCheck }] : items;
+  const { alerts } = useAlerts();
+  const critical = alerts.filter((alert) => alert.severity === "critical").length;
+  const visibleItems = [
+    ...items,
+    { href: "/alertas", label: "Alertas", icon: Bell },
+    ...(canManageTeam ? [{ href: "/equipe", label: "Equipe", icon: ShieldCheck }] : []),
+  ];
 
   function handleLogout() {
     logout();
@@ -56,6 +64,11 @@ export function Sidebar() {
             >
               <Icon size={18} className="sidebar-link-icon" aria-hidden="true" />
               <span>{label}</span>
+              {href === "/alertas" && alerts.length > 0 ? (
+                <b className={`sidebar-badge${critical > 0 ? " sidebar-badge-critical" : ""}`} aria-label={`${alerts.length} alerta(s), ${critical} crítico(s)`}>
+                  {alerts.length > 99 ? "99+" : alerts.length}
+                </b>
+              ) : null}
             </Link>
           );
         })}
