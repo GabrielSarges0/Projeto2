@@ -1,1676 +1,757 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { saveMovement } from "@/lib/shared-store";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  ChevronRight,
-  CloudUpload,
-  Download,
-  FileCheck,
-  FileSignature,
-  FileText,
-  Filter,
-  Folder,
-  FolderInput,
-  FolderOpen,
-  Pencil,
-  Plus,
-  Printer,
-  QrCode,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
-import { Sidebar } from "@/components/layout/Sidebar";
-import styles from "./documentos.module.css";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ChevronRight, Download, Eye, FileText, Folder as FolderIcon, FolderPlus, MoreVertical, Pencil, Plus, ScanLine, Search, Trash2, Upload } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { DocumentViewer, folderPathOf } from "@/components/documents/DocumentViewer";
+import { NewDocumentModal } from "@/components/documents/NewDocumentModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Field } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
+import { FOLDER_IDS, createDocument } from "@/lib/documents";
+import { deleteFileContent, downloadDataUrl, downloadText, loadFileContent } from "@/lib/files";
+import { errorMessage } from "@/lib/financial-api";
+import { formatDate, newId, normalizeText, todayIso } from "@/lib/format";
+import { useRecords } from "@/lib/records";
+import { DOCUMENT_CATEGORIES, clientSchema, documentSchema, folderSchema, type DocumentCategory, type DocumentItem, type Folder } from "@/lib/schemas";
+import { findTemplate, renderTemplateHtml } from "@/lib/templates";
 
-export type DocumentCategory =
-  | "Contrato"
-  | "Comprovante"
-  | "Prestação de Contas"
-  | "Notificação MP"
-  | "Laudo Técnico"
-  | "Estatuto"
-  | "Outro";
+// Pastas usadas por outras telas (anexos, MP, clientes): podem receber arquivos, mas não ser renomeadas/excluídas.
+const PROTECTED_FOLDERS = new Set<string>([...Object.values(FOLDER_IDS), "fld-mp-anos", "fld-mp-2026", "fld-mp-2026-atas", "fld-mp-2026-relatorios"]);
 
-export type FolderItem = {
-  id: string;
-  name: string;
-  createdAt?: string;
-};
-
-export type FileItem = {
-  id: string;
-  name: string;
-  folderId?: string | null;
-  size: string;
-  category: DocumentCategory;
-  createdAt: string;
-  mimeType?: string;
-  dataUrl?: string;
-  protocol: string;
-  signed: boolean;
-  description?: string;
-};
-
-const initialFolders: FolderItem[] = [
-  { id: "1", name: "Ministério Público", createdAt: "2026-02-15" },
-  { id: "2", name: "Pasta_01 - Contratos de Aluguel", createdAt: "2026-03-10" },
-  { id: "3", name: "Pasta_02 - Comprovantes Financeiros", createdAt: "2026-04-05" },
-  { id: "4", name: "Pasta_03 - Governança e Atas", createdAt: "2026-05-12" },
-];
-
-const initialFiles: FileItem[] = [
-  // Documentos dentro de Pastas
-  {
-    id: "f-101",
-    name: "Relatório_Anual_MP_2025.pdf",
-    folderId: "1",
-    size: "3.4 MB",
-    category: "Notificação MP",
-    createdAt: "2026-03-15",
-    protocol: "FMC-REG-81204",
-    signed: true,
-  },
-  {
-    id: "f-102",
-    name: "Termo_Ajustamento_Conduta.pdf",
-    folderId: "1",
-    size: "1.9 MB",
-    category: "Notificação MP",
-    createdAt: "2026-04-10",
-    protocol: "FMC-REG-81205",
-    signed: true,
-  },
-  {
-    id: "f-201",
-    name: "Contrato_IM-001_JoaoCavalcanti.pdf",
-    folderId: "2",
-    size: "2.8 MB",
-    category: "Contrato",
-    createdAt: "2025-10-10",
-    protocol: "FMC-REG-82301",
-    signed: true,
-  },
-  {
-    id: "f-202",
-    name: "Contrato_IM-002_MariaSilva.pdf",
-    folderId: "2",
-    size: "2.1 MB",
-    category: "Contrato",
-    createdAt: "2025-11-01",
-    protocol: "FMC-REG-82302",
-    signed: true,
-  },
-  {
-    id: "f-301",
-    name: "Comprovante_Reforma_IM-003.pdf",
-    folderId: "3",
-    size: "1.4 MB",
-    category: "Comprovante",
-    createdAt: "2026-09-20",
-    protocol: "FMC-REG-83401",
-    signed: true,
-  },
-  {
-    id: "f-302",
-    name: "DARF_ReceitaFederal_Set2026.pdf",
-    folderId: "3",
-    size: "680 KB",
-    category: "Comprovante",
-    createdAt: "2026-10-05",
-    protocol: "FMC-REG-83402",
-    signed: true,
-  },
-  {
-    id: "f-401",
-    name: "Ata_Reuniao_Conselho_2026.pdf",
-    folderId: "4",
-    size: "1.1 MB",
-    category: "Prestação de Contas",
-    createdAt: "2026-08-14",
-    protocol: "FMC-REG-84501",
-    signed: true,
-  },
-
-  // Documentos sem pasta (Raiz)
-  {
-    id: "1",
-    name: "Documento_00 - Estatuto da Fundação.pdf",
-    folderId: null,
-    size: "2.4 MB",
-    category: "Estatuto",
-    createdAt: "2026-01-10",
-    protocol: "FMC-REG-90001",
-    signed: true,
-  },
-  {
-    id: "2",
-    name: "Documento_01 - Certidão Negativa de Débitos.pdf",
-    folderId: null,
-    size: "1.8 MB",
-    category: "Prestação de Contas",
-    createdAt: "2026-05-18",
-    protocol: "FMC-REG-90002",
-    signed: true,
-  },
-  {
-    id: "3",
-    name: "Documento_02 - Balancete Patrimonial 2026.pdf",
-    folderId: null,
-    size: "840 KB",
-    category: "Prestação de Contas",
-    createdAt: "2026-09-30",
-    protocol: "FMC-REG-90003",
-    signed: true,
-  },
-  {
-    id: "4",
-    name: "Documento_03 - Laudo de Avaliação Predial.pdf",
-    folderId: null,
-    size: "3.1 MB",
-    category: "Laudo Técnico",
-    createdAt: "2026-07-22",
-    protocol: "FMC-REG-90004",
-    signed: true,
-  },
-  {
-    id: "5",
-    name: "Documento_04 - Procuração Jurídica.pdf",
-    folderId: null,
-    size: "1.2 MB",
-    category: "Outro",
-    createdAt: "2026-02-04",
-    protocol: "FMC-REG-90005",
-    signed: true,
-  },
-];
+type NewDocState = { templateId: string | null; prefill?: Record<string, string>; clientId?: string | null } | null;
 
 export default function DocumentosPage() {
-  // Começa com os dados padrão (iguais no servidor e no cliente) e só depois lê o localStorage,
-  // evitando erro de hidratação quando o usuário já tem pastas/documentos salvos.
-  const [folders, setFolders] = useState<FolderItem[]>(initialFolders);
-  const [files, setFiles] = useState<FileItem[]>(initialFiles);
+  const docsStore = useRecords("documents", documentSchema);
+  const foldersStore = useRecords("folders", folderSchema);
+  const clientsStore = useRecords("clients", clientSchema);
+  const documents = docsStore.items;
+  const folders = foldersStore.items;
+  const { show, node: toast } = useToast();
 
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<DocumentCategory | "ALL">("ALL");
+  const [viewing, setViewing] = useState<DocumentItem | null>(null);
+  const [newDoc, setNewDoc] = useState<NewDocState>(null);
+  const [folderForm, setFolderForm] = useState<Folder | "new" | null>(null);
+  const [editingDoc, setEditingDoc] = useState<DocumentItem | null>(null);
+  const [deletingDoc, setDeletingDoc] = useState<DocumentItem | null>(null);
+  const [deletingFolder, setDeletingFolder] = useState<Folder | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const pendingDocId = useRef<string | null>(null);
+
+  // Links vindos de outras telas: ?doc=<id>, ?pasta=<id>, ?novo=<modelo>&cliente=<id>
   useEffect(() => {
-    try {
-      const savedFolders = localStorage.getItem("fmc_folders_v3");
-      const savedFiles = localStorage.getItem("fmc_files_v3");
-      /* eslint-disable react-hooks/set-state-in-effect -- leitura do localStorage precisa ocorrer após a hidratação */
-      if (savedFolders) setFolders(JSON.parse(savedFolders) as FolderItem[]);
-      if (savedFiles) setFiles(JSON.parse(savedFiles) as FileItem[]);
-      /* eslint-enable react-hooks/set-state-in-effect */
-    } catch {}
+    const params = new URLSearchParams(window.location.search);
+    const docId = params.get("doc");
+    const folderId = params.get("pasta");
+    const novo = params.get("novo");
+    const clienteId = params.get("cliente");
+    if (docId) pendingDocId.current = docId;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- parâmetros só existem no navegador
+    if (folderId) setCurrentFolderId(folderId);
+    if (novo !== null) {
+      setNewDoc({ templateId: novo && novo !== "1" ? novo : null, clientId: clienteId });
+    }
   }, []);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
-
-  // Estados da Sprint 3 (Confirmação de exclusão, Filtros e Vínculo Financeiro)
-  const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<FileItem | null>(null);
-  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [signatureFilter, setSignatureFilter] = useState<"ALL" | "SIGNED" | "PENDING">("ALL");
-
-  const [uploadLinkFinance, setUploadLinkFinance] = useState(false);
-  const [uploadFinanceType, setUploadFinanceType] = useState<"INCOME" | "EXPENSE">("INCOME");
-  const [uploadFinanceAmount, setUploadFinanceAmount] = useState("");
-  const [uploadFinanceProperty, setUploadFinanceProperty] = useState("IM-001");
-  const [uploadFinanceTenant, setUploadFinanceTenant] = useState("");
-  const [uploadFinanceDate, setUploadFinanceDate] = useState(new Date().toISOString().split("T")[0]);
-
-  // Estado de Navegação Dinâmica de Pastas
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-
-  // Modais de Criação e Edição
-  const [newModalOpen, setNewModalOpen] = useState(false);
-  const [newType, setNewType] = useState<"folder" | "file">("file");
-  const [newItemName, setNewItemName] = useState("");
-  const [newTargetFolder, setNewTargetFolder] = useState<string>("");
-  const [newCategory, setNewCategory] = useState<DocumentCategory>("Outro");
-
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<{ id: string; type: "folder" | "file"; name: string } | null>(null);
-
-  // Modal de Upload Avançado Dinâmico
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadDocName, setUploadDocName] = useState("");
-  const [uploadTargetFolder, setUploadTargetFolder] = useState<string>("");
-  const [uploadCategory, setUploadCategory] = useState<DocumentCategory>("Outro");
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Modal de Visualização Oficial do Documento (Abertura Dinâmica)
-  const [viewDocModal, setViewDocModal] = useState<FileItem | null>(null);
-  const [docViewerTab, setDocViewerTab] = useState<"view" | "meta">("view");
-
-  // QR Code Scanner / Validador
-  const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [qrInput, setQrInput] = useState("");
-  const [qrResult, setQrResult] = useState<{ text: string; docId?: string } | null>(null);
-
-  // Toast
-  const [toastMessage, setToastMessage] = useState("");
-
-  function saveFolders(items: FolderItem[]) {
-    setFolders(items);
-    try {
-      localStorage.setItem("fmc_folders_v3", JSON.stringify(items));
-    } catch {}
-  }
-
-  function saveFiles(items: FileItem[]) {
-    setFiles(items);
-    try {
-      localStorage.setItem("fmc_files_v3", JSON.stringify(items));
-    } catch {}
-  }
-
-  function showToast(msg: string) {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage("");
-    }, 3800);
-  }
-
-  // Pasta atualmente aberta
-  const currentFolder = folders.find((f) => f.id === currentFolderId) || null;
-
-  // Filtragem de Busca e Categoria
-  const term = searchTerm.toLowerCase().trim();
-
-  const filteredFolders = folders.filter((f) => {
-    if (!term) return true;
-    return f.name.toLowerCase().includes(term);
-  });
-
-  const allFilteredFiles = files.filter((f) => {
-    const matchTerm =
-      !term ||
-      f.name.toLowerCase().includes(term) ||
-      f.protocol.toLowerCase().includes(term) ||
-      f.category.toLowerCase().includes(term);
-    const matchCat = categoryFilter === "ALL" || f.category === categoryFilter;
-    const matchSig = signatureFilter === "ALL" || (signatureFilter === "SIGNED" && f.signed) || (signatureFilter === "PENDING" && !f.signed);
-    return matchTerm && matchCat && matchSig;
-  });
-
-  // Arquivos dentro da pasta aberta
-  const currentFolderFiles = allFilteredFiles.filter((f) => f.folderId === currentFolderId);
-
-  // Arquivos sem pasta (raiz)
-  const rootFiles = allFilteredFiles.filter((f) => !f.folderId);
-
-  // Função para contar arquivos por pasta
-  function countFilesInFolder(folderId: string) {
-    return files.filter((f) => f.folderId === folderId).length;
-  }
-
-  // --- AÇÕES DE CRIAÇÃO ---
-  function handleCreateItem(e: React.FormEvent) {
-    e.preventDefault();
-    const name = newItemName.trim();
-    if (!name) return;
-
-    if (newType === "folder") {
-      const newFolder: FolderItem = {
-        id: String(Date.now()),
-        name,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      const updated = [...folders, newFolder];
-      saveFolders(updated);
-      showToast(`Pasta "${name}" criada com sucesso!`);
-    } else {
-      const targetFId = newTargetFolder || currentFolderId || null;
-      const newFile: FileItem = {
-        id: String(Date.now()),
-        name: name.endsWith(".pdf") ? name : `${name}.pdf`,
-        folderId: targetFId,
-        size: "1.2 MB",
-        category: newCategory,
-        createdAt: new Date().toISOString().split("T")[0],
-        protocol: `FMC-REG-${Math.floor(10000 + Math.random() * 90000)}`,
-        signed: true,
-      };
-      const updated = [newFile, ...files];
-      saveFiles(updated);
-      showToast(`Documento "${name}" adicionado com sucesso!`);
-    }
-
-    setNewItemName("");
-    setNewModalOpen(false);
-  }
-
-  // --- AÇÕES DE EDIÇÃO/RENOMEAR ---
-  function handleSaveEdit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editingItem || !editingItem.name.trim()) return;
-
-    const trimmedName = editingItem.name.trim();
-
-    if (editingItem.type === "folder") {
-      const updated = folders.map((f) =>
-        f.id === editingItem.id ? { ...f, name: trimmedName } : f
-      );
-      saveFolders(updated);
-      showToast(`Pasta renomeada para "${trimmedName}".`);
-    } else {
-      const updated = files.map((f) =>
-        f.id === editingItem.id ? { ...f, name: trimmedName } : f
-      );
-      saveFiles(updated);
-      showToast(`Documento renomeado para "${trimmedName}".`);
-    }
-
-    setEditingItem(null);
-    setEditModalOpen(false);
-  }
-
-  // --- AÇÕES DE EXCLUSÃO ---
-  function handleDeleteFolder(id: string, name: string) {
-    if (
-      !confirm(
-        `Deseja realmente excluir a pasta "${name}"? Os documentos vinculados serão mantidos na raiz.`
-      )
-    )
-      return;
-
-    const updatedFolders = folders.filter((f) => f.id !== id);
-    // Move os arquivos da pasta para a raiz para evitar orfandade
-    const updatedFiles = files.map((f) => (f.folderId === id ? { ...f, folderId: null } : f));
-
-    saveFolders(updatedFolders);
-    saveFiles(updatedFiles);
-
-    if (currentFolderId === id) {
-      setCurrentFolderId(null);
-    }
-    showToast(`Pasta "${name}" excluída.`);
-  }
-
-  function requestDeleteFile(file: FileItem) {
-    setDeleteConfirmDoc(file);
-  }
-
-  function confirmDeleteFile() {
-    if (!deleteConfirmDoc) return;
-    const updated = files.filter((f) => f.id !== deleteConfirmDoc.id);
-    saveFiles(updated);
-    if (viewDocModal?.id === deleteConfirmDoc.id) setViewDocModal(null);
-    showToast(`Documento "${deleteConfirmDoc.name}" excluído.`);
-    setDeleteConfirmDoc(null);
-  }
-
-  // --- UPLOAD DINÂMICO ---
-  function openUploadModal(folderId?: string) {
-    setUploadFile(null);
-    setUploadDocName("");
-    setUploadTargetFolder(folderId ?? currentFolderId ?? "");
-    setUploadCategory("Outro");
-    setUploadProgress(null);
-    setUploadModalOpen(true);
-  }
-
-  function handleFileSelection(file: File) {
-    setUploadFile(file);
-    // Preenche o nome sem a extensão
-    const baseName = file.name.replace(/\.[^/.]+$/, "");
-    setUploadDocName(baseName);
-
-    // Sugere categoria baseada no nome
-    const lower = file.name.toLowerCase();
-    if (lower.includes("contrato") || lower.includes("locacao")) {
-      setUploadCategory("Contrato");
-    } else if (lower.includes("comprovante") || lower.includes("recibo") || lower.includes("darf")) {
-      setUploadCategory("Comprovante");
-    } else if (lower.includes("mp") || lower.includes("promotoria") || lower.includes("notificacao")) {
-      setUploadCategory("Notificação MP");
-    } else if (lower.includes("prestacao") || lower.includes("balancete") || lower.includes("relatorio")) {
-      setUploadCategory("Prestação de Contas");
-    } else if (lower.includes("laudo") || lower.includes("vistoria")) {
-      setUploadCategory("Laudo Técnico");
-    }
-  }
-
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelection(e.dataTransfer.files[0]);
-    }
-  }
-
-  function handleProcessUpload(e: React.FormEvent) {
-    e.preventDefault();
-    if (!uploadFile) {
-      alert("Por favor, selecione um arquivo.");
-      return;
-    }
-
-    const docName = uploadDocName.trim() || uploadFile.name;
-    const formattedName = docName.endsWith(".pdf") ? docName : `${docName}.pdf`;
-
-    // Converte tamanho
-    let sizeStr = `${(uploadFile.size / 1024).toFixed(0)} KB`;
-    if (uploadFile.size > 1024 * 1024) {
-      sizeStr = `${(uploadFile.size / (1024 * 1024)).toFixed(1)} MB`;
-    }
-
-    setUploadProgress(20);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setUploadProgress(70);
-
-      setTimeout(() => {
-        setUploadProgress(100);
-
-        const newDoc: FileItem = {
-          id: String(Date.now()),
-          name: formattedName,
-          folderId: uploadTargetFolder || null,
-          size: sizeStr,
-          category: uploadCategory,
-          createdAt: new Date().toISOString().split("T")[0],
-          mimeType: uploadFile.type,
-          dataUrl: typeof event.target?.result === "string" ? event.target.result : undefined,
-          protocol: `FMC-REG-${Math.floor(10000 + Math.random() * 90000)}`,
-          signed: true,
-          description: `Upload realizado via terminal em ${new Date().toLocaleDateString("pt-BR")}`,
-        };
-
-        const updated = [newDoc, ...files];
-        saveFiles(updated);
-
-        setTimeout(() => {
-          setUploadModalOpen(false);
-          setUploadProgress(null);
-          showToast(`Upload do documento "${formattedName}" concluído com sucesso!`);
-        }, 300);
-      }, 400);
-    };
-
-    reader.readAsDataURL(uploadFile);
-  }
-
-  // --- DOWNLOAD REAL DE ARQUIVOS ---
-  function handleDownloadFile(file: FileItem) {
-    try {
-      let url: string;
-      if (file.dataUrl) {
-        url = file.dataUrl;
-      } else {
-        // Gera um blob de texto oficial representativo caso seja um arquivo mock
-        const content = `=================================================================
-FUNDAÇÃO MANUEL CRUZ - GESTÃO PATRIMONIAL E JURÍDICA
-=================================================================
-DOCUMENTO OFICIAL REGISTRADO NO SISTEMA FMC
------------------------------------------------------------------
-Nome do Documento: ${file.name}
-Protocolo de Autenticidade: ${file.protocol}
-Categoria: ${file.category}
-Data de Registro: ${file.createdAt}
-Tamanho: ${file.size}
-Status: Assinado Digitalmente via ICP-Brasil
-Código Hash SHA-256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
------------------------------------------------------------------
-Este documento é cópia autêntica do original arquivado no repositório digital da Fundação Manuel Cruz.
-=================================================================`;
-        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-        url = URL.createObjectURL(blob);
-      }
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = file.name.endsWith(".pdf") ? file.name : `${file.name}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      showToast(`Download de "${file.name}" iniciado.`);
-    } catch {
-      showToast(`Não foi possível baixar "${file.name}".`);
-    }
-  }
-
-  // --- MOVER ARQUIVO PARA OUTRA PASTA ---
-  function handleMoveFile(fileId: string, targetFolderId: string | null) {
-    const updated = files.map((f) => (f.id === fileId ? { ...f, folderId: targetFolderId } : f));
-    saveFiles(updated);
-    const targetName = folders.find((f) => f.id === targetFolderId)?.name || "Documentos sem pasta (Raiz)";
-    showToast(`Documento movido para "${targetName}".`);
-    if (viewDocModal?.id === fileId) {
-      setViewDocModal({ ...viewDocModal, folderId: targetFolderId });
-    }
-  }
-
-  // --- QR CODE SCANNER ---
-  function handleSimulateQrScan() {
-    const inputClean = qrInput.trim().toLowerCase();
-    const found = files.find(
-      (f) =>
-        f.name.toLowerCase().includes(inputClean) ||
-        f.protocol.toLowerCase().includes(inputClean)
-    );
-
+  // Abre o documento do link quando a lista chega do servidor.
+  useEffect(() => {
+    const id = pendingDocId.current;
+    if (!id || docsStore.loading) return;
+    pendingDocId.current = null;
+    const found = documents.find((doc) => doc.id === id);
     if (found) {
-      setQrResult({
-        text: `Autêntico: ${found.name} (${found.protocol}) validado no repositório oficial da Fundação Manuel Cruz.`,
-        docId: found.id,
-      });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- abertura disparada pelo link
+      setCurrentFolderId(found.folderId);
+      setViewing(found);
     } else {
-      setQrResult({
-        text: `QR Code FMC-REG-${Math.floor(10000 + Math.random() * 90000)} validado com sucesso!`,
-      });
+      show("Documento não encontrado. Ele pode ter sido excluído ou movido.", "error");
+    }
+    window.history.replaceState(null, "", "/documentos");
+  }, [docsStore.loading, documents, show]);
+
+  // Pré-preenche o formulário a partir do cliente (botão "Emitir recibo / termo" em Clientes).
+  useEffect(() => {
+    if (!newDoc?.clientId || newDoc.prefill || clientsStore.loading) return;
+    const client = clientsStore.items.find((item) => item.id === newDoc.clientId);
+    if (!client) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- dados do cliente chegam depois da abertura
+    setNewDoc({
+      ...newDoc,
+      prefill: {
+        imovel: `${client.propertyCode} - ${client.propertyAddress}`,
+        inquilino: client.name,
+        cpfCnpj: client.cpf,
+        fiador: client.guarantorName,
+        valor: new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(client.monthlyRent),
+      },
+    });
+  }, [newDoc, clientsStore.loading, clientsStore.items]);
+
+  const currentFolder = folders.find((folder) => folder.id === currentFolderId) ?? null;
+  const breadcrumb = useMemo(() => {
+    const chain: Folder[] = [];
+    let cursor = currentFolder;
+    let guard = 0;
+    while (cursor && guard < 20) {
+      chain.unshift(cursor);
+      cursor = folders.find((folder) => folder.id === cursor?.parentId) ?? null;
+      guard += 1;
+    }
+    return chain;
+  }, [currentFolder, folders]);
+
+  const term = normalizeText(search);
+  const searching = term.length > 0 || category !== "ALL";
+  const visibleFolders = searching
+    ? []
+    : folders.filter((folder) => folder.parentId === currentFolderId).sort((a, b) => a.name.localeCompare(b.name));
+  const visibleDocs = documents
+    .filter((doc) => {
+      if (category !== "ALL" && doc.category !== category) return false;
+      if (term) return normalizeText(`${doc.name} ${doc.protocol} ${doc.description}`).includes(term);
+      return doc.folderId === currentFolderId;
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.name.localeCompare(b.name));
+
+  function countInside(folderId: string) {
+    return {
+      docs: documents.filter((doc) => doc.folderId === folderId).length,
+      folders: folders.filter((folder) => folder.parentId === folderId).length,
+    };
+  }
+
+  async function download(doc: DocumentItem) {
+    try {
+      if (doc.fileParts > 0) {
+        downloadDataUrl(await loadFileContent(doc.id, doc.fileParts), doc.name);
+        return;
+      }
+      const template = findTemplate(doc.template);
+      if (template && doc.templateData) {
+        downloadText(renderTemplateHtml(template, doc.templateData, doc.protocol), doc.name.replace(/\.pdf$/i, ".html"));
+        return;
+      }
+      show("Este documento ainda não tem arquivo. Abra-o e use “Anexar arquivo”.", "error");
+    } catch (error) {
+      show(errorMessage(error, "Não foi possível baixar."), "error");
+    }
+  }
+
+  async function confirmDeleteDoc() {
+    if (!deletingDoc) return;
+    await docsStore.remove(deletingDoc.id);
+    void deleteFileContent(deletingDoc.id, deletingDoc.fileParts);
+    if (viewing?.id === deletingDoc.id) setViewing(null);
+    show(`Documento "${deletingDoc.name}" excluído.`);
+    setDeletingDoc(null);
+  }
+
+  async function confirmDeleteFolder() {
+    if (!deletingFolder) return;
+    const parent = deletingFolder.parentId;
+    // Conteúdo sobe um nível: nada é apagado junto com a pasta.
+    for (const doc of documents.filter((item) => item.folderId === deletingFolder.id)) await docsStore.save({ ...doc, folderId: parent });
+    for (const folder of folders.filter((item) => item.parentId === deletingFolder.id)) await foldersStore.save({ ...folder, parentId: parent });
+    await foldersStore.remove(deletingFolder.id);
+    show(`Pasta "${deletingFolder.name}" excluída.`);
+    setDeletingFolder(null);
+  }
+
+  const loading = docsStore.loading || foldersStore.loading;
+  const loadError = docsStore.error || foldersStore.error;
+
+  return (
+    <AppShell>
+      <section className="ui-page" aria-labelledby="docs-title">
+        <div className="ui-page-header">
+          <div>
+            <h1 id="docs-title">Documentos</h1>
+            <p>Contratos, recibos, prestações de contas e demais arquivos da Fundação.</p>
+          </div>
+          <div className="ui-row-actions">
+            <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setScanOpen(true)}>
+              <ScanLine size={18} aria-hidden="true" /> Digitalizar
+            </button>
+            <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setFolderForm("new")}>
+              <FolderPlus size={18} aria-hidden="true" /> Nova pasta
+            </button>
+            <button type="button" className="ui-btn ui-btn-primary" onClick={() => setNewDoc({ templateId: null })}>
+              <Plus size={18} aria-hidden="true" /> Novo documento
+            </button>
+          </div>
+        </div>
+
+        <div className="ui-toolbar">
+          <div className="ui-field" style={{ flex: "3 1 260px" }}>
+            <label htmlFor="doc-busca">Buscar documentos</label>
+            <div style={{ position: "relative" }}>
+              <Search size={16} aria-hidden="true" style={{ position: "absolute", left: 10, top: 12, color: "var(--ui-text-muted)" }} />
+              <input
+                id="doc-busca"
+                className="ui-input"
+                style={{ paddingLeft: 32 }}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Nome, protocolo ou descrição (busca em todas as pastas)"
+              />
+            </div>
+          </div>
+          <div className="ui-field">
+            <label htmlFor="doc-categoria">Categoria</label>
+            <select id="doc-categoria" className="ui-input" value={category} onChange={(e) => setCategory(e.target.value as DocumentCategory | "ALL")}>
+              <option value="ALL">Todas</option>
+              {DOCUMENT_CATEGORIES.map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <nav aria-label="Caminho da pasta" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, fontSize: 14 }}>
+          <button type="button" className="ui-link" onClick={() => setCurrentFolderId(null)} aria-current={currentFolderId === null ? "page" : undefined}>
+            Documentos
+          </button>
+          {breadcrumb.map((folder) => (
+            <span key={folder.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <ChevronRight size={14} aria-hidden="true" />
+              <button type="button" className="ui-link" onClick={() => setCurrentFolderId(folder.id)} aria-current={folder.id === currentFolderId ? "page" : undefined}>
+                {folder.name}
+              </button>
+            </span>
+          ))}
+          {searching ? <span className="ui-field-hint" style={{ marginLeft: 8 }}>· mostrando resultados de todas as pastas</span> : null}
+        </nav>
+
+        {loadError ? (
+          <p className="ui-alert ui-alert-error" role="alert">
+            {loadError}{" "}
+            <button type="button" className="ui-link" onClick={() => { void docsStore.reload(); void foldersStore.reload(); }}>
+              Tentar de novo
+            </button>
+          </p>
+        ) : null}
+
+        <div style={{ display: "grid", gridTemplateColumns: searching ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, alignItems: "start" }}>
+          {!searching ? (
+            <section className="ui-card" aria-labelledby="pastas-title">
+              <h2 id="pastas-title" style={{ margin: "0 0 10px", fontSize: 17, color: "var(--ui-primary)" }}>
+                Pastas
+              </h2>
+              {loading ? (
+                <div className="ui-skeleton" style={{ height: 120 }} />
+              ) : visibleFolders.length === 0 ? (
+                <p className="ui-empty">Nenhuma subpasta aqui.</p>
+              ) : (
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }}>
+                  {visibleFolders.map((folder) => {
+                    const count = countInside(folder.id);
+                    const locked = PROTECTED_FOLDERS.has(folder.id);
+                    return (
+                      <li key={folder.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f1f5f9", padding: "6px 0" }}>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentFolderId(folder.id)}
+                          style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "none", border: 0, cursor: "pointer", textAlign: "left", minHeight: 40, font: "inherit", color: "var(--ui-text)" }}
+                        >
+                          <FolderIcon size={22} aria-hidden="true" color="#c3a95e" />
+                          <span>
+                            <strong style={{ display: "block", fontSize: 14 }}>{folder.name}</strong>
+                            <span className="ui-field-hint">
+                              {count.docs} documento(s){count.folders ? ` · ${count.folders} subpasta(s)` : ""}
+                            </span>
+                          </span>
+                        </button>
+                        {!locked ? (
+                          <>
+                            <button type="button" className="ui-icon-btn" onClick={() => setFolderForm(folder)} aria-label={`Renomear pasta ${folder.name}`} title="Renomear">
+                              <Pencil size={16} aria-hidden="true" />
+                            </button>
+                            <button type="button" className="ui-icon-btn" onClick={() => setDeletingFolder(folder)} aria-label={`Excluir pasta ${folder.name}`} title="Excluir pasta">
+                              <Trash2 size={16} aria-hidden="true" />
+                            </button>
+                          </>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          ) : null}
+
+          <section className="ui-card" aria-labelledby="docs-list-title">
+            <h2 id="docs-list-title" style={{ margin: "0 0 10px", fontSize: 17, color: "var(--ui-primary)" }}>
+              {searching ? `Resultados (${visibleDocs.length})` : currentFolder ? `Documentos em ${currentFolder.name}` : "Documentos sem pasta"}
+            </h2>
+            {loading ? (
+              <div className="ui-skeleton" style={{ height: 160 }} />
+            ) : visibleDocs.length === 0 ? (
+              <p className="ui-empty">{searching ? "Nenhum documento encontrado." : "Nenhum documento nesta pasta."}</p>
+            ) : (
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 2 }}>
+                {visibleDocs.map((doc) => (
+                  <DocumentRow
+                    key={doc.id}
+                    doc={doc}
+                    path={searching ? folderPathOf(doc.folderId, folders) : null}
+                    onOpen={() => setViewing(doc)}
+                    onDownload={() => void download(doc)}
+                    onEdit={() => setEditingDoc(doc)}
+                    onDelete={() => setDeletingDoc(doc)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </section>
+
+      {viewing ? (
+        <DocumentViewer
+          key={viewing.id}
+          document={documents.find((doc) => doc.id === viewing.id) ?? viewing}
+          folderPath={folderPathOf(viewing.folderId, folders)}
+          onClose={() => setViewing(null)}
+          onDelete={() => setDeletingDoc(viewing)}
+          notify={show}
+        />
+      ) : null}
+
+      {newDoc ? (
+        <NewDocumentModal
+          key={`${newDoc.templateId}-${newDoc.prefill ? "p" : "n"}`}
+          folders={folders}
+          defaultFolderId={currentFolderId}
+          initialTemplateId={newDoc.templateId}
+          prefill={newDoc.prefill}
+          clientId={newDoc.clientId ?? null}
+          onClose={() => setNewDoc(null)}
+          onCreated={(doc) => {
+            setNewDoc(null);
+            show(`Documento "${doc.name}" salvo.`);
+            setCurrentFolderId(doc.folderId);
+            setViewing(doc);
+          }}
+        />
+      ) : null}
+
+      {folderForm ? (
+        <FolderFormModal
+          folder={folderForm === "new" ? null : folderForm}
+          parentId={currentFolderId}
+          siblings={folders}
+          onClose={() => setFolderForm(null)}
+          onSave={async (folder) => {
+            await foldersStore.save(folder);
+            setFolderForm(null);
+            show(folderForm === "new" ? `Pasta "${folder.name}" criada.` : "Pasta renomeada.");
+          }}
+        />
+      ) : null}
+
+      {editingDoc ? (
+        <EditDocumentModal
+          doc={editingDoc}
+          folders={folders}
+          onClose={() => setEditingDoc(null)}
+          onSave={async (doc) => {
+            await docsStore.save(doc);
+            setEditingDoc(null);
+            show("Documento atualizado.");
+          }}
+        />
+      ) : null}
+
+      {scanOpen ? (
+        <ScanModal
+          folders={folders}
+          defaultFolderId={currentFolderId}
+          onClose={() => setScanOpen(false)}
+          onSaved={(doc) => {
+            setScanOpen(false);
+            show(`Digitalização "${doc.name}" salva.`);
+            setCurrentFolderId(doc.folderId);
+          }}
+        />
+      ) : null}
+
+      {deletingDoc ? (
+        <ConfirmDialog
+          title="Excluir documento"
+          danger
+          confirmLabel="Excluir definitivamente"
+          message={
+            <>
+              Tem certeza de que deseja excluir <strong>{deletingDoc.name}</strong> (protocolo {deletingDoc.protocol})? O arquivo será
+              apagado e a ação não pode ser desfeita.
+            </>
+          }
+          onConfirm={confirmDeleteDoc}
+          onCancel={() => setDeletingDoc(null)}
+        />
+      ) : null}
+
+      {deletingFolder ? (
+        <ConfirmDialog
+          title="Excluir pasta"
+          danger
+          confirmLabel="Excluir pasta"
+          message={(() => {
+            const count = countInside(deletingFolder.id);
+            return count.docs || count.folders ? (
+              <>
+                A pasta <strong>{deletingFolder.name}</strong> tem {count.docs} documento(s) e {count.folders} subpasta(s). Eles serão movidos para a
+                pasta de cima; nada é apagado.
+              </>
+            ) : (
+              <>
+                Excluir a pasta vazia <strong>{deletingFolder.name}</strong>?
+              </>
+            );
+          })()}
+          onConfirm={confirmDeleteFolder}
+          onCancel={() => setDeletingFolder(null)}
+        />
+      ) : null}
+
+      {toast}
+    </AppShell>
+  );
+}
+
+function DocumentRow({
+  doc,
+  path,
+  onOpen,
+  onDownload,
+  onEdit,
+  onDelete,
+}: {
+  doc: DocumentItem;
+  path: string | null;
+  onOpen: () => void;
+  onDownload: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return (
+    <li style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f1f5f9", padding: "6px 0" }}>
+      <button
+        type="button"
+        onClick={onOpen}
+        style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, background: "none", border: 0, cursor: "pointer", textAlign: "left", minHeight: 40, font: "inherit", color: "var(--ui-text)" }}
+      >
+        <FileText size={20} aria-hidden="true" color="#092a54" style={{ flexShrink: 0 }} />
+        <span style={{ minWidth: 0 }}>
+          <strong style={{ display: "block", fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</strong>
+          <span className="ui-field-hint">
+            {doc.category} · {doc.protocol} · {formatDate(doc.createdAt)}
+            {path ? ` · ${path}` : ""}
+            {doc.fileParts === 0 && !doc.template ? " · sem arquivo" : ""}
+          </span>
+        </span>
+      </button>
+      <button type="button" className="ui-icon-btn" onClick={onDownload} aria-label={`Baixar ${doc.name}`} title="Baixar">
+        <Download size={16} aria-hidden="true" />
+      </button>
+      <div style={{ position: "relative" }}>
+        <button type="button" className="ui-icon-btn" aria-label={`Mais ações para ${doc.name}`} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+          <MoreVertical size={16} aria-hidden="true" />
+        </button>
+        {menuOpen ? (
+          <div className="ui-menu" role="menu" onMouseLeave={() => setMenuOpen(false)}>
+            <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onOpen(); }}>
+              <Eye size={15} aria-hidden="true" /> Abrir
+            </button>
+            <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onEdit(); }}>
+              <Pencil size={15} aria-hidden="true" /> Renomear / mover
+            </button>
+            <button type="button" role="menuitem" className="ui-menu-danger" onClick={() => { setMenuOpen(false); onDelete(); }}>
+              <Trash2 size={15} aria-hidden="true" /> Excluir
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+function FolderFormModal({
+  folder,
+  parentId,
+  siblings,
+  onClose,
+  onSave,
+}: {
+  folder: Folder | null;
+  parentId: string | null;
+  siblings: Folder[];
+  onClose: () => void;
+  onSave: (folder: Folder) => Promise<void>;
+}) {
+  const [name, setName] = useState(folder?.name ?? "");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const targetParent = folder ? folder.parentId : parentId;
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (trimmed.length < 2 || trimmed.length > 80) {
+      setError("O nome deve ter entre 2 e 80 caracteres.");
+      return;
+    }
+    const duplicate = siblings.some((item) => item.parentId === targetParent && item.id !== folder?.id && normalizeText(item.name) === normalizeText(trimmed));
+    if (duplicate) {
+      setError("Já existe uma pasta com esse nome aqui.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(folder ? { ...folder, name: trimmed } : { id: newId("fld"), name: trimmed, parentId, createdAt: todayIso() });
+    } catch (err) {
+      setError(errorMessage(err));
+      setSaving(false);
     }
   }
 
   return (
-    <div className={styles.documentosShell}>
-      <Sidebar />
+    <Modal
+      title={folder ? "Renomear pasta" : "Nova pasta"}
+      onClose={onClose}
+      busy={saving}
+      footer={
+        <>
+          <button type="button" className="ui-btn ui-btn-secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button type="submit" form="folder-form" className="ui-btn ui-btn-primary" disabled={saving}>
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+        </>
+      }
+    >
+      <form id="folder-form" onSubmit={handleSubmit} noValidate>
+        <Field label="Nome da pasta" error={error} required>
+          {(props) => <input {...props} data-autofocus className="ui-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />}
+        </Field>
+      </form>
+    </Modal>
+  );
+}
 
-      <main className={styles.documentosMain}>
-        <div className={styles.documentosCanvas}>
-          {/* Top Toolbar Exata do Figma + Controles Dinâmicos */}
-          <div className={styles.topToolbar}>
-            <div className={styles.leftActionGroup}>
-              {/* digitalize-o-codigo-qr */}
-              <button
-                type="button"
-                className={`${styles.actionIconBtn} ${styles.qrIconBtn}`}
-                title="Escanear e validar código QR"
-                aria-label="Digitalizar código QR"
-                onClick={() => {
-                  setQrResult(null);
-                  setQrInput("");
-                  setQrModalOpen(true);
-                }}
-              >
-                <QrCode size={28} strokeWidth={1.8} />
-              </button>
+function EditDocumentModal({
+  doc,
+  folders,
+  onClose,
+  onSave,
+}: {
+  doc: DocumentItem;
+  folders: Folder[];
+  onClose: () => void;
+  onSave: (doc: DocumentItem) => Promise<void>;
+}) {
+  const [name, setName] = useState(doc.name);
+  const [category, setCategory] = useState<DocumentCategory>(doc.category);
+  const [folderId, setFolderId] = useState(doc.folderId ?? "");
+  const [description, setDescription] = useState(doc.description);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const options = folders.map((folder) => ({ id: folder.id, label: folderPathOf(folder.id, folders) })).sort((a, b) => a.label.localeCompare(b.label));
 
-              {/* Criar Pasta ou Documento */}
-              <button
-                type="button"
-                className={`${styles.actionIconBtn} ${styles.addIconBtn}`}
-                title="Criar nova pasta ou documento"
-                aria-label="Adicionar"
-                onClick={() => {
-                  setNewType("file");
-                  setNewItemName("");
-                  setNewTargetFolder(currentFolderId ?? "");
-                  setNewModalOpen(true);
-                }}
-              >
-                <Plus size={30} strokeWidth={2.2} />
-              </button>
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (name.trim().length < 3 || name.trim().length > 160) {
+      setError("O nome deve ter entre 3 e 160 caracteres.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave({ ...doc, name: name.trim(), category, folderId: folderId || null, description: description.trim() });
+    } catch (err) {
+      setError(errorMessage(err));
+      setSaving(false);
+    }
+  }
 
-              {/* Upload de Documento Real */}
-              <button
-                type="button"
-                className={`${styles.actionIconBtn} ${styles.sendIconBtn}`}
-                title="Fazer upload de documento"
-                aria-label="Enviar documento"
-                onClick={() => openUploadModal()}
-              >
-                <CloudUpload size={30} strokeWidth={1.8} />
-              </button>
-            </div>
-
-            {/* Barra de Busca Exata: Rectangle 15, 14, 16 */}
-            <div className={styles.searchBarContainer}>
-              <div className={styles.searchIconBox} aria-hidden="true">
-                <Search size={22} strokeWidth={2} />
-              </div>
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder={
-                  currentFolder
-                    ? `Buscar em ${currentFolder.name}...`
-                    : "Buscar documentos ou protocolos..."
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                aria-label="Buscar documentos"
-              />
-              <button
-                type="button"
-                className={`${styles.filterIconBtn} ${categoryFilter !== "ALL" ? styles.filterIconBtnActive : ""}`}
-                title="Filtrar por categoria"
-                aria-label="Filtro de documentos"
-                onClick={() => {
-                  const categories: DocumentCategory[] = [
-                    "Contrato",
-                    "Comprovante",
-                    "Prestação de Contas",
-                    "Notificação MP",
-                    "Laudo Técnico",
-                    "Estatuto",
-                  ];
-                  const currentIdx = categories.indexOf(categoryFilter as DocumentCategory);
-                  if (currentIdx === -1) {
-                    setCategoryFilter(categories[0]);
-                    showToast(`Filtro: ${categories[0]}`);
-                  } else if (currentIdx === categories.length - 1) {
-                    setCategoryFilter("ALL");
-                    showToast("Filtro: Todas as categorias");
-                  } else {
-                    const next = categories[currentIdx + 1];
-                    setCategoryFilter(next);
-                    showToast(`Filtro: ${next}`);
-                  }
-                }}
-              >
-                <Filter size={20} strokeWidth={2} />
-              </button>
-            </div>
-          </div>
-
-          {/* Breadcrumbs de Navegação quando dentro de uma pasta */}
-          {currentFolder && (
-            <div className={styles.breadcrumbBar}>
-              <button
-                type="button"
-                className={styles.breadcrumbLink}
-                onClick={() => setCurrentFolderId(null)}
-              >
-                Documentos (Todas as Pastas)
-              </button>
-              <ChevronRight size={14} className={styles.breadcrumbSep} />
-              <span className={styles.breadcrumbCurrent}>{currentFolder.name}</span>
-            </div>
-          )}
-
-          {/* VISÃO 1: DENTRO DE UMA PASTA ABERTA (Abertura Dinâmica de Pasta) */}
-          {currentFolder ? (
-            <div>
-              {/* Banner da Pasta Aberta */}
-              <div className={styles.openFolderBanner}>
-                <div className={styles.folderBannerLeft}>
-                  <button
-                    type="button"
-                    className={styles.folderBackBtn}
-                    onClick={() => setCurrentFolderId(null)}
-                    title="Voltar para a visualização geral"
-                  >
-                    <ArrowLeft size={16} />
-                    <span>Voltar</span>
-                  </button>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <FolderOpen size={28} color="#092a54" strokeWidth={2} />
-                    <div>
-                      <h1 className={styles.folderTitle}>{currentFolder.name}</h1>
-                      <span className={styles.folderMetaBadge}>
-                        {currentFolderFiles.length} documento(s) cadastrado(s)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.folderBannerRight}>
-                  <button
-                    type="button"
-                    className={styles.secondaryBtn}
-                    onClick={() => {
-                      setNewType("file");
-                      setNewItemName("");
-                      setNewTargetFolder(currentFolder.id);
-                      setNewModalOpen(true);
-                    }}
-                  >
-                    <Plus size={16} />
-                    <span>Novo Documento</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={styles.primaryBtn}
-                    onClick={() => openUploadModal(currentFolder.id)}
-                  >
-                    <CloudUpload size={16} />
-                    <span>Upload nesta Pasta</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Lista de Documentos da Pasta Aberta */}
-              <section className={styles.columnSection} aria-label={`Documentos da pasta ${currentFolder.name}`}>
-                {currentFolderFiles.length === 0 ? (
-                  <div
-                    className={styles.emptyStateCol}
-                    style={{ padding: "48px 24px", cursor: "pointer" }}
-                    onClick={() => openUploadModal(currentFolder.id)}
-                  >
-                    <CloudUpload size={40} color="#092a54" style={{ marginBottom: "12px", opacity: 0.8 }} />
-                    <strong style={{ display: "block", fontSize: "15px", color: "#0f172a", marginBottom: "4px" }}>
-                      Esta pasta está vazia
-                    </strong>
-                    <p style={{ margin: 0, color: "#64748b" }}>
-                      Clique aqui para fazer upload de arquivos ou arraste documentos diretamente para esta pasta.
-                    </p>
-                  </div>
-                ) : (
-                  currentFolderFiles.map((file) => (
-                    <div key={file.id} className={styles.itemCardRow}>
-                      <div
-                        className={styles.itemCardLeft}
-                        onClick={() => {
-                          setViewDocModal(file);
-                          setDocViewerTab("view");
-                        }}
-                        title={`Clique para visualizar e abrir ${file.name}`}
-                      >
-                        <FileText size={22} className={styles.itemCardIcon} strokeWidth={1.8} />
-                        <span className={styles.itemCardName}>{file.name}</span>
-                        <span className={styles.docBadgeCategory}>{file.category}</span>
-                        <span className={styles.docDate}>{file.size}</span>
-                      </div>
-
-                      <div className={styles.itemCardActions}>
-                        <button
-                          type="button"
-                          className={styles.actionIconBtnRow}
-                          title="Baixar arquivo (Download real)"
-                          aria-label={`Baixar ${file.name}`}
-                          onClick={() => handleDownloadFile(file)}
-                        >
-                          <Download size={18} strokeWidth={1.8} />
-                        </button>
-
-                        <button
-                          type="button"
-                          className={styles.actionIconBtnRow}
-                          title="Renomear documento"
-                          aria-label={`Renomear ${file.name}`}
-                          onClick={() => {
-                            setEditingItem({ id: file.id, type: "file", name: file.name });
-                            setEditModalOpen(true);
-                          }}
-                        >
-                          <Pencil size={18} strokeWidth={1.8} />
-                        </button>
-
-                        <button
-                          type="button"
-                          className={styles.actionIconBtnRow}
-                          title="Excluir documento"
-                          aria-label={`Excluir ${file.name}`}
-                          onClick={() => requestDeleteFile(file)}
-                        >
-                          <Trash2 size={18} strokeWidth={1.8} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </section>
-            </div>
-          ) : (
-            /* VISÃO 2: DUAS COLUNAS DO FIGMA (Pastas e Documentos sem pasta) */
-            <div className={styles.documentosGrid}>
-              {/* Coluna 1: Pastas */}
-              <section className={styles.columnSection} aria-label="Pastas">
-                <div className={styles.columnHeader}>
-                  <h2 className={styles.columnTitle}>Pastas</h2>
-                  <button
-                    type="button"
-                    className={styles.columnAddBtn}
-                    onClick={() => {
-                      setNewType("folder");
-                      setNewItemName("");
-                      setNewModalOpen(true);
-                    }}
-                    title="Criar nova pasta"
-                  >
-                    <Plus size={14} />
-                    <span>Nova pasta</span>
-                  </button>
-                </div>
-
-                {filteredFolders.length === 0 ? (
-                  <div className={styles.emptyStateCol}>Nenhuma pasta encontrada.</div>
-                ) : (
-                  filteredFolders.map((folder) => {
-                    const count = countFilesInFolder(folder.id);
-                    return (
-                      <div key={folder.id} className={styles.itemCardRow}>
-                        <div
-                          className={styles.itemCardLeft}
-                          onClick={() => setCurrentFolderId(folder.id)}
-                          title={`Clique para abrir e navegar na pasta "${folder.name}"`}
-                        >
-                          <Folder size={22} className={styles.itemCardIcon} strokeWidth={1.8} />
-                          <span className={styles.itemCardName}>{folder.name}</span>
-                          <span className={styles.countBadge} title={`${count} documento(s) nesta pasta`}>
-                            {count} docs
-                          </span>
-                        </div>
-
-                        <div className={styles.itemCardActions}>
-                          <button
-                            type="button"
-                            className={styles.actionIconBtnRow}
-                            title="Abrir pasta"
-                            aria-label={`Abrir ${folder.name}`}
-                            onClick={() => setCurrentFolderId(folder.id)}
-                          >
-                            <FolderOpen size={18} strokeWidth={1.8} />
-                          </button>
-
-                          <button
-                            type="button"
-                            className={styles.actionIconBtnRow}
-                            title="Renomear pasta"
-                            aria-label={`Renomear ${folder.name}`}
-                            onClick={() => {
-                              setEditingItem({ id: folder.id, type: "folder", name: folder.name });
-                              setEditModalOpen(true);
-                            }}
-                          >
-                            <Pencil size={18} strokeWidth={1.8} />
-                          </button>
-
-                          <button
-                            type="button"
-                            className={styles.actionIconBtnRow}
-                            title="Excluir pasta"
-                            aria-label={`Excluir ${folder.name}`}
-                            onClick={() => handleDeleteFolder(folder.id, folder.name)}
-                          >
-                            <Trash2 size={18} strokeWidth={1.8} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </section>
-
-              {/* Coluna 2: Documentos sem pasta */}
-              <section className={styles.columnSection} aria-label="Documentos sem pasta">
-                <div className={styles.columnHeader}>
-                  <h2 className={styles.columnTitle}>Documentos sem pasta</h2>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      type="button"
-                      className={styles.columnAddBtn}
-                      onClick={() => openUploadModal()}
-                      title="Upload rápido"
-                    >
-                      <CloudUpload size={14} />
-                      <span>Upload</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.columnAddBtn}
-                      onClick={() => {
-                        setNewType("file");
-                        setNewItemName("");
-                        setNewTargetFolder("");
-                        setNewModalOpen(true);
-                      }}
-                      title="Adicionar novo documento"
-                    >
-                      <Plus size={14} />
-                      <span>Novo doc</span>
-                    </button>
-                  </div>
-                </div>
-
-                {rootFiles.length === 0 ? (
-                  <div className={styles.emptyStateCol}>Nenhum documento sem pasta encontrado.</div>
-                ) : (
-                  rootFiles.map((file) => (
-                    <div key={file.id} className={styles.itemCardRow}>
-                      <div
-                        className={styles.itemCardLeft}
-                        onClick={() => {
-                          setViewDocModal(file);
-                          setDocViewerTab("view");
-                        }}
-                        title={`Clique para visualizar e abrir ${file.name}`}
-                      >
-                        <FileText size={22} className={styles.itemCardIcon} strokeWidth={1.8} />
-                        <span className={styles.itemCardName}>{file.name}</span>
-                        <span className={styles.docBadgeCategory}>{file.category}</span>
-                      </div>
-
-                      <div className={styles.itemCardActions}>
-                        <button
-                          type="button"
-                          className={styles.actionIconBtnRow}
-                          title="Baixar arquivo (Download real)"
-                          aria-label={`Baixar ${file.name}`}
-                          onClick={() => handleDownloadFile(file)}
-                        >
-                          <Download size={18} strokeWidth={1.8} />
-                        </button>
-
-                        <button
-                          type="button"
-                          className={styles.actionIconBtnRow}
-                          title="Mover para pasta"
-                          aria-label={`Mover ${file.name}`}
-                          onClick={() => {
-                            setViewDocModal(file);
-                            setDocViewerTab("meta");
-                          }}
-                        >
-                          <FolderInput size={18} strokeWidth={1.8} />
-                        </button>
-
-                        <button
-                          type="button"
-                          className={styles.actionIconBtnRow}
-                          title="Renomear documento"
-                          aria-label={`Renomear ${file.name}`}
-                          onClick={() => {
-                            setEditingItem({ id: file.id, type: "file", name: file.name });
-                            setEditModalOpen(true);
-                          }}
-                        >
-                          <Pencil size={18} strokeWidth={1.8} />
-                        </button>
-
-                        <button
-                          type="button"
-                          className={styles.actionIconBtnRow}
-                          title="Excluir documento"
-                          aria-label={`Excluir ${file.name}`}
-                          onClick={() => requestDeleteFile(file)}
-                        >
-                          <Trash2 size={18} strokeWidth={1.8} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </section>
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* --- MODAL 1: UPLOAD AVANÇADO DINÂMICO --- */}
-      {uploadModalOpen && (
-        <div
-          className={styles.modalOverlay}
-          role="presentation"
-          onMouseDown={() => setUploadModalOpen(false)}
-        >
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-            style={{ width: "min(600px, 100%)" }}
-          >
-            <div className={styles.docModalHeader}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <CloudUpload size={22} color="#092a54" />
-                <h2>UPLOAD DE DOCUMENTO</h2>
-              </div>
-              <button
-                type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setUploadModalOpen(false)}
-                aria-label="Fechar"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <form onSubmit={handleProcessUpload}>
-              {/* Dropzone Interativa */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  if (e.target.files && e.target.files.length > 0) {
-                    handleFileSelection(e.target.files[0]);
-                  }
-                }}
-              />
-
-              <div
-                className={`${styles.fileDropzone} ${isDragOver ? styles.fileDropzoneActive : ""}`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragOver(true);
-                }}
-                onDragLeave={() => setIsDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <CloudUpload size={38} color="#092a54" />
-                {uploadFile ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ fontSize: "14px", fontWeight: 700, color: "#092a54" }}>
-                      {uploadFile.name}
-                    </span>
-                    <span style={{ fontSize: "12px", color: "#64748b" }}>
-                      Tamanho: {(uploadFile.size / 1024).toFixed(0)} KB • Clique para trocar
-                    </span>
-                  </div>
-                ) : (
-                  <>
-                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
-                      Arraste e solte o arquivo aqui, ou clique para navegar
-                    </span>
-                    <span style={{ fontSize: "12px", color: "#64748b" }}>
-                      Suporte a PDF, DOCX, Imagens (PNG/JPG), Planilhas ou TXT
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Barra de Progresso durante Envio */}
-              {uploadProgress !== null && (
-                <div style={{ marginTop: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: 600 }}>
-                    <span>Enviando documento...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className={styles.uploadProgressBarTrack}>
-                    <div
-                      className={styles.uploadProgressBarFill}
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Campos do Documento */}
-              <div className={styles.formGroup} style={{ marginTop: "16px" }}>
-                <label>Nome do Documento:</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Ex: Contrato de Locação IM-003"
-                  value={uploadDocName}
-                  onChange={(e) => setUploadDocName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-                <div className={styles.formGroup}>
-                  <label>Pasta de Destino:</label>
-                  <select
-                    className={styles.formInput}
-                    value={uploadTargetFolder}
-                    onChange={(e) => setUploadTargetFolder(e.target.value)}
-                  >
-                    <option value="">Sem pasta (Raiz)</option>
-                    {folders.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        📁 {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label>Categoria:</label>
-                  <select
-                    className={styles.formInput}
-                    value={uploadCategory}
-                    onChange={(e) => setUploadCategory(e.target.value as DocumentCategory)}
-                  >
-                    <option value="Contrato">Contrato</option>
-                    <option value="Comprovante">Comprovante</option>
-                    <option value="Prestação de Contas">Prestação de Contas</option>
-                    <option value="Notificação MP">Notificação MP</option>
-                    <option value="Laudo Técnico">Laudo Técnico</option>
-                    <option value="Estatuto">Estatuto</option>
-                    <option value="Outro">Outro</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className={styles.modalFooter}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => setUploadModalOpen(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className={styles.confirmBtn}
-                  disabled={uploadProgress !== null}
-                >
-                  {uploadProgress !== null ? "Enviando..." : "Concluir Upload"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL 2: CRIAR NOVO ITEM (PASTA OU DOC MANUAL) --- */}
-      {newModalOpen && (
-        <div
-          className={styles.modalOverlay}
-          role="presentation"
-          onMouseDown={() => setNewModalOpen(false)}
-        >
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className={styles.docModalHeader}>
-              <h2>{newType === "folder" ? "CRIAR NOVA PASTA" : "ADICIONAR DOCUMENTO"}</h2>
-              <button
-                type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setNewModalOpen(false)}
-                aria-label="Fechar"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateItem}>
-              <div className={styles.formGroup}>
-                <label>Tipo:</label>
-                <select
-                  className={styles.formInput}
-                  value={newType}
-                  onChange={(e) => setNewType(e.target.value as "folder" | "file")}
-                >
-                  <option value="file">Documento</option>
-                  <option value="folder">Pasta</option>
-                </select>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>{newType === "folder" ? "Nome da Pasta:" : "Nome do Documento:"}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder={newType === "folder" ? "Ex: Pasta_04 - Manutenções" : "Ex: Laudo_Vistoria_IM-002"}
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  autoFocus
-                  required
-                />
-              </div>
-
-              {newType === "file" && (
-                <>
-                  <div className={styles.formGroup}>
-                    <label>Pasta de Destino:</label>
-                    <select
-                      className={styles.formInput}
-                      value={newTargetFolder}
-                      onChange={(e) => setNewTargetFolder(e.target.value)}
-                    >
-                      <option value="">Sem pasta (Raiz)</option>
-                      {folders.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          📁 {f.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label>Categoria:</label>
-                    <select
-                      className={styles.formInput}
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value as DocumentCategory)}
-                    >
-                      <option value="Contrato">Contrato</option>
-                      <option value="Comprovante">Comprovante</option>
-                      <option value="Prestação de Contas">Prestação de Contas</option>
-                      <option value="Notificação MP">Notificação MP</option>
-                      <option value="Laudo Técnico">Laudo Técnico</option>
-                      <option value="Estatuto">Estatuto</option>
-                      <option value="Outro">Outro</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              <div className={styles.modalFooter}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => setNewModalOpen(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className={styles.confirmBtn}>
-                  Salvar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL 3: RENOMEAR ITEM --- */}
-      {editModalOpen && editingItem && (
-        <div
-          className={styles.modalOverlay}
-          role="presentation"
-          onMouseDown={() => setEditModalOpen(false)}
-        >
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className={styles.docModalHeader}>
-              <h2>RENOMEAR {editingItem.type === "folder" ? "PASTA" : "DOCUMENTO"}</h2>
-              <button
-                type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setEditModalOpen(false)}
-                aria-label="Fechar"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit}>
-              <div className={styles.formGroup}>
-                <label>Novo Nome:</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  value={editingItem.name}
-                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  autoFocus
-                  required
-                />
-              </div>
-
-              <div className={styles.modalFooter}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => setEditModalOpen(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className={styles.confirmBtn}>
-                  Salvar Alterações
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL 4: ABERTURA E VISUALIZADOR OFICIAL DE DOCUMENTOS --- */}
-      {viewDocModal && (
-        <div
-          className={styles.modalOverlay}
-          role="presentation"
-          onMouseDown={() => setViewDocModal(null)}
-        >
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-            style={{ width: "min(680px, 100%)" }}
-          >
-            {/* Header do Visualizador */}
-            <div className={styles.docModalHeader}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <FileCheck size={22} color="#092a54" />
-                <h2>ABERTURA DE DOCUMENTO</h2>
-              </div>
-              <button
-                type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setViewDocModal(null)}
-                aria-label="Fechar visualização"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* Abas: Visualizar vs Metadados/Mover */}
-            <div className={styles.tabsRow}>
-              <button
-                type="button"
-                className={`${styles.tabBtn} ${docViewerTab === "view" ? styles.tabBtnActive : ""}`}
-                onClick={() => setDocViewerTab("view")}
-              >
-                Visualização do Documento
-              </button>
-              <button
-                type="button"
-                className={`${styles.tabBtn} ${docViewerTab === "meta" ? styles.tabBtnActive : ""}`}
-                onClick={() => setDocViewerTab("meta")}
-              >
-                Metadados & Organização
-              </button>
-            </div>
-
-            {docViewerTab === "view" ? (
-              /* ABA 1: FOLHA OFICIAL DE VISUALIZAÇÃO */
-              <div className={styles.viewerSheet}>
-                <div className={styles.viewerWatermark}>FMC • AUTÊNTICO</div>
-
-                <div className={styles.viewerHeader}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
-                      <h3 className={styles.viewerHeaderTitle}>FUNDAÇÃO MANUEL CRUZ</h3>
-                      <div className={styles.viewerHeaderSub}>
-                        Departamento Jurídico e Gestão Patrimonial
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        background: "#dcfce7",
-                        color: "#166534",
-                        padding: "3px 8px",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      AUTENTICADO
-                    </span>
-                  </div>
-                </div>
-
-                <div className={styles.viewerContent}>
-                  {/* Se for imagem real anexada */}
-                  {viewDocModal.dataUrl && viewDocModal.dataUrl.startsWith("data:image/") ? (
-                    <div style={{ textAlign: "center", marginBottom: "16px" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={viewDocModal.dataUrl}
-                        alt={viewDocModal.name}
-                        style={{ maxWidth: "100%", maxHeight: "320px", borderRadius: "6px" }}
-                      />
-                    </div>
-                  ) : null}
-
-                  <div style={{ marginBottom: "12px" }}>
-                    <strong style={{ fontSize: "16px", color: "#0f172a", display: "block" }}>
-                      {viewDocModal.name}
-                    </strong>
-                    <span style={{ fontSize: "12px", color: "#64748b" }}>
-                      Protocolo Oficial: {viewDocModal.protocol} • Categoria: {viewDocModal.category}
-                    </span>
-                  </div>
-
-                  <p style={{ margin: "0 0 10px 0", color: "#334155" }}>
-                    Certificamos que o presente documento encontra-se devidamente registrado e arquivado
-                    no Sistema Integrado de Gestão da Fundação Manuel Cruz, sob plena conformidade com as
-                    diretrizes estatutárias e normas do Ministério Público.
-                  </p>
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "10px",
-                      background: "#f8fafc",
-                      padding: "12px",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                      border: "1px solid #e2e8f0",
-                    }}
-                  >
-                    <div><strong>Data de Emissão:</strong> {viewDocModal.createdAt}</div>
-                    <div><strong>Tamanho do Arquivo:</strong> {viewDocModal.size}</div>
-                    <div>
-                      <strong>Pasta Vinculada:</strong>{" "}
-                      {folders.find((f) => f.id === viewDocModal.folderId)?.name || "Raiz (Sem pasta)"}
-                    </div>
-                    <div><strong>Status:</strong> Assinado e Válido</div>
-                  </div>
-                </div>
-
-                {/* Selo de Assinatura Digital e QR Code */}
-                <div className={styles.viewerAuthBadge}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div
-                      style={{
-                        width: "44px",
-                        height: "44px",
-                        background: "#092a54",
-                        borderRadius: "6px",
-                        display: "grid",
-                        placeItems: "center",
-                        color: "#ffffff",
-                      }}
-                    >
-                      <QrCode size={26} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#092a54" }}>
-                        Assinatura Digital ICP-Brasil
-                      </div>
-                      <div style={{ fontSize: "10px", color: "#64748b", fontFamily: "monospace" }}>
-                        Hash: e3b0c442...991b7852b855
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#16a34a", display: "block" }}>
-                      ✓ Autenticidade Confirmada
-                    </span>
-                    <span style={{ fontSize: "10px", color: "#64748b" }}>
-                      {viewDocModal.protocol}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* ABA 2: DETALHES & MOVER PASTA */
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div className={styles.formGroup}>
-                  <label>Mover para Pasta:</label>
-                  <select
-                    className={styles.formInput}
-                    value={viewDocModal.folderId || ""}
-                    onChange={(e) => handleMoveFile(viewDocModal.id, e.target.value || null)}
-                  >
-                    <option value="">Sem pasta (Raiz)</option>
-                    {folders.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        📁 {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div
-                  style={{
-                    background: "#f8fafc",
-                    padding: "14px",
-                    borderRadius: "6px",
-                    border: "1px solid #e2e8f0",
-                    fontSize: "13px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                  }}
-                >
-                  <div><strong>Identificador Único:</strong> {viewDocModal.id}</div>
-                  <div><strong>Protocolo FMC:</strong> {viewDocModal.protocol}</div>
-                  <div><strong>Data de Criação:</strong> {viewDocModal.createdAt}</div>
-                  <div><strong>Categoria:</strong> {viewDocModal.category}</div>
-                  <div><strong>Tamanho:</strong> {viewDocModal.size}</div>
-                </div>
-              </div>
+  return (
+    <Modal
+      title="Renomear / mover documento"
+      onClose={onClose}
+      busy={saving}
+      footer={
+        <>
+          <button type="button" className="ui-btn ui-btn-secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button type="submit" form="edit-doc-form" className="ui-btn ui-btn-primary" disabled={saving}>
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+        </>
+      }
+    >
+      <form id="edit-doc-form" onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 12 }}>
+        <Field label="Nome" error={error} required>
+          {(props) => <input {...props} data-autofocus className="ui-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={160} />}
+        </Field>
+        <div className="ui-form-grid">
+          <Field label="Categoria">
+            {(props) => (
+              <select {...props} className="ui-input" value={category} onChange={(e) => setCategory(e.target.value as DocumentCategory)}>
+                {DOCUMENT_CATEGORIES.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
             )}
-
-            {/* Ações do Rodapé do Modal */}
-            <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                onClick={() => window.print()}
-                title="Imprimir documento"
-              >
-                <Printer size={16} />
-                <span>Imprimir</span>
-              </button>
-
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                onClick={() => handleDownloadFile(viewDocModal)}
-                title="Fazer download real do arquivo"
-              >
-                <Download size={16} />
-                <span>Baixar Arquivo</span>
-              </button>
-
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={() => setViewDocModal(null)}
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL 5: QR CODE SCANNER & VALIDADOR --- */}
-      {qrModalOpen && (
-        <div
-          className={styles.modalOverlay}
-          role="presentation"
-          onMouseDown={() => setQrModalOpen(false)}
-        >
-          <div
-            className={styles.docModalCard}
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className={styles.docModalHeader}>
-              <h2>VALIDAÇÃO QR CODE</h2>
-              <button
-                type="button"
-                className={styles.closeCircleBtn}
-                onClick={() => setQrModalOpen(false)}
-                aria-label="Fechar"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className={styles.scannerViewfinder}>
-              <div className={styles.scanLine} />
-              <QrCode size={56} style={{ opacity: 0.4 }} />
-              <span style={{ marginTop: "12px", fontSize: "13px" }}>
-                Aponte para o QR Code impresso no documento oficial FMC
-              </span>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Ou digite o nome ou protocolo do documento:</label>
-              <input
-                type="text"
-                className={styles.formInput}
-                placeholder="Ex: Documento_00 ou FMC-REG-81204"
-                value={qrInput}
-                onChange={(e) => setQrInput(e.target.value)}
-              />
-            </div>
-
-            {qrResult && (
-              <div
-                style={{
-                  padding: "12px 14px",
-                  background: "#dcfce7",
-                  border: "1px solid #86efac",
-                  borderRadius: "6px",
-                  color: "#166534",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <CheckCircle2 size={18} />
-                  <span>{qrResult.text}</span>
-                </div>
-                {qrResult.docId && (
-                  <button
-                    type="button"
-                    style={{
-                      alignSelf: "flex-start",
-                      background: "#166534",
-                      color: "#ffffff",
-                      border: 0,
-                      borderRadius: "4px",
-                      padding: "4px 10px",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => {
-                      const doc = files.find((f) => f.id === qrResult.docId);
-                      if (doc) {
-                        setQrModalOpen(false);
-                        setViewDocModal(doc);
-                        setDocViewerTab("view");
-                      }
-                    }}
-                  >
-                    Abrir documento encontrado →
-                  </button>
-                )}
-              </div>
+          </Field>
+          <Field label="Pasta">
+            {(props) => (
+              <select {...props} className="ui-input" value={folderId} onChange={(e) => setFolderId(e.target.value)}>
+                <option value="">Sem pasta</option>
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             )}
-
-            <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={() => setQrModalOpen(false)}
-              >
-                Fechar
-              </button>
-              <button
-                type="button"
-                className={styles.confirmBtn}
-                onClick={handleSimulateQrScan}
-              >
-                Validar Autenticidade
-              </button>
-            </div>
-          </div>
+          </Field>
         </div>
-      )}
+        <Field label="Descrição">
+          {(props) => <textarea {...props} className="ui-input" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} />}
+        </Field>
+      </form>
+    </Modal>
+  );
+}
 
-      {/* Toast Alert */}
-      {toastMessage && (
-        <div className={styles.toastAlert} role="status">
-          <CheckCircle2 size={18} color="#22c55e" />
-          <span>{toastMessage}</span>
+/** Digitalizar (Backlog 4): câmera do celular ou galeria; o usuário escolhe a pasta. */
+function ScanModal({
+  folders,
+  defaultFolderId,
+  onClose,
+  onSaved,
+}: {
+  folders: Folder[];
+  defaultFolderId: string | null;
+  onClose: () => void;
+  onSaved: (doc: DocumentItem) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [name, setName] = useState(`Digitalizacao_${todayIso()}`);
+  const [folderId, setFolderId] = useState(defaultFolderId ?? "");
+  const [category, setCategory] = useState<DocumentCategory>("Outro");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const options = folders.map((folder) => ({ id: folder.id, label: folderPathOf(folder.id, folders) })).sort((a, b) => a.label.localeCompare(b.label));
+
+  useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- URL temporária da imagem escolhida
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!file) {
+      setError("Tire uma foto ou escolha uma imagem.");
+      return;
+    }
+    if (name.trim().length < 3) {
+      setError("Informe um nome com ao menos 3 caracteres.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const extension = file.type === "application/pdf" ? ".pdf" : file.type === "image/png" ? ".png" : ".jpg";
+      const doc = await createDocument({
+        name: name.trim().endsWith(extension) ? name.trim() : `${name.trim()}${extension}`,
+        folderId: folderId || null,
+        category,
+        description: "Documento digitalizado pelo painel.",
+        file,
+      });
+      onSaved(doc);
+    } catch (err) {
+      setError(errorMessage(err, "Não foi possível salvar a digitalização."));
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      title="Digitalizar documento"
+      onClose={onClose}
+      busy={saving}
+      footer={
+        <>
+          <button type="button" className="ui-btn ui-btn-secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button type="submit" form="scan-form" className="ui-btn ui-btn-primary" disabled={saving} aria-busy={saving}>
+            {saving ? "Salvando..." : "Salvar digitalização"}
+          </button>
+        </>
+      }
+    >
+      <form id="scan-form" onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 12 }}>
+        <div className="ui-row-actions">
+          <label className="ui-btn ui-btn-primary" style={{ cursor: "pointer" }}>
+            <ScanLine size={16} aria-hidden="true" /> Usar câmera
+            <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          </label>
+          <label className="ui-btn ui-btn-secondary" style={{ cursor: "pointer" }}>
+            <Upload size={16} aria-hidden="true" /> Escolher da galeria
+            <input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          </label>
         </div>
-      )}
-    </div>
+        {preview && file?.type.startsWith("image/") ? (
+          // eslint-disable-next-line @next/next/no-img-element -- pré-visualização local (blob:)
+          <img src={preview} alt="Pré-visualização da digitalização" style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 8, border: "1px solid #e2e8f0" }} />
+        ) : file ? (
+          <p className="ui-field-hint">Arquivo selecionado: {file.name}</p>
+        ) : null}
+        <Field label="Nome do documento" required>
+          {(props) => <input {...props} className="ui-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={160} />}
+        </Field>
+        <div className="ui-form-grid">
+          <Field label="Salvar na pasta">
+            {(props) => (
+              <select {...props} className="ui-input" value={folderId} onChange={(e) => setFolderId(e.target.value)}>
+                <option value="">Sem pasta</option>
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Categoria">
+            {(props) => (
+              <select {...props} className="ui-input" value={category} onChange={(e) => setCategory(e.target.value as DocumentCategory)}>
+                {DOCUMENT_CATEGORIES.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            )}
+          </Field>
+        </div>
+        {error ? (
+          <p className="ui-alert ui-alert-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </form>
+    </Modal>
   );
 }

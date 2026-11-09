@@ -4,28 +4,27 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
+  Building2,
   CircleDollarSign,
   Contact,
-  FileSignature,
   FileText,
   Home,
   LogOut,
   Scale,
-  Settings,
   Users,
 } from "lucide-react";
-import { clearAuthToken } from "@/lib/auth";
+import { logout } from "@/lib/logout";
 
+// "Formulários" agora fica dentro de Documentos → Novo Documento (Relatório Sprint 3).
 const items = [
   { href: "/", label: "Painel", icon: Home },
   { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/imoveis", label: "Imóveis", icon: Building2 },
   { href: "/documentos", label: "Documentos", icon: FileText },
-  { href: "/formulario", label: "Formulários", icon: FileSignature },
   { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
   { href: "/ministerio-publico", label: "Ministério Público", icon: Scale },
   { href: "/funcionarios", label: "Funcionários", icon: Contact },
   { href: "/estoque", label: "Estoque", icon: Boxes },
-  { href: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
 export function Sidebar() {
@@ -33,8 +32,8 @@ export function Sidebar() {
   const router = useRouter();
 
   function handleLogout() {
-    clearAuthToken();
-    router.replace("/");
+    logout();
+    router.replace("/login");
   }
 
   return (
@@ -49,13 +48,14 @@ export function Sidebar() {
               href={href}
               className={`sidebar-link${active ? " sidebar-link-active" : ""}`}
               aria-current={active ? "page" : undefined}
+              title={label}
             >
               <Icon size={18} className="sidebar-link-icon" aria-hidden="true" />
               <span>{label}</span>
             </Link>
           );
         })}
-        <button type="button" className="sidebar-link sidebar-logout" onClick={handleLogout}>
+        <button type="button" className="sidebar-link sidebar-logout" onClick={handleLogout} title="Sair da conta">
           <LogOut size={18} className="sidebar-link-icon" aria-hidden="true" />
           <span>Sair</span>
         </button>
