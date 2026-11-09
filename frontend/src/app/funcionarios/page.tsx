@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { Fragment, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Check, Clock, Eye, History, Pencil, Plus, UserCog, X } from "lucide-react";
+import { Check, Clock, Eye, Pencil, Plus, UserCog, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
@@ -14,12 +14,15 @@ import { formatDate, formatDateTime, isValidIsoDate, newId, normalizeText, today
 import { useRecords } from "@/lib/records";
 import {
   ATTENDANCE_STATUSES,
+  EMPLOYEE_ROLES,
+  EMPLOYEE_SITUATIONS,
   JUSTIFICATION_TYPES,
   attendanceSchema,
   employeeSchema,
   justificationSchema,
   type Attendance,
   type Employee,
+  type EmployeeSituation,
   type Justification,
 } from "@/lib/schemas";
 import { useCan } from "@/lib/permissions";
@@ -113,20 +116,20 @@ function ManagerView() {
   const [historyOf, setHistoryOf] = useState<Employee | null>(null);
   const [reviewing, setReviewing] = useState<Justification | null>(null);
   const [staffOpen, setStaffOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const employees = employeesStore.items.filter((employee) => employee.active);
-  const roles = Array.from(new Set(employees.map((employee) => employee.role))).sort();
+  // Todos aparecem; o filtro de Status (situação no quadro) separa ativos, férias, desligados etc.
+  const employees = [...employeesStore.items].sort((a, b) => Number(b.active) - Number(a.active));
+  const roles = Array.from(new Set<string>([...EMPLOYEE_ROLES, ...employees.map((employee) => employee.role)])).sort((a, b) => a.localeCompare(b));
   const recordsOfDay = new Map(attendanceStore.items.filter((record) => record.date === date).map((record) => [record.employeeId, record]));
 
   const rows = employees
     .filter((employee) => {
       if (name && !normalizeText(employee.name).includes(normalizeText(name))) return false;
       if (role !== "ALL" && employee.role !== role) return false;
-      const record = recordsOfDay.get(employee.id);
-      const current = record?.status ?? "Sem registro";
-      return status === "ALL" || current === status;
+      return status === "ALL" || employee.situation === status;
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
 
   const justifications = justificationsStore.items
     .filter((item) => justFilter === "ALL" || item.status === justFilter)
@@ -182,7 +185,7 @@ function ManagerView() {
           <label htmlFor="func-status">Status</label>
           <select id="func-status" className="ui-input" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="ALL">Todos os status</option>
-            {[...ATTENDANCE_STATUSES, "Sem registro"].map((value) => (
+            {EMPLOYEE_SITUATIONS.map((value) => (
               <option key={value}>{value}</option>
             ))}
           </select>
@@ -236,6 +239,11 @@ function ManagerView() {
                   <tr key={employee.id}>
                     <td>
                       <strong>{employee.name}</strong>
+                      {employee.situation !== "Ativo" ? (
+                        <div>
+                          <span className="ui-badge ui-badge-neutral">{employee.situation}</span>
+                        </div>
+                      ) : null}
                     </td>
                     <td>{employee.role}</td>
                     <td>{record?.entryTime ?? "—"}</td>
@@ -251,8 +259,8 @@ function ManagerView() {
                         <button type="button" className="ui-icon-btn" onClick={() => setEditing({ employee, record })} aria-label={`Ajustar registro de ${employee.name}`} title="Ajustar registro">
                           <Pencil size={16} aria-hidden="true" />
                         </button>
-                        <button type="button" className="ui-icon-btn" onClick={() => setHistoryOf(employee)} aria-label={`Histórico de ${employee.name}`} title="Histórico individual">
-                          <History size={16} aria-hidden="true" />
+                        <button type="button" className="ui-icon-btn" onClick={() => setHistoryOf(employee)} aria-label={`Histórico de justificativas e pontos de ${employee.name}`} title="Histórico de justificativas e pontos">
+                          <Clock size={16} aria-hidden="true" />
                         </button>
                       </div>
                     </td>
@@ -293,13 +301,30 @@ function ManagerView() {
                   <th scope="col">Motivo</th>
                   <th scope="col">Anexo</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {justifications.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.employeeName}</td>
+                  <Fragment key={item.id}>
+                  <tr
+                    onClick={() => setExpandedId((current) => (current === item.id ? null : item.id))}
+                    style={{ cursor: "pointer", background: expandedId === item.id ? "var(--ui-surface-muted)" : undefined }}
+                  >
+                    <td>
+                      <button
+                        type="button"
+                        className="ui-link"
+                        style={{ textDecoration: "none", color: "var(--ui-text)", fontWeight: 600 }}
+                        aria-expanded={expandedId === item.id}
+                        aria-controls={`just-acoes-${item.id}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setExpandedId((current) => (current === item.id ? null : item.id));
+                        }}
+                      >
+                        {item.employeeName}
+                      </button>
+                    </td>
                     <td>{formatDate(item.date)}</td>
                     <td>
                       <strong>{item.type}</strong>
@@ -317,19 +342,37 @@ function ManagerView() {
                     <td>
                       <span className={`ui-badge ${STATUS_TONE[item.status]}`}>{item.status}</span>
                     </td>
-                    <td>
-                      <div className="ui-row-actions">
-                        <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setReviewing(item)}>
-                          <Eye size={14} aria-hidden="true" /> {item.status === "Pendente" ? "Analisar" : "Visualizar"}
-                        </button>
-                        {item.status === "Pendente" ? (
-                          <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => void review(item, "Aprovada", "").catch((err) => show(errorMessage(err), "error"))}>
-                            <Check size={14} aria-hidden="true" /> Aprovar
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
                   </tr>
+                  {expandedId === item.id ? (
+                    <tr id={`just-acoes-${item.id}`} style={{ background: "var(--ui-surface-muted)" }}>
+                      <td colSpan={5}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                          {item.status === "Pendente" ? (
+                            <>
+                              <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => void review(item, "Aprovada", "").then(() => setExpandedId(null)).catch((err) => show(errorMessage(err), "error"))}>
+                                <Check size={14} aria-hidden="true" /> Aprovar
+                              </button>
+                              <button type="button" className="ui-btn ui-btn-danger ui-btn-sm" onClick={() => setReviewing(item)}>
+                                <X size={14} aria-hidden="true" /> Rejeitar
+                              </button>
+                            </>
+                          ) : (
+                            <span className="ui-field-hint">
+                              {item.status} por {item.reviewedBy ?? "—"}
+                              {item.reviewNote ? ` · ${item.reviewNote}` : ""}
+                            </span>
+                          )}
+                          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setReviewing(item)}>
+                            <Eye size={14} aria-hidden="true" /> Visualizar
+                          </button>
+                          <button type="button" className="ui-icon-btn" style={{ marginLeft: "auto" }} aria-label="Fechar" onClick={() => setExpandedId(null)}>
+                            <X size={16} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -350,7 +393,18 @@ function ManagerView() {
           }}
         />
       ) : null}
-      {historyOf ? <HistoryModal employee={historyOf} records={attendanceStore.items} onClose={() => setHistoryOf(null)} /> : null}
+      {historyOf ? (
+        <HistoryModal
+          employee={historyOf}
+          records={attendanceStore.items}
+          justifications={justificationsStore.items}
+          onOpenJustification={(item) => {
+            setHistoryOf(null);
+            setReviewing(item);
+          }}
+          onClose={() => setHistoryOf(null)}
+        />
+      ) : null}
       {reviewing ? <ReviewModal item={reviewing} onClose={() => setReviewing(null)} onDecide={review} /> : null}
       {staffOpen ? <StaffModal store={employeesStore} onClose={() => setStaffOpen(false)} notify={show} /> : null}
       {toast}
@@ -553,51 +607,107 @@ function AttendanceEditModal({
   );
 }
 
-function HistoryModal({ employee, records, onClose }: { employee: Employee; records: Attendance[]; onClose: () => void }) {
+type PunchEvent = { time: string; label: string };
+
+function punchEvents(record: Attendance): PunchEvent[] {
+  const events: PunchEvent[] = [];
+  if (record.entryTime) events.push({ time: record.entryTime, label: "Entrada" });
+  if (record.breakStart) events.push({ time: record.breakStart, label: "Saída para intervalo" });
+  if (record.breakEnd) events.push({ time: record.breakEnd, label: "Retorno" });
+  if (record.exitTime) events.push({ time: record.exitTime, label: "Saída final" });
+  return events.reverse();
+}
+
+/** "Reloginho" do protótipo: justificativas e histórico de pontos lado a lado, cada um com rolagem própria. */
+function HistoryModal({
+  employee,
+  records,
+  justifications,
+  onOpenJustification,
+  onClose,
+}: {
+  employee: Employee;
+  records: Attendance[];
+  justifications: Justification[];
+  onOpenJustification: (item: Justification) => void;
+  onClose: () => void;
+}) {
   const history = records
     .filter((record) => record.employeeId === employee.id)
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 60);
+  const ownJustifications = justifications.filter((item) => item.employeeId === employee.id).sort((a, b) => b.date.localeCompare(a.date));
   const worked = history.reduce((acc, record) => acc + (workedMinutes(record) ?? 0), 0);
   const absences = history.filter((record) => record.status === "Ausente").length;
+  const listStyle = { listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8, maxHeight: 360, overflowY: "auto" as const };
   return (
     <Modal title={`Histórico de ${employee.name}`} wide onClose={onClose}>
       <p style={{ margin: 0, fontSize: 14 }}>
         {history.length} registro(s) · {formatMinutes(worked)} trabalhadas · {absences} falta(s)
       </p>
-      {history.length === 0 ? (
-        <p className="ui-empty">Nenhum registro de ponto ainda.</p>
-      ) : (
-        <div className="ui-table-wrap">
-          <table className="ui-table">
-            <thead>
-              <tr>
-                <th scope="col">Data</th>
-                <th scope="col">Situação</th>
-                <th scope="col">Chegada</th>
-                <th scope="col">Intervalo</th>
-                <th scope="col">Saída</th>
-                <th scope="col">HT</th>
-              </tr>
-            </thead>
-            <tbody>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
+        <section aria-labelledby="hist-just">
+          <h3 id="hist-just" style={{ margin: "0 0 8px", fontSize: 15, color: "var(--ui-primary)" }}>
+            Justificativas
+          </h3>
+          {ownJustifications.length === 0 ? (
+            <p className="ui-empty">Nenhuma justificativa enviada.</p>
+          ) : (
+            <ul style={listStyle} tabIndex={0} aria-label="Justificativas">
+              {ownJustifications.map((item) => (
+                <li key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, borderBottom: "1px solid var(--ui-border)", paddingBottom: 6 }}>
+                  <span>
+                    <strong style={{ display: "block" }}>{item.type}</strong>
+                    <span className="ui-field-hint">{formatDate(item.date)}</span>
+                  </span>
+                  <span style={{ display: "grid", justifyItems: "end", gap: 4 }}>
+                    <span className={`ui-badge ${STATUS_TONE[item.status]}`}>{item.status}</span>
+                    <button type="button" className="ui-link" style={{ fontSize: 13 }} onClick={() => onOpenJustification(item)}>
+                      Ver detalhes<span className="sr-only"> da justificativa de {formatDate(item.date)}</span>
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section aria-labelledby="hist-pontos">
+          <h3 id="hist-pontos" style={{ margin: "0 0 8px", fontSize: 15, color: "var(--ui-primary)" }}>
+            Histórico de pontos
+          </h3>
+          {history.length === 0 ? (
+            <p className="ui-empty">Nenhum registro de ponto ainda.</p>
+          ) : (
+            <ul style={listStyle} tabIndex={0} aria-label="Histórico de pontos">
               {history.map((record) => {
-                const minutes = workedMinutes(record);
+                const events = punchEvents(record);
                 return (
-                  <tr key={record.id}>
-                    <td>{formatDate(record.date)}</td>
-                    <td>{record.status}</td>
-                    <td>{record.entryTime ?? "—"}</td>
-                    <td>{record.breakStart ? `${record.breakStart} – ${record.breakEnd ?? "…"}` : "—"}</td>
-                    <td>{record.exitTime ?? "—"}</td>
-                    <td>{minutes !== null ? formatMinutes(minutes) : "—"}</td>
-                  </tr>
+                  <li key={record.id}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, fontSize: 14 }}>
+                      <span>{formatDate(record.date)}</span>
+                      <span className="ui-field-hint">{record.status}</span>
+                    </div>
+                    {events.length === 0 ? (
+                      <p className="ui-field-hint" style={{ margin: "2px 0 0" }}>
+                        Sem marcações.
+                      </p>
+                    ) : (
+                      <ul style={{ listStyle: "none", margin: "4px 0 0", padding: 0, display: "grid", gap: 2 }}>
+                        {events.map((event) => (
+                          <li key={event.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
+                            <span>{event.label}</span>
+                            <span>{event.time}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </ul>
+          )}
+        </section>
+      </div>
     </Modal>
   );
 }
@@ -656,7 +766,7 @@ function StaffModal({ store, onClose, notify }: { store: EmployeesStore; onClose
                   {employee.shiftStart}–{employee.shiftEnd}
                 </td>
                 <td>
-                  <span className={`ui-badge ${employee.active ? "ui-badge-success" : "ui-badge-neutral"}`}>{employee.active ? "Ativo" : "Desligado"}</span>
+                  <span className={`ui-badge ${employee.active ? "ui-badge-success" : "ui-badge-neutral"}`}>{employee.situation}</span>
                 </td>
                 <td>
                   <div className="ui-row-actions">
@@ -668,7 +778,7 @@ function StaffModal({ store, onClose, notify }: { store: EmployeesStore; onClose
                       className="ui-btn ui-btn-secondary ui-btn-sm"
                       onClick={() =>
                         void store
-                          .save({ ...employee, active: !employee.active })
+                          .save({ ...employee, active: !employee.active, situation: employee.active ? "Desligado" : "Ativo" })
                           .then(() => notify(employee.active ? `${employee.name} retirado(a) da lista ativa.` : `${employee.name} reativado(a).`))
                           .catch((err) => notify(errorMessage(err), "error"))
                       }
@@ -689,6 +799,7 @@ function StaffModal({ store, onClose, notify }: { store: EmployeesStore; onClose
 function EmployeeForm({ employee, others, onClose, onSave }: { employee: Employee | null; others: Employee[]; onClose: () => void; onSave: (employee: Employee) => Promise<void> }) {
   const [name, setName] = useState(employee?.name ?? "");
   const [role, setRole] = useState(employee?.role ?? "");
+  const [situation, setSituation] = useState<EmployeeSituation>(employee?.situation ?? "Ativo");
   const [cpf, setCpf] = useState(employee?.cpf ?? "");
   const [shiftStart, setShiftStart] = useState(employee?.shiftStart ?? "08:00");
   const [breakStart, setBreakStart] = useState(employee?.breakStart ?? "12:00");
@@ -710,7 +821,7 @@ function EmployeeForm({ employee, others, onClose, onSave }: { employee: Employe
     if (Object.keys(found).length) return;
     setSaving(true);
     try {
-      await onSave({ id: employee?.id ?? newId("func"), name: name.trim(), role: role.trim(), cpf: formatCpf(cpf), shiftStart, breakStart, breakEnd, shiftEnd, active: employee?.active ?? true });
+      await onSave({ id: employee?.id ?? newId("func"), name: name.trim(), role: role.trim(), cpf: formatCpf(cpf), shiftStart, breakStart, breakEnd, shiftEnd, situation, active: situation !== "Desligado" && situation !== "Inativo" });
     } catch (err) {
       setErrors({ form: errorMessage(err) });
       setSaving(false);
@@ -739,7 +850,25 @@ function EmployeeForm({ employee, others, onClose, onSave }: { employee: Employe
         </Field>
         <div className="ui-form-grid">
           <Field label="Função" error={errors.role} required>
-            {(props) => <input {...props} className="ui-input" value={role} onChange={(e) => setRole(e.target.value)} maxLength={60} />}
+            {(props) => (
+              <>
+                <input {...props} className="ui-input" list="funcoes-sugeridas" value={role} onChange={(e) => setRole(e.target.value)} maxLength={60} />
+                <datalist id="funcoes-sugeridas">
+                  {EMPLOYEE_ROLES.map((value) => (
+                    <option key={value} value={value} />
+                  ))}
+                </datalist>
+              </>
+            )}
+          </Field>
+          <Field label="Situação">
+            {(props) => (
+              <select {...props} className="ui-input" value={situation} onChange={(e) => setSituation(EMPLOYEE_SITUATIONS.find((value) => value === e.target.value) ?? "Ativo")}>
+                {EMPLOYEE_SITUATIONS.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            )}
           </Field>
           <Field label="CPF" error={errors.cpf} required>
             {(props) => <input {...props} className="ui-input" inputMode="numeric" value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} />}
