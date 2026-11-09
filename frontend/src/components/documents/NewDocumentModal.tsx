@@ -2,17 +2,20 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, FilePlus2, FileText, Settings2, Upload } from "lucide-react";
+import { ArrowLeft, FilePlus2, FileText, PenLine, Settings2, ShieldCheck, Upload } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { createDocument } from "@/lib/documents";
 import { ACCEPTED_FILE_TYPES, fileTooLargeMessage } from "@/lib/files";
 import { errorMessage, propertiesApi, type PropertyItem } from "@/lib/financial-api";
 import { formatMoneyInput, isValidIsoDate, parseMoney, todayIso } from "@/lib/format";
-import { DOCUMENT_CATEGORIES, type DocumentCategory, type DocumentItem, type Folder } from "@/lib/schemas";
+import { DOCUMENT_CATEGORIES, type DocumentCategory, type DocumentItem, type DocumentSignature, type Folder } from "@/lib/schemas";
 import { useCan } from "@/lib/permissions";
 import { DOCUMENT_TEMPLATES, findTemplate, renderTemplate, useTemplateSettings, type DocumentTemplate } from "@/lib/templates";
 import { DocumentPreview } from "./DocumentPreview";
+import { SignDocumentModal } from "./SignDocumentModal";
+import { generateDocumentHash, parseSignaturePrefs, SIGNATURE_TYPE_LABELS } from "@/lib/signatures";
+import { useSession } from "@/lib/session";
 import { folderPathOf } from "./DocumentViewer";
 
 type Step = { kind: "choose" } | { kind: "template"; template: DocumentTemplate } | { kind: "upload" } | { kind: "blank" };
@@ -171,6 +174,20 @@ function TemplateForm({
   const settings = useTemplateSettings();
   const layout = settings.layoutFor(template.id);
   const needsProperties = template.fields.some((field) => field.type === "property");
+  const session = useSession();
+  const savedPrefs = parseSignaturePrefs(session?.user?.preferences as Record<string, unknown> | undefined);
+  const [signature, setSignature] = useState<DocumentSignature>(() => ({
+    type: savedPrefs.defaultType || "hash",
+    signedBy: session?.user?.name || "Representante FMC",
+    signerRole: savedPrefs.defaultRole || "Representante Legal",
+    signerEmail: session?.user?.username || "",
+    signedAt: new Date().toISOString(),
+    sha256: "calculando...",
+    signatureImage: savedPrefs.signatureImage || null,
+    cursiveStyle: savedPrefs.cursiveStyle || "classic",
+    includeQrCode: true,
+  }));
+  const [showSignModal, setShowSignModal] = useState(false);
 
   useEffect(() => {
     if (!needsProperties) return;
@@ -219,6 +236,20 @@ function TemplateForm({
     setFormError("");
     try {
       const trimmed = Object.fromEntries(Object.entries(data).map(([key, value]) => [key, value.trim()]));
+      const rendered = renderTemplate(template, trimmed, layout);
+      const signedAt = new Date().toISOString();
+      const sha256 = await generateDocumentHash({
+        protocol: "FMC-EMISSAO",
+        title: template.fileName(trimmed),
+        paragraphs: rendered.paragraphs,
+        signer: signature.signedBy,
+        signedAt,
+      });
+      const finalSignature: DocumentSignature = {
+        ...signature,
+        signedAt,
+        sha256,
+      };
       const created = await createDocument({
         name: template.fileName(trimmed),
         folderId: folderId || null,
@@ -226,9 +257,10 @@ function TemplateForm({
         description: template.description,
         template: template.id,
         templateData: trimmed,
-        rendered: renderTemplate(template, trimmed, layout),
+        rendered,
         clientId,
         signed: true,
+        signature: finalSignature,
       });
       onCreated(created);
     } catch (error) {
@@ -288,9 +320,28 @@ function TemplateForm({
             </Field>
           ))}
           <FolderSelect folders={folders} value={folderId} onChange={setFolderId} />
+          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#092a54" }}>
+                <ShieldCheck size={16} />
+                <span>Assinatura Digital</span>
+              </div>
+              <span style={{ fontSize: 12, color: "#64748b" }}>
+                {SIGNATURE_TYPE_LABELS[signature.type]} · {signature.signedBy} ({signature.signerRole})
+              </span>
+            </div>
+            <button
+              type="button"
+              className="ui-btn ui-btn-secondary ui-btn-sm"
+              onClick={() => setShowSignModal(true)}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              <PenLine size={14} aria-hidden="true" /> Alterar
+            </button>
+          </div>
         </div>
         <aside aria-label="Pré-visualização" className="ui-card" style={{ alignSelf: "start", background: "#fff" }}>
-          {settings.loading ? <div className="ui-skeleton" style={{ height: 220 }} aria-busy="true" /> : <DocumentPreview layout={preview} compact />}
+          {settings.loading ? <div className="ui-skeleton" style={{ height: 220 }} aria-busy="true" /> : <DocumentPreview layout={preview} signature={signature} compact />}
         </aside>
       </div>
       {settings.error ? (
@@ -311,6 +362,19 @@ function TemplateForm({
           {saving ? "Gerando..." : "Gerar e salvar documento"}
         </button>
       </div>
+      {showSignModal ? (
+        <SignDocumentModal
+          documentTitle={template.fileName(data)}
+          protocol="FMC-EMISSAO"
+          paragraphs={preview.paragraphs}
+          initialSignature={signature}
+          onClose={() => setShowSignModal(false)}
+          onSign={(newSig) => {
+            setSignature(newSig);
+            setShowSignModal(false);
+          }}
+        />
+      ) : null}
     </form>
   );
 }

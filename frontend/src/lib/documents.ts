@@ -1,7 +1,7 @@
 import { newId, todayIso } from "./format";
 import { fileTooLargeMessage, readFileAsDataUrl, storeFileContent } from "./files";
 import { applyLocalUpsert, putRecord } from "./records";
-import type { DocumentCategory, DocumentItem, TemplateLayout } from "./schemas";
+import type { DocumentCategory, DocumentItem, DocumentSignature, TemplateLayout } from "./schemas";
 import { getSession } from "./session";
 
 /** Pastas fixas criadas pela migration V9; outras pastas são criadas pelos usuários. */
@@ -33,6 +33,7 @@ type CreateDocumentInput = {
   clientId?: string | null;
   movementId?: number | null;
   signed?: boolean;
+  signature?: DocumentSignature | null;
 };
 
 /** Cria o documento (e grava o arquivo em partes, se houver) e atualiza as telas abertas. */
@@ -61,7 +62,8 @@ export async function createDocument(input: CreateDocumentInput): Promise<Docume
     mimeType,
     fileParts,
     protocol: newProtocol(),
-    signed: input.signed ?? false,
+    signed: input.signed ?? Boolean(input.signature),
+    signature: input.signature ?? null,
     description: input.description?.trim() ?? "",
     template: input.template ?? null,
     templateData: input.templateData ?? null,

@@ -43,7 +43,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       const response = await authApi.login(email.trim(), password, isSignup ? name.trim() : undefined);
       // O AuthGate percebe a nova sessão e leva para a página pedida (?next=).
-      saveSession({ token: response.token, expiresAt: response.expiresAt, user: { username: response.user.username, name: response.user.name, role: response.user.role } });
+      saveSession({ token: response.token, expiresAt: response.expiresAt, user: { username: response.user.username, name: response.user.name, role: response.user.role, preferences: response.user.preferences } });
     } catch (error) {
       setFormError(errorMessage(error, "Não foi possível entrar."));
       setSubmitting(false);

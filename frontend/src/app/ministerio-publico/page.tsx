@@ -155,7 +155,7 @@ export default function MinisterioPublicoPage() {
         if (doc.fileParts > 0) downloadDataUrl(await loadFileContent(doc.id, doc.fileParts), doc.name);
         else {
           const layout = documentLayout(doc, layoutFor);
-          if (layout) downloadText(layoutToHtml(layout, doc.protocol), doc.name.replace(/\.pdf$/i, ".html"));
+          if (layout) downloadText(layoutToHtml(layout, doc.protocol, doc.signature, doc.id), doc.name.replace(/\.pdf$/i, ".html"));
         }
       }
       show(`${docs.length} documento(s) baixado(s).`);

@@ -28,7 +28,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       .then((me) => {
         const current = getSession();
         if (current && current.token === token && (current.user.role !== me.role || current.user.name !== me.name)) {
-          saveSession({ ...current, user: { username: me.username, name: me.name, role: me.role } });
+          saveSession({ ...current, user: { username: me.username, name: me.name, role: me.role, preferences: me.preferences } });
         }
       })
       .catch(() => {
