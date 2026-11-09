@@ -11,6 +11,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import br.org.fundacaomanuelcruz.projeto2.auth.LoginRateLimiter;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -20,6 +22,16 @@ public class ApiExceptionHandler {
         exception.getBindingResult().getFieldErrors().forEach(error ->
                 fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
         return response(HttpStatus.BAD_REQUEST, "Dados inválidos.", fields);
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    ResponseEntity<ApiErrorResponse> notFound(NotFoundException exception) {
+        return response(HttpStatus.NOT_FOUND, exception.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(LoginRateLimiter.TooManyRequestsException.class)
+    ResponseEntity<ApiErrorResponse> tooManyRequests(LoginRateLimiter.TooManyRequestsException exception) {
+        return response(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage(), Map.of());
     }
 
     @ExceptionHandler({ IllegalArgumentException.class, HttpMessageNotReadableException.class })

@@ -3,6 +3,7 @@ package br.org.fundacaomanuelcruz.projeto2.finance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,17 +17,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import br.org.fundacaomanuelcruz.projeto2.api.NotFoundException;
+import br.org.fundacaomanuelcruz.projeto2.property.PropertyRepository;
+
 @ExtendWith(MockitoExtension.class)
 class FinancialServiceTest {
 
     @Mock
     private FinancialTransactionRepository repository;
 
+    @Mock
+    private PropertyRepository propertyRepository;
+
     private FinancialService service;
 
     @BeforeEach
     void setUp() {
-        service = new FinancialService(repository, new BrazilianDocumentValidator());
+        service = new FinancialService(repository, new BrazilianDocumentValidator(), propertyRepository);
     }
 
     @Test
@@ -71,6 +78,7 @@ class FinancialServiceTest {
 
     @Test
     void persistsValidIncome() {
+        when(propertyRepository.existsByRegistrationCodeIgnoreCase("IM-001")).thenReturn(true);
         when(repository.save(any(FinancialTransaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -92,6 +100,7 @@ class FinancialServiceTest {
 
     @Test
     void persistsValidExpense() {
+        when(propertyRepository.existsByRegistrationCodeIgnoreCase("IM-002")).thenReturn(true);
         when(repository.save(any(FinancialTransaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -123,6 +132,40 @@ class FinancialServiceTest {
     void rejectsDeletionWhenTransactionNotFound() {
         when(repository.existsById(999L)).thenReturn(false);
 
-        assertThrows(IllegalArgumentException.class, () -> service.deleteTransaction(999L));
+        assertThrows(NotFoundException.class, () -> service.deleteTransaction(999L));
+    }
+
+    @Test
+    void rejectsIncomeForUnregisteredProperty() {
+        when(propertyRepository.existsByRegistrationCodeIgnoreCase("IM-999")).thenReturn(false);
+        CreateIncomeRequest request = new CreateIncomeRequest(
+                BrazilianDocumentType.CPF,
+                "Inquilino Teste",
+                "529.982.247-25",
+                "im-999",
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("1000.00"));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> service.createIncome(request));
+        assertEquals("Imóvel IM-999 não está cadastrado.", error.getMessage());
+        verify(repository, never()).save(any(FinancialTransaction.class));
+    }
+
+    @Test
+    void rejectsDatesBefore2000() {
+        CreateExpenseRequest request = new CreateExpenseRequest(
+                "Pintura", "GERAL", LocalDate.of(1999, 12, 31), new BigDecimal("10.00"));
+
+        assertThrows(IllegalArgumentException.class, () -> service.createExpense(request));
+    }
+
+    @Test
+    void acceptsGeneralExpenseWithoutProperty() {
+        when(repository.save(any(FinancialTransaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        CreateExpenseRequest request = new CreateExpenseRequest(
+                "Material de escritório", "geral", LocalDate.of(2026, 9, 15), new BigDecimal("80.00"));
+
+        assertEquals("GERAL", service.createExpense(request).propertyRegistration());
     }
 }

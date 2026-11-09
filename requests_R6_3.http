@@ -1,14 +1,26 @@
+### Login (qualquer e-mail + senha 6+) — copie o "token" da resposta para @token
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "teste@exemplo.com", "password": "123456" }
+
+### Defina aqui o token devolvido pelo login
+@token = cole-o-token-aqui
+
 ### Resumo financeiro
 GET http://localhost:8080/api/v1/financial/summary?month=9&year=2026
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### Movimentos do mes
 GET http://localhost:8080/api/v1/financial/movements?month=9&year=2026
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### Registrar entrada de teste
 POST http://localhost:8080/api/v1/financial/incomes
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "documentType": "CPF",
@@ -22,6 +34,7 @@ Content-Type: application/json
 ### Registrar saída/despesa de teste
 POST http://localhost:8080/api/v1/financial/expenses
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "description": "Manutenção Elétrica e Pintura",

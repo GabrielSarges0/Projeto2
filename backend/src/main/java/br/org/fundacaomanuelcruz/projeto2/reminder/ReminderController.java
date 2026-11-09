@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +36,11 @@ public class ReminderController {
     @PostMapping
     public ResponseEntity<ReminderResponse> create(@Valid @RequestBody CreateReminderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
+    }
+
+    @PutMapping("/{id}")
+    public ReminderResponse update(@PathVariable Long id, @Valid @RequestBody CreateReminderRequest request) {
+        return service.update(id, request);
     }
 
     @PatchMapping("/{id}/toggle")

@@ -1,10 +1,16 @@
 package br.org.fundacaomanuelcruz.projeto2.property;
 
+import java.util.Locale;
+
 import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import br.org.fundacaomanuelcruz.projeto2.api.NotFoundException;
+import br.org.fundacaomanuelcruz.projeto2.auth.CurrentUser;
+import br.org.fundacaomanuelcruz.projeto2.property.Property.PropertyDetails;
 
 @Service
 public class PropertyService {
@@ -28,18 +34,45 @@ public class PropertyService {
 
     @Transactional(readOnly = true)
     public PropertyMetricsResponse getMetrics() {
-        long total = propertyRepository.count();
-        long occupied = propertyRepository.countByStatus("Ocupado");
-        long available = propertyRepository.countByStatus("Disponível");
-        long underMaintenance = propertyRepository.countByStatus("Em Reforma");
+        return new PropertyMetricsResponse(
+                propertyRepository.count(),
+                propertyRepository.countByStatus(PropertyStatus.OCUPADO),
+                propertyRepository.countByStatus(PropertyStatus.DISPONIVEL),
+                propertyRepository.countByStatus(PropertyStatus.MANUTENCAO));
+    }
 
-        // Caso a base esteja recém-criada ou com a amostra padrão de 5 registros da fundação,
-        // garantimos métricas consistentes para a interface
-        if (total > 0 && total < 10) {
-            return new PropertyMetricsResponse(124, 98, 26, 4);
+    @Transactional
+    public PropertyResponse create(PropertyRequest request) {
+        if (request.registrationCode() == null || request.registrationCode().isBlank()) {
+            throw new IllegalArgumentException("Informe o código do imóvel (ex.: IM-006).");
         }
+        String code = request.registrationCode().trim().toUpperCase(Locale.ROOT);
+        if (propertyRepository.existsByRegistrationCodeIgnoreCase(code)) {
+            throw new IllegalArgumentException("Já existe um imóvel com o código " + code + ".");
+        }
+        return toPropertyResponse(propertyRepository.save(new Property(code, details(request), CurrentUser.displayName())));
+    }
 
-        return new PropertyMetricsResponse(total, occupied, available, underMaintenance);
+    @Transactional
+    public PropertyResponse update(Long id, PropertyRequest request) {
+        Property property = propertyRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Imóvel não encontrado: " + id));
+        property.apply(details(request), CurrentUser.displayName());
+        return toPropertyResponse(propertyRepository.save(property));
+    }
+
+    private static PropertyDetails details(PropertyRequest request) {
+        String tenant = request.currentTenant() == null || request.currentTenant().isBlank()
+                ? null
+                : request.currentTenant().trim();
+        if (request.status() == PropertyStatus.OCUPADO && tenant == null) {
+            throw new IllegalArgumentException("Imóvel ocupado precisa do nome do inquilino.");
+        }
+        if (request.status() != PropertyStatus.OCUPADO) {
+            tenant = null;
+        }
+        String notes = request.notes() == null || request.notes().isBlank() ? null : request.notes().trim();
+        return new PropertyDetails(request.address().trim(), tenant, request.monthlyRent(), request.status(), notes);
     }
 
     @Transactional(readOnly = true)
@@ -56,9 +89,12 @@ public class PropertyService {
                 p.getId(),
                 p.getRegistrationCode(),
                 p.getAddress(),
-                p.getCurrentTenant() != null ? p.getCurrentTenant() : "Disponível para locação",
+                p.getCurrentTenant(),
                 p.getMonthlyRent(),
-                p.getStatus()
+                p.getStatus(),
+                p.getNotes(),
+                p.getUpdatedAt(),
+                p.getUpdatedBy()
         );
     }
 

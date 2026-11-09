@@ -1,192 +1,89 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Shield, User, Bell, Key, Building2 } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { LogOut, UserRound } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import styles from "./perfil.module.css";
+import { Field } from "@/components/ui/Field";
+import { useToast } from "@/components/ui/Toast";
+import { authApi, errorMessage } from "@/lib/financial-api";
+import { formatDateTime } from "@/lib/format";
+import { logout } from "@/lib/logout";
+import { saveSession, useSession } from "@/lib/session";
 
 export default function PerfilPage() {
-  const [name, setName] = useState("Gabriel Pedro Sarges da Silva");
-  const [email, setEmail] = useState("gpss@cesar.school");
-  const [role, setRole] = useState("Administrador Geral & Gestor de Patrimônio");
-  const [department, setDepartment] = useState("Diretoria de Patrimônio e Finanças");
-  const [phone, setPhone] = useState("(81) 98877-6655");
+  const session = useSession();
+  const router = useRouter();
+  const { show, node: toast } = useToast();
+  const [name, setName] = useState(session?.user.name ?? "");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [deadlineReminders, setDeadlineReminders] = useState(true);
-  const [weeklyDigest, setWeeklyDigest] = useState(false);
-  const [savedToast, setSavedToast] = useState(false);
-
-  function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 3000);
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const trimmed = name.trim().replace(/\s+/g, " ");
+    if (trimmed.length < 3 || trimmed.length > 120) {
+      setError("O nome deve ter entre 3 e 120 caracteres.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const response = await authApi.updateName(trimmed);
+      saveSession({ token: response.token, expiresAt: response.expiresAt, user: response.user });
+      show("Nome de exibição atualizado.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
-  const permissions = [
-    "Painel Geral (Visualização & Indicadores)",
-    "Painel Financeiro (Receitas, Despesas, Saldo)",
-    "Gestão de Documentos (Upload, Busca, Exclusão)",
-    "Controle de Imóveis (Cadastro & Situação)",
-    "Prestação de Contas (Ministério Público)",
-    "Controle de Funcionários & Presença",
-    "Estoque & Materiais (DML)",
-    "Configurações Globais do Sistema",
-  ];
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+  }
 
   return (
     <AppShell>
-      <div className={styles.profileContainer}>
-        <div className={styles.headerBack}>
-          <Link href="/" className={styles.backBtn}>
-            <ArrowLeft size={16} /> Voltar ao Painel
-          </Link>
+      <section className="ui-page" aria-labelledby="perfil-title" style={{ maxWidth: 640 }}>
+        <div className="ui-page-header">
+          <div>
+            <h1 id="perfil-title">Perfil</h1>
+            <p>Seus dados de acesso ao painel.</p>
+          </div>
         </div>
 
-        <form onSubmit={handleSave} className={styles.profileCard}>
-          <div className={styles.profileHero}>
-            <div className={styles.avatarWrapper}>GS</div>
-            <div className={styles.heroInfo}>
-              <h1>{name}</h1>
-              <span className={styles.heroRole}>
-                <Shield size={14} /> {role}
-              </span>
-              <span className={styles.heroOrg}>
-                <Building2 size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-                Fundação Manuel Cruz • Instituição Filantrópica desde 1941
-              </span>
+        <form className="ui-card" onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="ui-stat-icon" style={{ background: "#092a54", color: "#fff", borderRadius: "50%" }} aria-hidden="true">
+              <UserRound size={22} />
+            </span>
+            <div>
+              <strong style={{ display: "block", fontSize: 16 }}>{session?.user.name}</strong>
+              <span className="ui-field-hint">{session?.user.username}</span>
             </div>
           </div>
-
-          <h2 className={styles.sectionTitle}>
-            <User size={18} /> Informações Pessoais e Cadastrais
-          </h2>
-          <div className={styles.formGrid}>
-            <div className={styles.formGroup}>
-              <label>Nome Completo</label>
-              <input
-                type="text"
-                className={styles.formInput}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>E-mail Institucional</label>
-              <input
-                type="email"
-                className={styles.formInput}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Cargo / Função</label>
-              <input
-                type="text"
-                className={styles.formInput}
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                required
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Departamento</label>
-              <input
-                type="text"
-                className={styles.formInput}
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Telefone / Contato</label>
-              <input
-                type="text"
-                className={styles.formInput}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Identificador de Login (Auth)</label>
-              <input type="text" className={styles.formInput} value="admin (Sessão Ativa)" disabled />
-            </div>
-          </div>
-
-          <h2 className={styles.sectionTitle}>
-            <Shield size={18} /> Permissões do Perfil
-          </h2>
-          <div className={styles.permissionsGrid}>
-            {permissions.map((p) => (
-              <div key={p} className={styles.permissionPill}>
-                <span className={styles.permissionDot} />
-                <span>{p}</span>
-              </div>
-            ))}
-          </div>
-
-          <h2 className={styles.sectionTitle}>
-            <Bell size={18} /> Notificações e Alertas (BP10)
-          </h2>
-          <div className={styles.preferencesList}>
-            <label className={styles.prefItem}>
-              <div className={styles.prefInfo}>
-                <strong>Alertas de Vencimento de Aluguel e Contratos</strong>
-                <span>Receber e-mail quando um contrato estiver a 30 dias do vencimento</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={deadlineReminders}
-                onChange={(e) => setDeadlineReminders(e.target.checked)}
-              />
-            </label>
-
-            <label className={styles.prefItem}>
-              <div className={styles.prefInfo}>
-                <strong>Alertas de Prestação de Contas (Ministério Público)</strong>
-                <span>Notificar prazos de envio de relatórios e balancetes ao MP</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={emailAlerts}
-                onChange={(e) => setEmailAlerts(e.target.checked)}
-              />
-            </label>
-
-            <label className={styles.prefItem}>
-              <div className={styles.prefInfo}>
-                <strong>Resumo Financeiro Semanal</strong>
-                <span>Envio semanal consolidado com entradas, saídas e saldo operacional</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={weeklyDigest}
-                onChange={(e) => setWeeklyDigest(e.target.checked)}
-              />
-            </label>
-          </div>
-
-          <div className={styles.saveRow}>
-            <Link href="/" className={styles.backBtn}>
-              Cancelar
-            </Link>
-            <button type="submit" className={styles.saveBtn}>
-              Salvar Alterações
+          <Field label="Nome de exibição" error={error} required hint="Aparece no cabeçalho e como responsável nos registros que você criar.">
+            {(props) => <input {...props} className="ui-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoComplete="name" />}
+          </Field>
+          <Field label="E-mail de acesso" hint="O e-mail identifica sua conta e não pode ser trocado aqui.">
+            {(props) => <input {...props} className="ui-input" value={session?.user.username ?? ""} disabled />}
+          </Field>
+          <p className="ui-field-hint" style={{ margin: 0 }}>
+            Sessão válida até {formatDateTime(session?.expiresAt)}. Neste ambiente o acesso aceita qualquer conta, por isso não há troca de senha.
+          </p>
+          <div className="ui-row-actions" style={{ justifyContent: "space-between" }}>
+            <button type="button" className="ui-btn ui-btn-secondary" onClick={handleLogout}>
+              <LogOut size={16} aria-hidden="true" /> Sair da conta
+            </button>
+            <button type="submit" className="ui-btn ui-btn-primary" disabled={saving} aria-busy={saving}>
+              {saving ? "Salvando..." : "Salvar alterações"}
             </button>
           </div>
         </form>
-
-        {savedToast && (
-          <div className={styles.toast}>
-            <CheckCircle2 size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 8 }} />
-            Perfil e preferências atualizados com sucesso!
-          </div>
-        )}
-      </div>
+      </section>
+      {toast}
     </AppShell>
   );
 }

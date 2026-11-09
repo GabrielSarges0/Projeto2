@@ -1,837 +1,113 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Building,
-  CalendarDays,
-  CheckCircle2,
-  CircleDollarSign,
-  FileText,
-  Filter,
-  History,
-  House,
-  KeyRound,
-  Plus,
-  Search,
-  Trash2,
-  Wrench,
-  X,
-  Pencil,
-  Paperclip,
-  Upload,
-  Tag,
-  Clock,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { ArrowDownLeft, ArrowUpRight, CircleDollarSign, History, House, Paperclip, Plus, Trash2 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
+import { documentHref } from "@/lib/documents";
 import {
-  getStoredProperties,
-  updatePropertySituation,
-  getPropertyMetricsFromStore,
-  getStoredReminders,
-  saveReminders as saveSharedReminders,
-  saveMovement,
-  type FMCProperty,
-  type FMCReminder,
-  type PropertySituation,
-} from "@/lib/shared-store";
-import {
+  errorMessage,
   financialApi,
-  isApiError,
+  notifyFinanceChanged,
   propertiesApi,
-  remindersApi,
-  type CreateExpenseRequest,
-  type CreateIncomeRequest,
   type FinancialMovement,
   type FinancialSummary,
   type PropertyItem,
-  type PropertyMetrics,
 } from "@/lib/financial-api";
+import { MONTHS, formatCurrency, formatDate } from "@/lib/format";
+import { useRecords } from "@/lib/records";
+import { documentSchema, type DocumentItem } from "@/lib/schemas";
+import { HistoryView } from "./HistoryView";
+import { RemindersPanel } from "./RemindersPanel";
+import { EntryModal, ExpenseModal } from "./TransactionModals";
 import styles from "@/app/financeiro/financeiro.module.css";
 
-type DocumentType = "CPF" | "CNPJ";
+const emptySummary: FinancialSummary = { income: 0, expense: 0, balance: 0 };
 
-type EntryForm = {
-  documentType: DocumentType;
-  tenantName: string;
-  document: string;
-  propertyRegistration: string;
-  date: string;
-  grossTotal: string;
-  showCharges: boolean;
-  chargesDesc: string;
-  chargesAmount: string;
-  showFines: boolean;
-  finesDesc: string;
-  finesAmount: string;
-  netCalculated: number | null;
-  attachedDocId?: string;
-  attachedDocName?: string;
-};
-
-type ExpenseForm = {
-  description: string;
-  category: string;
-  propertyRegistration: string;
-  date: string;
-  grossTotal: string;
-  showRetention: boolean;
-  retentionDesc: string;
-  retentionAmount: string;
-  netCalculated: number | null;
-};
-
-type Reminder = {
-  id: string;
-  text: string;
-  done: boolean;
-};
-
-const initialForm: EntryForm = {
-  documentType: "CPF",
-  tenantName: "",
-  document: "",
-  propertyRegistration: "",
-  date: "",
-  grossTotal: "",
-  showCharges: false,
-  chargesDesc: "",
-  chargesAmount: "",
-  showFines: false,
-  finesDesc: "",
-  finesAmount: "",
-  netCalculated: null,
-  attachedDocId: "",
-  attachedDocName: "",
-};
-
-const initialExpenseForm: ExpenseForm = {
-  description: "",
-  category: "Manutenção",
-  propertyRegistration: "",
-  date: "",
-  grossTotal: "",
-  showRetention: false,
-  retentionDesc: "",
-  retentionAmount: "",
-  netCalculated: null,
-};
-
-const emptySummary: FinancialSummary = {
-  income: 0,
-  expense: 0,
-  balance: 0,
-};
-
-const months = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
-
-// Mock inicial para quando o backend Java estiver offline (ex: deploy público na Vercel)
-const initialFallbackMovements: FinancialMovement[] = [
-  {
-    id: 1,
-    date: "2026-10-05",
-    tenantName: "João Pedro Cavalcanti",
-    propertyRegistration: "IM-001",
-    amount: 3200.0,
-    type: "INCOME",
-  },
-  {
-    id: 2,
-    date: "2026-10-08",
-    tenantName: "Maria Helena Silva",
-    propertyRegistration: "IM-002",
-    amount: 2850.0,
-    type: "INCOME",
-  },
-  {
-    id: 3,
-    date: "2026-10-10",
-    tenantName: "Manutenção Hidráulica - Prestador Rocha",
-    propertyRegistration: "IM-001",
-    amount: 450.0,
-    type: "EXPENSE",
-  },
-];
-
-const fmcProperties = [
-  { id: "IM-001", address: "Av. Conde da Boa Vista, 412 - Sala 301", tenant: "João Pedro Cavalcanti", status: "Ocupado", rent: 3200.0 },
-  { id: "IM-002", address: "Rua do Hospício, 180 - Sala Comercial", tenant: "Maria Helena Silva", status: "Ocupado", rent: 2850.0 },
-  { id: "IM-003", address: "Rua Nova, 95 - Prédio Histórico FMC", tenant: "Fundação Cultural", status: "Em Reforma", rent: 0.0 },
-  { id: "IM-004", address: "Rua da Aurora, 520 - Apartamento 502", tenant: "Disponível para locação", status: "Disponível", rent: 2400.0 },
-  { id: "IM-005", address: "Av. Agamenon Magalhães, 1200 - Conjunto 405", tenant: "Tech Soluções Ltda", status: "Ocupado", rent: 4500.0 },
-];
-
-const figmaProperties = [
-  { id: "1", code: "IM-001", address: "Rua A, 120", situation: "Ocupado", statusType: "green", value: "R$ ...", details: "Imóvel residencial locado para João Pedro Cavalcanti. Contrato ativo com vencimento em Outubro/2026." },
-  { id: "2", code: "IM-002", address: "Rua A, 26", situation: "Ocupado", statusType: "green", value: "R$ ...", details: "Imóvel comercial locado para Maria Helena Silva. Vistoria regular realizada em 2026." },
-  { id: "3", code: "IM-003", address: "Rua B, 75", situation: "Livre", statusType: "yellow", value: "R$ ...", details: "Imóvel desocupado e disponível para locação. Chaves sob custódia da administração." },
-  { id: "4", code: "IM-004", address: "Rua C, 173", situation: "Manutenção", statusType: "red", value: "R$ ...", details: "Imóvel em manutenção hidráulica e elétrica preventiva." },
-  { id: "5", code: "IM-005", address: "Rua C, 50", situation: "Livre", statusType: "yellow", value: "R$ ...", details: "Imóvel comercial térreo disponível para locação institucional." },
-];
-
-const figmaHistoryRows = [
-  { id: "1", data: "IM-001", tipo: "Saída", responsavel: "Maria", item: "Projetor", details: "Retirada de equipamento audiovisual para apresentação institucional da Fundação Manuel Cruz." },
-  { id: "2", data: "IM-002", tipo: "Cadastro", responsavel: "João", item: "Imóvel", details: "Inclusão e registro cadastral do imóvel IM-002 no livro de patrimônio da FMC." },
-  { id: "3", data: "IM-003", tipo: "Alteração", responsavel: "Carlos", item: "Contrato", details: "Alteração contratual de locação comercial com reajuste anual aplicado." },
-  { id: "4", data: "IM-004", tipo: "Saída", responsavel: "Maria", item: "Notebook", details: "Notebook institucional disponibilizado para auditoria e prestação de contas." },
-  { id: "5", data: "IM-005", tipo: "Entrada", responsavel: "Ana", item: "Imóvel", details: "Recebimento de chaves e termo de vistoria de entrega devidamente assinado." },
-  { id: "6", data: "IM-006", tipo: "Saída", responsavel: "Bruno", item: "Projetor", details: "Empréstimo de projetor multimídia para reunião da Curadoria de Fundações." },
-];
-
-type PropertyRow = (typeof figmaProperties)[number];
-type HistoryRow = (typeof figmaHistoryRows)[number];
-
-const fallbackPropertyMetrics: PropertyMetrics = {
-  totalProperties: 124,
-  occupied: 98,
-  available: 26,
-  underMaintenance: 4,
-};
-
-// Converte o status do backend para os rótulos e cores usados na tabela do Figma
-function toPropertyRow(property: PropertyItem): PropertyRow {
-  const status = property.status.toLowerCase();
-  const isOccupied = status.startsWith("ocupad");
-  const isAvailable = status.startsWith("dispon") || status.startsWith("livre");
-
-  return {
-    id: String(property.id),
-    code: property.registrationCode,
-    address: property.address,
-    situation: isOccupied ? "Ocupado" : isAvailable ? "Livre" : "Manutenção",
-    statusType: isOccupied ? "green" : isAvailable ? "yellow" : "red",
-    value: property.monthlyRent > 0 ? currency(property.monthlyRent) : "-",
-    details: `Inquilino atual: ${property.currentTenant}. Status cadastrado: ${property.status}.`,
-  };
-}
-
-function toHistoryRow(movement: FinancialMovement): HistoryRow {
-  const isIncome = movement.type === "INCOME";
-
-  return {
-    id: String(movement.id),
-    data: displayDate(movement.date),
-    tipo: isIncome ? "Entrada" : "Saída",
-    responsavel: movement.tenantName,
-    item: movement.propertyRegistration,
-    details: `${isIncome ? "Receita" : "Despesa"} de ${currency(movement.amount)} referente ao imóvel ${movement.propertyRegistration}.`,
-  };
-}
-
-function currency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: 2,
-  }).format(value);
-}
-
-function displayDate(value: string) {
-  const [year, month, day] = value.split("-");
-  return year && month && day ? `${day}/${month}/${year}` : value;
-}
-
-function parseMoney(value: string) {
-  const cleaned = value
-    .replace(/\s/g, "")
-    .replace(/^R\$/i, "")
-    .replace(/\./g, "")
-    .replace(",", ".")
-    .replace(/[^0-9.-]/g, "");
-
-  return Number(cleaned);
-}
-
-function formatCpfCnpj(value: string, type: DocumentType) {
-  const clean = value.replace(/\D/g, "");
-  if (type === "CPF") {
-    const limited = clean.slice(0, 11);
-    if (limited.length <= 3) return limited;
-    if (limited.length <= 6) return `${limited.slice(0, 3)}.${limited.slice(3)}`;
-    if (limited.length <= 9) return `${limited.slice(0, 3)}.${limited.slice(3, 6)}.${limited.slice(6)}`;
-    return `${limited.slice(0, 3)}.${limited.slice(3, 6)}.${limited.slice(6, 9)}-${limited.slice(9)}`;
-  } else {
-    const limited = clean.slice(0, 14);
-    if (limited.length <= 2) return limited;
-    if (limited.length <= 5) return `${limited.slice(0, 2)}.${limited.slice(2)}`;
-    if (limited.length <= 8) return `${limited.slice(0, 2)}.${limited.slice(2, 5)}.${limited.slice(5)}`;
-    if (limited.length <= 12) return `${limited.slice(0, 2)}.${limited.slice(2, 5)}.${limited.slice(5, 8)}/${limited.slice(8)}`;
-    return `${limited.slice(0, 2)}.${limited.slice(2, 5)}.${limited.slice(5, 8)}/${limited.slice(8, 12)}-${limited.slice(12)}`;
-  }
-}
-
-function formatMoneyInput(value: string) {
-  const clean = value.replace(/\D/g, "");
-  if (!clean) return "";
-  const num = Number(clean) / 100;
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(num);
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Não foi possível comunicar com o backend Java.";
+function yearOptions(current: number) {
+  return Array.from({ length: 6 }, (_, index) => current - 4 + index);
 }
 
 export function FinancialDashboard() {
   const now = new Date();
-  const [currentView, setCurrentView] = useState<"FINANCEIRO" | "IMOVEIS" | "HISTORICO">("FINANCEIRO");
-  const [imoveisSearch, setImoveisSearch] = useState("");
-  const [historicoSearch, setHistoricoSearch] = useState("");
-  const [selectedDetailModal, setSelectedDetailModal] = useState<{ title: string; content: string } | null>(null);
-
-  // Estados de Imóveis e Modificação de Situação (Sprint 3)
-  const [propertiesList, setPropertiesList] = useState<FMCProperty[]>(() => getStoredProperties());
-  const [editingProperty, setEditingProperty] = useState<FMCProperty | null>(null);
-  const [imoveisFilterSituation, setImoveisFilterSituation] = useState<string>("ALL");
-  const [imoveisFilterPrice, setImoveisFilterPrice] = useState<string>("ALL");
-  const [imoveisFilterOpen, setImoveisFilterOpen] = useState(false);
-
-  // Estados de Filtro do Histórico (Sprint 3)
-  const [historicoFilterTipo, setHistoricoFilterTipo] = useState<string>("ALL");
-  const [historicoFilterResp, setHistoricoFilterResp] = useState<string>("ALL");
-  const [historicoFilterOpen, setHistoricoFilterOpen] = useState(false);
-
-  // Estados de Lembretes Estruturados e Detalhes Expandidos (Sprint 3)
-  const [structuredReminders, setStructuredReminders] = useState<FMCReminder[]>(() => getStoredReminders());
-  const [selectedReminderModal, setSelectedReminderModal] = useState<FMCReminder | null>(null);
-  const [createReminderModalOpen, setCreateReminderModalOpen] = useState(false);
-
-  // Documentos cadastrados disponíveis para vínculo
-  const [availableDocs, setAvailableDocs] = useState<{ id: string; name: string; protocol?: string }[]>([]);
-
-
-
-  useEffect(() => {
-    const handlePropsUpdated = () => {
-      setPropertiesList(getStoredProperties());
-    };
-    window.addEventListener("fmc_properties_updated", handlePropsUpdated);
-    return () => window.removeEventListener("fmc_properties_updated", handlePropsUpdated);
-  }, []);
-
-  const [month, setMonth] = useState(months[now.getMonth()]);
-  const [year, setYear] = useState(String(now.getFullYear()));
+  const [view, setView] = useState<"FINANCEIRO" | "HISTORICO">("FINANCEIRO");
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
   const [summary, setSummary] = useState<FinancialSummary>(emptySummary);
   const [movements, setMovements] = useState<FinancialMovement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState("");
-  const [screenMessage, setScreenMessage] = useState("");
-  const [toastMessage, setToastMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const [modal, setModal] = useState<"entry" | "expense" | null>(null);
+  const [toDelete, setToDelete] = useState<FinancialMovement | null>(null);
+  const { show, node: toast } = useToast();
+  const { items: documents } = useRecords("documents", documentSchema);
 
-  const [entryModalOpen, setEntryModalOpen] = useState(false);
-  const [form, setForm] = useState<EntryForm>(initialForm);
-  const [formMessage, setFormMessage] = useState("");
-
-  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
-  const [expenseForm, setExpenseForm] = useState<ExpenseForm>(initialExpenseForm);
-  const [expenseFormMessage, setExpenseFormMessage] = useState("");
-
-  useEffect(() => {
-    try {
-      const savedDocs = localStorage.getItem("fmc_files_v3");
-      if (savedDocs) {
-        const parsed = JSON.parse(savedDocs);
-        if (Array.isArray(parsed)) {
-          setAvailableDocs(parsed.map((d: any) => ({ id: d.id, name: d.name, protocol: d.protocol })));
-        }
-      }
-    } catch {}
-  }, [entryModalOpen, expenseModalOpen]);
-
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
-  const [propertiesModalOpen, setPropertiesModalOpen] = useState(false);
-
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [newReminderText, setNewReminderText] = useState("");
-  const [showReminderInput, setShowReminderInput] = useState(false);
-
-  const [submitting, setSubmitting] = useState(false);
-
-  const [propertyRows, setPropertyRows] = useState<PropertyRow[]>(figmaProperties);
-  const [propertyMetrics, setPropertyMetrics] = useState<PropertyMetrics>(fallbackPropertyMetrics);
-  const [historyRows, setHistoryRows] = useState<HistoryRow[]>(figmaHistoryRows);
-
-  const selectedMonth = months.indexOf(month) + 1;
-  const selectedYear = Number(year);
-
-  // Imóveis cadastrados e métricas reais da API (mantém os dados do Figma se o backend estiver offline)
-  useEffect(() => {
-    if (currentView !== "IMOVEIS") return;
-    let active = true;
-
-    void Promise.allSettled([propertiesApi.list(), propertiesApi.metrics()]).then(
-      ([listRes, metricsRes]) => {
-        if (!active) return;
-        if (listRes.status === "fulfilled") setPropertyRows(listRes.value.map(toPropertyRow));
-        if (metricsRes.status === "fulfilled") setPropertyMetrics(metricsRes.value);
-      }
-    );
-
-    return () => {
-      active = false;
-    };
-  }, [currentView]);
-
-  // Histórico completo de movimentações (recarrega quando o mês muda ou há novos lançamentos)
-  useEffect(() => {
-    if (currentView !== "HISTORICO") return;
-    let active = true;
-
-    financialApi
-      .allMovements()
-      .then((data) => {
-        if (active) setHistoryRows(data.map(toHistoryRow));
-      })
-      .catch(() => {
-        // Mantém os dados de demonstração
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [currentView, movements]);
-
-  // Carrega lembretes da API Java (com fallback local resiliente)
-  useEffect(() => {
-    let active = true;
-
-    remindersApi
-      .list()
-      .then((data) => {
-        if (!active) return;
-        const mapped: Reminder[] = data.map((r) => ({
-          id: String(r.id),
-          text: r.text,
-          done: r.done,
-        }));
-        setReminders(mapped);
-        try {
-          localStorage.setItem("fmc_reminders", JSON.stringify(mapped));
-        } catch {
-          // Ignora
-        }
-      })
-      .catch(() => {
-        if (!active) return;
-        try {
-          const saved = localStorage.getItem("fmc_reminders");
-          if (saved) {
-            setReminders(JSON.parse(saved) as Reminder[]);
-          } else {
-            const defaultReminders: Reminder[] = [
-              { id: "1", text: "Vencimento aluguel IM-001 (dia 10)", done: true },
-              { id: "2", text: "Vistoria predial IM-003", done: false },
-              { id: "3", text: "Cobrança taxa condominial IM-005", done: false },
-            ];
-            setReminders(defaultReminders);
-            localStorage.setItem("fmc_reminders", JSON.stringify(defaultReminders));
-          }
-        } catch {
-          // Ignora falha de localStorage
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  function saveReminders(updated: Reminder[]) {
-    setReminders(updated);
-    try {
-      localStorage.setItem("fmc_reminders", JSON.stringify(updated));
-    } catch {
-      // Ignora
-    }
-  }
-
-  async function addReminder() {
-    const text = newReminderText.trim();
-    if (!text) return;
-    setNewReminderText("");
-    setShowReminderInput(false);
-
-    try {
-      const created = await remindersApi.create({ text });
-      const item: Reminder = {
-        id: String(created.id),
-        text: created.text,
-        done: created.done,
-      };
-      const updated = [item, ...reminders];
-      saveReminders(updated);
-      showToast("Lembrete salvo com sucesso.");
-    } catch {
-      // Fallback offline
-      const item: Reminder = {
-        id: String(Date.now()),
-        text,
-        done: false,
-      };
-      const updated = [item, ...reminders];
-      saveReminders(updated);
-      showToast("Lembrete adicionado.");
-    }
-  }
-
-  async function toggleReminder(id: string) {
-    const numId = Number(id);
-    const updated = reminders.map((r) => (r.id === id ? { ...r, done: !r.done } : r));
-    saveReminders(updated);
-
-    if (Number.isFinite(numId)) {
-      try {
-        await remindersApi.toggle(numId);
-      } catch {
-        // Fallback local já atualizado
-      }
-    }
-  }
-
-  async function deleteReminder(id: string) {
-    const numId = Number(id);
-    const updated = reminders.filter((r) => r.id !== id);
-    saveReminders(updated);
-
-    if (Number.isFinite(numId)) {
-      try {
-        await remindersApi.delete(numId);
-        showToast("Lembrete excluído.");
-      } catch {
-        showToast("Lembrete removido.");
-      }
-    } else {
-      showToast("Lembrete removido.");
-    }
-  }
-
-  function showToast(msg: string) {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage("");
-    }, 3500);
-  }
-
-  // Carrega dados da API ou do LocalStorage (fallback de resiliência)
-  useEffect(() => {
-    let active = true;
-
-    void Promise.all([
-      financialApi.summary(selectedMonth, selectedYear),
-      financialApi.movements(selectedMonth, selectedYear),
-    ])
-      .then(([summaryData, movementData]) => {
-        if (!active) return;
-        setSummary(summaryData);
-        setMovements(movementData);
-        setApiError("");
-      })
-      .catch((error: unknown) => {
-        if (!active) return;
-        // Fallback gracioso com dados salvos no navegador para funcionamento em modo offline/Vercel
-        const cachedMovementsStr = localStorage.getItem(`fmc_movements_${selectedMonth}_${selectedYear}`);
-        if (cachedMovementsStr) {
-          try {
-            const cached = JSON.parse(cachedMovementsStr) as FinancialMovement[];
-            setMovements(cached);
-            const inc = cached.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
-            const exp = cached.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
-            setSummary({ income: inc, expense: exp, balance: inc - exp });
-          } catch {
-            setFallbackData();
-          }
-        } else {
-          setFallbackData();
-        }
-        setApiError(errorMessage(error));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    function setFallbackData() {
-      setMovements(initialFallbackMovements);
-      const inc = initialFallbackMovements.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
-      const exp = initialFallbackMovements.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
-      setSummary({ income: inc, expense: exp, balance: inc - exp });
-    }
-
-    return () => {
-      active = false;
-    };
-  }, [selectedMonth, selectedYear]);
-
-  async function refreshFinanceFromEvent() {
+  const load = useCallback(async () => {
     setLoading(true);
-    setApiError("");
-
+    setLoadError("");
     try {
       const [summaryData, movementData] = await Promise.all([
-        financialApi.summary(selectedMonth, selectedYear),
-        financialApi.movements(selectedMonth, selectedYear),
+        financialApi.summary(month, year),
+        financialApi.movements(month, year),
       ]);
-
       setSummary(summaryData);
       setMovements(movementData);
-    } catch {
-      // Mantem estado atualizado
+    } catch (error) {
+      setSummary(emptySummary);
+      setMovements([]);
+      setLoadError(errorMessage(error, "Não foi possível carregar o financeiro."));
     } finally {
       setLoading(false);
     }
-  }
+  }, [month, year]);
 
-  const incomes = useMemo(
-    () => movements.filter((movement) => movement.type === "INCOME"),
-    [movements]
-  );
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga da API ao trocar o período
+    void load();
+  }, [load]);
 
-  const expenses = useMemo(
-    () => movements.filter((movement) => movement.type === "EXPENSE"),
-    [movements]
-  );
+  useEffect(() => {
+    propertiesApi
+      .list()
+      .then(setProperties)
+      .catch(() => setProperties([]));
+  }, []);
 
-  function changeMonth(nextMonth: string) {
-    setLoading(true);
-    setApiError("");
-    setMonth(nextMonth);
-  }
+  const receiptsByMovement = useMemo(() => {
+    const map = new Map<number, DocumentItem>();
+    documents.forEach((doc) => {
+      if (doc.movementId !== null) map.set(doc.movementId, doc);
+    });
+    return map;
+  }, [documents]);
 
-  function changeYear(nextYear: string) {
-    setLoading(true);
-    setApiError("");
-    setYear(nextYear);
-  }
+  const incomes = movements.filter((item) => item.type === "INCOME");
+  const expenses = movements.filter((item) => item.type === "EXPENSE");
+  const monthLabel = MONTHS[month - 1];
 
-  function openEntryModal() {
-    setFormMessage("");
-    setEntryModalOpen(true);
-  }
-
-  function closeEntryModal() {
-    if (submitting) return;
-    setEntryModalOpen(false);
-    setFormMessage("");
-  }
-
-  function openExpenseModal() {
-    setExpenseFormMessage("");
-    setExpenseModalOpen(true);
-  }
-
-  function closeExpenseModal() {
-    if (submitting) return;
-    setExpenseModalOpen(false);
-    setExpenseFormMessage("");
-  }
-
-  function resetForm() {
-    setForm(initialForm);
-    setFormMessage("");
-  }
-
-  function resetExpenseForm() {
-    setExpenseForm(initialExpenseForm);
-    setExpenseFormMessage("");
-  }
-
-  async function submitEntry(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFormMessage("");
-    setScreenMessage("");
-
-    if (
-      !form.tenantName.trim() ||
-      !form.document.trim() ||
-      !form.propertyRegistration.trim() ||
-      !form.date ||
-      !form.grossTotal.trim()
-    ) {
-      setFormMessage("Preencha os campos obrigatórios antes de finalizar.");
-      return;
+  function handleSaved(movement: FinancialMovement, warning?: string) {
+    setModal(null);
+    const [y, m] = movement.date.split("-").map(Number);
+    if (y !== year || m !== month) {
+      setYear(y);
+      setMonth(m);
+    } else {
+      void load();
     }
-
-    const grossAmount = parseMoney(form.grossTotal);
-    if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
-      setFormMessage("Informe um valor bruto maior que zero.");
-      return;
-    }
-
-    const payload: CreateIncomeRequest = {
-      documentType: form.documentType,
-      tenantName: form.tenantName.trim(),
-      documentNumber: form.document.trim(),
-      propertyRegistration: form.propertyRegistration.trim(),
-      transactionDate: form.date,
-      grossAmount,
-    };
-
-    setSubmitting(true);
-
-    try {
-      await financialApi.createIncome(payload);
-      resetForm();
-      setEntryModalOpen(false);
-      showToast("Entrada registrada com sucesso!");
-      saveMovement({
-        id: Date.now(),
-        date: form.date,
-        tenantName: form.tenantName.trim(),
-        propertyRegistration: form.propertyRegistration.trim(),
-        amount: form.netCalculated ?? grossAmount,
-        type: "INCOME",
-        documentName: form.attachedDocName,
-      });
-      await refreshFinanceFromEvent();
-    } catch (error) {
-      // Backend respondeu com erro (ex: CPF/CNPJ inválido): mantém o modal aberto e mostra o motivo
-      if (isApiError(error)) {
-        setFormMessage(error.message);
-        return;
-      }
-      // Fallback para modo local/offline (ex: demo Vercel)
-      const newEntry: FinancialMovement = {
-        id: Date.now(),
-        date: form.date,
-        tenantName: form.tenantName.trim(),
-        propertyRegistration: form.propertyRegistration.trim(),
-        amount: grossAmount,
-        type: "INCOME",
-      };
-      const updated = [newEntry, ...movements];
-      setMovements(updated);
-      const inc = updated.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
-      const exp = updated.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
-      setSummary({ income: inc, expense: exp, balance: inc - exp });
-      try {
-        localStorage.setItem(`fmc_movements_${selectedMonth}_${selectedYear}`, JSON.stringify(updated));
-      } catch {
-        // Ignora
-      }
-      resetForm();
-      setEntryModalOpen(false);
-      showToast("Entrada registrada no sistema.");
-    } finally {
-      setSubmitting(false);
-    }
+    notifyFinanceChanged();
+    show(warning ?? (movement.type === "INCOME" ? "Entrada registrada." : "Saída registrada."), warning ? "error" : "success");
   }
 
-  async function submitExpense(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setExpenseFormMessage("");
-    setScreenMessage("");
-
-    if (
-      !expenseForm.description.trim() ||
-      !expenseForm.propertyRegistration.trim() ||
-      !expenseForm.date ||
-      !expenseForm.grossTotal.trim()
-    ) {
-      setExpenseFormMessage("Preencha todos os campos obrigatórios da despesa.");
-      return;
-    }
-
-    const grossAmount = parseMoney(expenseForm.grossTotal);
-    if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
-      setExpenseFormMessage("Informe um valor maior que zero.");
-      return;
-    }
-
-    const payload: CreateExpenseRequest = {
-      description: `${expenseForm.category}: ${expenseForm.description.trim()}`,
-      propertyRegistration: expenseForm.propertyRegistration.trim(),
-      transactionDate: expenseForm.date,
-      grossAmount,
-    };
-
-    setSubmitting(true);
-
-    try {
-      await financialApi.createExpense(payload);
-      resetExpenseForm();
-      setExpenseModalOpen(false);
-      showToast("Despesa registrada com sucesso!");
-      await refreshFinanceFromEvent();
-    } catch (error) {
-      if (isApiError(error)) {
-        setExpenseFormMessage(error.message);
-        return;
-      }
-      // Fallback local
-      const newExpense: FinancialMovement = {
-        id: Date.now(),
-        date: expenseForm.date,
-        tenantName: `${expenseForm.category}: ${expenseForm.description.trim()}`,
-        propertyRegistration: expenseForm.propertyRegistration.trim(),
-        amount: grossAmount,
-        type: "EXPENSE",
-      };
-      const updated = [newExpense, ...movements];
-      setMovements(updated);
-      const inc = updated.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
-      const exp = updated.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
-      setSummary({ income: inc, expense: exp, balance: inc - exp });
-      try {
-        localStorage.setItem(`fmc_movements_${selectedMonth}_${selectedYear}`, JSON.stringify(updated));
-      } catch {
-        // Ignora
-      }
-      resetExpenseForm();
-      setExpenseModalOpen(false);
-      showToast("Despesa registrada no sistema.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleDeleteTransaction(id: number, tenantName: string) {
-    if (!confirm(`Deseja realmente excluir a transação de "${tenantName}"?`)) {
-      return;
-    }
-
-    try {
-      await financialApi.deleteTransaction(id);
-      showToast("Movimentação removida.");
-      await refreshFinanceFromEvent();
-    } catch (error) {
-      if (isApiError(error)) {
-        showToast(error.message);
-        return;
-      }
-      // Fallback local
-      const updated = movements.filter((m) => m.id !== id);
-      setMovements(updated);
-      const inc = updated.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
-      const exp = updated.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
-      setSummary({ income: inc, expense: exp, balance: inc - exp });
-      try {
-        localStorage.setItem(`fmc_movements_${selectedMonth}_${selectedYear}`, JSON.stringify(updated));
-      } catch {
-        // Ignora
-      }
-      showToast("Movimentação removida.");
-    }
+  async function confirmDelete() {
+    if (!toDelete) return;
+    await financialApi.deleteTransaction(toDelete.id);
+    setToDelete(null);
+    notifyFinanceChanged();
+    show("Movimentação excluída.");
+    await load();
   }
 
   return (
@@ -840,34 +116,25 @@ export function FinancialDashboard() {
 
       <main className={styles.financeMain}>
         <div className={styles.financeCanvas}>
-          {currentView === "FINANCEIRO" && (
+          {view === "FINANCEIRO" ? (
             <>
               <div className={styles.periodControls}>
                 <label className={styles.periodSelect}>
-                  <span className="sr-only">Selecione o mês</span>
-                  <select
-                    value={month}
-                    onChange={(event) => changeMonth(event.target.value)}
-                    aria-label="Mês de referência"
-                  >
-                    {months.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                  <span className="sr-only">Mês</span>
+                  <select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="Mês de referência">
+                    {MONTHS.map((label, index) => (
+                      <option key={label} value={index + 1}>
+                        {label}
                       </option>
                     ))}
                   </select>
                 </label>
-
                 <label className={styles.periodSelectSmall}>
-                  <span className="sr-only">Selecione o ano</span>
-                  <select
-                    value={year}
-                    onChange={(event) => changeYear(event.target.value)}
-                    aria-label="Ano de referência"
-                  >
-                    {["2024", "2025", "2026", "2027"].map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                  <span className="sr-only">Ano</span>
+                  <select value={year} onChange={(e) => setYear(Number(e.target.value))} aria-label="Ano de referência">
+                    {yearOptions(now.getFullYear()).map((value) => (
+                      <option key={value} value={value}>
+                        {value}
                       </option>
                     ))}
                   </select>
@@ -876,366 +143,63 @@ export function FinancialDashboard() {
 
               <h1 className={styles.pageTitle}>FINANCEIRO</h1>
 
-              <section className={styles.summaryGrid} aria-label="Resumo do mês">
-                <SummaryCard
-                  label="ENTRADA:"
-                  value={currency(summary.income)}
-                  icon={<ArrowDownLeft aria-hidden="true" />}
-                />
-                <SummaryCard
-                  label="SAÍDA:"
-                  value={currency(summary.expense)}
-                  icon={<ArrowUpRight aria-hidden="true" />}
-                />
-                <SummaryCard
-                  label="SALDO:"
-                  value={currency(summary.balance)}
-                  icon={<CircleDollarSign aria-hidden="true" />}
-                />
+              {loadError ? (
+                <p className="ui-alert ui-alert-error" role="alert" style={{ margin: "8px 0" }}>
+                  {loadError}{" "}
+                  <button type="button" className="ui-link" onClick={() => void load()}>
+                    Tentar de novo
+                  </button>
+                </p>
+              ) : null}
+
+              <section className={styles.summaryGrid} aria-label={`Resumo de ${monthLabel}/${year}`} aria-busy={loading}>
+                <SummaryCard label="ENTRADA:" value={loading ? "..." : formatCurrency(summary.income)} icon={<ArrowDownLeft aria-hidden="true" />} />
+                <SummaryCard label="SAÍDA:" value={loading ? "..." : formatCurrency(summary.expense)} icon={<ArrowUpRight aria-hidden="true" />} />
+                <SummaryCard label="SALDO:" value={loading ? "..." : formatCurrency(summary.balance)} icon={<CircleDollarSign aria-hidden="true" />} />
               </section>
 
               <section className={styles.transactionsGrid}>
                 <TransactionPanel
                   title="ENTRADA:"
-                  month={month}
+                  month={monthLabel}
                   items={incomes}
-                  emptyText="Nenhuma entrada registrada para este período."
+                  loading={loading}
+                  emptyText="Nenhuma entrada neste mês."
                   actionLabel="Registrar entrada"
-                  onAction={openEntryModal}
-                  onDelete={handleDeleteTransaction}
+                  onAction={() => setModal("entry")}
+                  onDelete={setToDelete}
+                  receipts={receiptsByMovement}
                 />
-
                 <TransactionPanel
                   title="SAÍDA:"
-                  month={month}
+                  month={monthLabel}
                   items={expenses}
-                  emptyText="Nenhuma saída registrada para este período."
+                  loading={loading}
+                  emptyText="Nenhuma saída neste mês."
                   actionLabel="Registrar saída"
-                  onAction={openExpenseModal}
-                  onDelete={handleDeleteTransaction}
+                  onAction={() => setModal("expense")}
+                  onDelete={setToDelete}
+                  receipts={receiptsByMovement}
                 />
               </section>
             </>
+          ) : (
+            <HistoryView receipts={receiptsByMovement} onBack={() => setView("FINANCEIRO")} />
           )}
 
-          {currentView === "IMOVEIS" && (
-            <>
-              <div className={styles.viewTitleHeader}>
-                <button
-                  type="button"
-                  className={styles.backToOverviewBtn}
-                  onClick={() => setCurrentView("FINANCEIRO")}
-                  title="Voltar ao painel financeiro"
-                >
-                  ← Painel Financeiro
-                </button>
-                <h1 className={styles.viewTitle}>IMÓVEIS CADASTRADOS</h1>
-              </div>
-
-              {/* 4 Cards de Métricas de Imóveis (Imagem 3) */}
-              <div className={styles.imoveisMetricGrid}>
-                <div className={styles.imoveisMetricCard}>
-                  <div className={styles.imoveisIconCircle} style={{ background: "#E0F2FE", color: "#0284C7" }}>
-                    <Building size={22} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
-                      Total de imóveis
-                    </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{propertyMetrics.totalProperties}</strong>
-                  </div>
-                </div>
-
-                <div className={styles.imoveisMetricCard}>
-                  <div className={styles.imoveisIconCircle} style={{ background: "#FEE2E2", color: "#EF4444" }}>
-                    <KeyRound size={22} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
-                      Ocupados
-                    </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{Math.round((propertiesList.filter(p => p.situation === "Ocupado").length / Math.max(1, propertiesList.length)) * 124)}</strong>
-
-                  </div>
-                </div>
-
-                <div className={styles.imoveisMetricCard}>
-                  <div className={styles.imoveisIconCircle} style={{ background: "#DCFCE7", color: "#16A34A" }}>
-                    <House size={22} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
-                      Disponíveis
-                    </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{propertyMetrics.available}</strong>
-                  </div>
-                </div>
-
-                <div className={styles.imoveisMetricCard}>
-                  <div className={styles.imoveisIconCircle} style={{ background: "#FEF9C3", color: "#CA8A04" }}>
-                    <Wrench size={22} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block" }}>
-                      Manutenções
-                    </span>
-                    <strong style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{propertyMetrics.underMaintenance}</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Barra de Busca Exata: Buscar Imóvel */}
-              <div className={styles.viewSearchBarContainer}>
-                <div className={styles.viewSearchBar}>
-                  <div className={styles.viewSearchIconBox}>
-                    <Search size={22} />
-                  </div>
-                  <input
-                    type="text"
-                    className={styles.viewSearchInput}
-                    placeholder="Buscar Imóvel"
-                    value={imoveisSearch}
-                    onChange={(e) => setImoveisSearch(e.target.value)}
-                  />
-                  <div
-                    className={styles.viewFilterIconBox}
-                    onClick={() => showToast("Filtro de imóveis")}
-                    title="Filtro"
-                  >
-                    <Filter size={20} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Tabela de Imóveis (Imagem 3) */}
-              <div className={styles.figmaTableCard}>
-                <table className={styles.figmaTable}>
-                  <thead>
-                    <tr>
-                      <th>Imóvel</th>
-                      <th>Endereço</th>
-                      <th>Situação</th>
-                      <th>Valor</th>
-                      <th>Ver informações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {propertyRows
-                      .filter(
-                        (p) =>
-                          !imoveisSearch.trim() ||
-                          p.code.toLowerCase().includes(imoveisSearch.toLowerCase()) ||
-                          p.address.toLowerCase().includes(imoveisSearch.toLowerCase())
-                      )
-                      .map((row) => (
-                        <tr key={row.id}>
-                          <td><strong>{row.code}</strong></td>
-                          <td>{row.address}</td>
-                          <td>
-                            <span className={styles.situationDot}>
-                              <span
-                                className={
-                                  row.statusType === "green"
-                                    ? styles.dotGreen
-                                    : row.statusType === "yellow"
-                                    ? styles.dotYellow
-                                    : styles.dotRed
-                                }
-                              />
-                              <span>{row.situation}</span>
-                            </span>
-                          </td>
-                          <td>{row.value}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className={styles.viewDocBtn}
-                              title={`Ver informações do imóvel ${row.code}`}
-                              onClick={() =>
-                                setSelectedDetailModal({
-                                  title: `IMÓVEL ${row.code} - ${row.address}`,
-                                  content: `${row.details} Situação: ${row.situation}. Valor médio de locação: ${row.value}.`,
-                                })
-                              }
-                            >
-                              <FileText size={20} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-
-          {currentView === "HISTORICO" && (
-            <>
-              <div className={styles.viewTitleHeader}>
-                <button
-                  type="button"
-                  className={styles.backToOverviewBtn}
-                  onClick={() => setCurrentView("FINANCEIRO")}
-                  title="Voltar ao painel financeiro"
-                >
-                  ← Painel Financeiro
-                </button>
-                <h1 className={styles.viewTitle}>HISTÓRICO</h1>
-              </div>
-
-              {/* Barra de Busca Exata: Buscar documentos */}
-              <div className={styles.viewSearchBarContainer}>
-                <div className={styles.viewSearchBar}>
-                  <div className={styles.viewSearchIconBox}>
-                    <Search size={22} />
-                  </div>
-                  <input
-                    type="text"
-                    className={styles.viewSearchInput}
-                    placeholder="Buscar documentos"
-                    value={historicoSearch}
-                    onChange={(e) => setHistoricoSearch(e.target.value)}
-                  />
-                  <div
-                    className={styles.viewFilterIconBox}
-                    onClick={() => showToast("Filtro de histórico")}
-                    title="Filtro"
-                  >
-                    <Filter size={20} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Tabela de Histórico (Imagem 2) */}
-              <div className={styles.figmaTableCard}>
-                <table className={styles.figmaTable}>
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Tipo</th>
-                      <th>Responsável</th>
-                      <th>Item</th>
-                      <th>Ver informações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyRows
-                      .filter(
-                        (h) =>
-                          !historicoSearch.trim() ||
-                          h.data.toLowerCase().includes(historicoSearch.toLowerCase()) ||
-                          h.tipo.toLowerCase().includes(historicoSearch.toLowerCase()) ||
-                          h.responsavel.toLowerCase().includes(historicoSearch.toLowerCase()) ||
-                          h.item.toLowerCase().includes(historicoSearch.toLowerCase())
-                      )
-                      .map((row) => (
-                        <tr key={row.id}>
-                          <td><strong>{row.data}</strong></td>
-                          <td>{row.tipo}</td>
-                          <td>{row.responsavel}</td>
-                          <td>{row.item}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className={styles.viewDocBtn}
-                              title={`Ver informações do registro ${row.data}`}
-                              onClick={() =>
-                                setSelectedDetailModal({
-                                  title: `HISTÓRICO: ${row.data} (${row.tipo})`,
-                                  content: `${row.details} Responsável: ${row.responsavel}. Item: ${row.item}.`,
-                                })
-                              }
-                            >
-                              <FileText size={20} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-
-          {/* Grade Inferior com LEMBRETES e Ações Rápidas (Presente em todas as visões) */}
           <section className={styles.bottomGrid}>
-            <div className={styles.remindersPanel}>
-              <div className={styles.panelHeader}>
-                <h2>LEMBRETES:</h2>
-                <button
-                  type="button"
-                  className={styles.iconButton}
-                  aria-label="Adicionar lembrete"
-                  title="Criar novo lembrete"
-                  onClick={() => setShowReminderInput((v) => !v)}
-                >
-                  <Plus aria-hidden="true" />
-                </button>
-              </div>
-
-              {showReminderInput ? (
-                <div className={styles.reminderInputRow}>
-                  <input
-                    type="text"
-                    className={styles.reminderInput}
-                    placeholder="Novo lembrete financeiro ou operacional..."
-                    value={newReminderText}
-                    onChange={(e) => setNewReminderText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addReminder()}
-                    autoFocus
-                  />
-                  <button type="button" className={styles.reminderAddBtn} onClick={addReminder}>
-                    Salvar
-                  </button>
-                </div>
-              ) : null}
-
-              {reminders.length === 0 ? (
-                <div className={styles.reminderEmpty}>Nenhum lembrete cadastrado</div>
-              ) : (
-                <div className={styles.remindersList}>
-                  {reminders.map((r) => (
-                    <div key={r.id} className={styles.reminderItem}>
-                      <label className={styles.reminderLeft}>
-                        <input
-                          type="checkbox"
-                          className={styles.reminderCheckbox}
-                          checked={r.done}
-                          onChange={() => toggleReminder(r.id)}
-                        />
-                        <span className={`${styles.reminderText} ${r.done ? styles.reminderTextDone : ""}`}>
-                          {r.text}
-                        </span>
-                      </label>
-                      <button
-                        type="button"
-                        className={styles.reminderDelete}
-                        onClick={() => deleteReminder(r.id)}
-                        title="Excluir lembrete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <RemindersPanel notify={show} />
 
             <div className={styles.quickActions}>
-              <button
-                type="button"
-                className={`${styles.quickAction} ${currentView === "IMOVEIS" ? styles.quickActionActive : ""}`}
-                onClick={() => setCurrentView((v) => (v === "IMOVEIS" ? "FINANCEIRO" : "IMOVEIS"))}
-                title="Visualizar imóveis da fundação"
-              >
+              <Link href="/imoveis" className={styles.quickAction} title="Imóveis agora têm aba própria no menu lateral">
                 <House aria-hidden="true" />
                 <span>Imóveis</span>
-              </button>
+              </Link>
               <button
                 type="button"
-                className={`${styles.quickAction} ${currentView === "HISTORICO" ? styles.quickActionActive : ""}`}
-                onClick={() => setCurrentView((v) => (v === "HISTORICO" ? "FINANCEIRO" : "HISTORICO"))}
-                title="Abrir tabela e histórico detalhado"
+                className={`${styles.quickAction} ${view === "HISTORICO" ? styles.quickActionActive : ""}`}
+                onClick={() => setView((current) => (current === "HISTORICO" ? "FINANCEIRO" : "HISTORICO"))}
+                aria-pressed={view === "HISTORICO"}
               >
                 <History aria-hidden="true" />
                 <span>Histórico</span>
@@ -1245,172 +209,35 @@ export function FinancialDashboard() {
         </div>
       </main>
 
-      {/* Modal 1: REGISTRO DE ENTRADA (Figma 100%) */}
-      {entryModalOpen ? (
-        <EntryModal
-          form={form}
-          message={formMessage}
-          submitting={submitting}
-          onChange={setForm}
-          onClose={closeEntryModal}
-          onReset={resetForm}
-          onSubmit={submitEntry}
-          availableDocs={availableDocs}
+      {modal === "entry" ? (
+        <EntryModal properties={properties} documents={documents} onClose={() => setModal(null)} onSaved={handleSaved} />
+      ) : null}
+      {modal === "expense" ? (
+        <ExpenseModal properties={properties} documents={documents} onClose={() => setModal(null)} onSaved={handleSaved} />
+      ) : null}
+
+      {toDelete ? (
+        <ConfirmDialog
+          title="Excluir movimentação"
+          danger
+          confirmLabel="Excluir"
+          message={
+            <>
+              Excluir <strong>{toDelete.tenantName}</strong> ({formatCurrency(toDelete.amount)} em {formatDate(toDelete.date)})? O saldo
+              do mês será recalculado.
+            </>
+          }
+          onConfirm={confirmDelete}
+          onCancel={() => setToDelete(null)}
         />
       ) : null}
 
-      {/* Modal 2: REGISTRO DE SAÍDA (Figma 100%) */}
-      {expenseModalOpen ? (
-        <ExpenseModal
-          form={expenseForm}
-          message={expenseFormMessage}
-          submitting={submitting}
-          onChange={setExpenseForm}
-          onClose={closeExpenseModal}
-          onReset={resetExpenseForm}
-          onSubmit={submitExpense}
-          availableDocs={availableDocs}
-        />
-      ) : null}
-
-      {/* Modal 3: Histórico Completo com os 4 Cards Coloridos do Figma */}
-      {historyModalOpen ? (
-        <HistoryModal
-          movements={movements}
-          summary={summary}
-          onClose={() => setHistoryModalOpen(false)}
-        />
-      ) : null}
-
-      {/* Modal 4: Imóveis Cadastrados */}
-      {propertiesModalOpen ? (
-        <PropertiesModal onClose={() => setPropertiesModalOpen(false)} />
-      ) : null}
-
-      {/* Modal de Edição de Imóvel (Sprint 3) */}
-      {editingProperty && (
-        <EditPropertyModal
-          property={editingProperty}
-          onClose={() => setEditingProperty(null)}
-          onSave={(updatedProp) => {
-            const updated = updatePropertySituation(updatedProp.id, updatedProp.situation, {
-              address: updatedProp.address,
-              value: updatedProp.value,
-              tenant: updatedProp.tenant,
-              details: updatedProp.details,
-            });
-            setPropertiesList(updated);
-            setEditingProperty(null);
-            showToast(`Imóvel ${updatedProp.code} atualizado com sucesso!`);
-          }}
-        />
-      )}
-
-      {/* Modal de Criação de Lembrete Estruturado (Sprint 3) */}
-      {createReminderModalOpen && (
-        <CreateReminderModal
-          onClose={() => setCreateReminderModalOpen(false)}
-          onSave={(newRem) => {
-            const updated = [newRem, ...structuredReminders];
-            setStructuredReminders(updated);
-            saveSharedReminders(updated);
-            setCreateReminderModalOpen(false);
-            showToast("Lembrete cadastrado com sucesso!");
-          }}
-        />
-      )}
-
-      {/* Modal de Detalhes Expandidos do Lembrete (Sprint 3) */}
-      {selectedReminderModal && (
-        <ReminderDetailModal
-          reminder={selectedReminderModal}
-          onClose={() => setSelectedReminderModal(null)}
-          onToggle={() => {
-            const updated = structuredReminders.map((item) =>
-              item.id === selectedReminderModal.id ? { ...item, done: !item.done } : item
-            );
-            setStructuredReminders(updated);
-            saveSharedReminders(updated);
-            setSelectedReminderModal({ ...selectedReminderModal, done: !selectedReminderModal.done });
-          }}
-          onDelete={() => {
-            const updated = structuredReminders.filter((item) => item.id !== selectedReminderModal.id);
-            setStructuredReminders(updated);
-            saveSharedReminders(updated);
-            setSelectedReminderModal(null);
-            showToast("Lembrete excluído com sucesso.");
-          }}
-        />
-      )}
-
-      {/* Modal 5: Informações Detalhadas do Imóvel ou Registro */}
-      {selectedDetailModal ? (
-        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setSelectedDetailModal(null)}>
-          <div
-            className={styles.entryModal}
-            role="dialog"
-            aria-modal="true"
-            style={{ maxWidth: "520px", minHeight: "auto", padding: "28px" }}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className={styles.modalClose}
-              onClick={() => setSelectedDetailModal(null)}
-              aria-label="Fechar"
-            >
-              <X aria-hidden="true" />
-            </button>
-            <h2 className={styles.modalTitle} style={{ textAlign: "left", marginBottom: "16px" }}>
-              {selectedDetailModal.title}
-            </h2>
-            <div
-              style={{
-                padding: "16px",
-                background: "#ffffff",
-                borderRadius: "6px",
-                border: "1px solid #c1c1c1",
-                fontSize: "14px",
-                lineHeight: "22px",
-                color: "#1e293b",
-              }}
-            >
-              {selectedDetailModal.content}
-            </div>
-            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                style={{ width: "120px", height: "40px", fontSize: "14px" }}
-                onClick={() => setSelectedDetailModal(null)}
-              >
-                FECHAR
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Toast Alert */}
-      {toastMessage ? (
-        <div className={styles.toastAlert} role="status">
-          <CheckCircle2 size={18} color="#22c55e" />
-          <span>{toastMessage}</span>
-        </div>
-      ) : null}
+      {toast}
     </div>
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: ReactNode;
-}) {
+function SummaryCard({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
     <article className={styles.summaryCard}>
       <div className={styles.summaryIcon}>{icon}</div>
@@ -1426,1365 +253,79 @@ function TransactionPanel({
   title,
   month,
   items,
+  loading,
   emptyText,
   actionLabel,
   onAction,
   onDelete,
+  receipts,
 }: {
   title: string;
-  month?: string;
+  month: string;
   items: FinancialMovement[];
+  loading: boolean;
   emptyText: string;
   actionLabel: string;
   onAction: () => void;
-  onDelete?: (id: number, description: string) => void;
+  onDelete: (movement: FinancialMovement) => void;
+  receipts: Map<number, DocumentItem>;
 }) {
-  const [showManualMenu, setShowManualMenu] = useState(false);
-
   return (
     <article className={styles.transactionPanel}>
       <div className={styles.panelHeader}>
         <div className={styles.panelHeaderTitle}>
           <h2>{title}</h2>
-          <span className={styles.panelMonth}>({month || "Mês"})</span>
+          <span className={styles.panelMonth}>({month})</span>
         </div>
-        <button
-          type="button"
-          className={styles.iconButton}
-          aria-label={actionLabel}
-          title={actionLabel}
-          onClick={() => setShowManualMenu((prev) => !prev)}
-        >
+        <button type="button" className={styles.iconButton} aria-label={actionLabel} title={actionLabel} onClick={onAction}>
           <Plus aria-hidden="true" />
         </button>
       </div>
 
-      {showManualMenu && (
-        <button
-          type="button"
-          className={styles.manualEntryButton}
-          onClick={() => {
-            setShowManualMenu(false);
-            onAction();
-          }}
-        >
-          Registra Manualmente
-        </button>
-      )}
-
-      {items.length === 0 ? (
+      {loading ? (
+        <div style={{ display: "grid", gap: 10, padding: 12 }} aria-busy="true">
+          <div className="ui-skeleton" style={{ height: 36 }} />
+          <div className="ui-skeleton" style={{ height: 36 }} />
+        </div>
+      ) : items.length === 0 ? (
         <div className={styles.emptyState}>{emptyText}</div>
       ) : (
         <div className={styles.movementList}>
-          {items.map((item) => (
-            <div className={styles.movementRow} key={item.id}>
-              <div className={styles.movementIdentity}>
-                <strong>{item.tenantName}</strong>
-                <span>
-                  {item.propertyRegistration} · {displayDate(item.date)}
-                </span>
-              </div>
-              <div className={styles.movementRight}>
-                <b className={item.type === "INCOME" ? styles.positiveAmount : styles.negativeAmount}>
-                  {currency(item.amount)}
-                </b>
-                {onDelete ? (
+          {items.map((item) => {
+            const receipt = receipts.get(item.id);
+            return (
+              <div className={styles.movementRow} key={item.id}>
+                <div className={styles.movementIdentity}>
+                  <strong>{item.tenantName}</strong>
+                  <span>
+                    {item.propertyRegistration} · {formatDate(item.date)}
+                    {receipt ? (
+                      <>
+                        {" · "}
+                        <Link href={documentHref(receipt.id)} className="ui-link" title={`Abrir ${receipt.name}`}>
+                          <Paperclip size={12} aria-hidden="true" style={{ verticalAlign: "middle" }} /> comprovante
+                        </Link>
+                      </>
+                    ) : null}
+                  </span>
+                </div>
+                <div className={styles.movementRight}>
+                  <b className={item.type === "INCOME" ? styles.positiveAmount : styles.negativeAmount}>{formatCurrency(item.amount)}</b>
                   <button
                     type="button"
                     className={styles.deleteRowButton}
                     title="Excluir movimentação"
                     aria-label={`Excluir movimentação de ${item.tenantName}`}
-                    onClick={() => onDelete(item.id, item.tenantName)}
+                    onClick={() => onDelete(item)}
                   >
                     <Trash2 aria-hidden="true" />
                   </button>
-                ) : null}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
-
-      <div className={styles.fakeScrollbar} aria-hidden="true">
-        <span />
-      </div>
     </article>
-  );
-}
-
-function EntryModal({
-  form,
-  message,
-  submitting,
-  onChange,
-  onClose,
-  onReset,
-  onSubmit,
-  availableDocs,
-}: {
-  form: EntryForm;
-  message: string;
-  submitting: boolean;
-  onChange: (form: EntryForm) => void;
-  onClose: () => void;
-  onReset: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
-  availableDocs: { id: string; name: string; protocol?: string }[];
-}) {
-  function patch<K extends keyof EntryForm>(key: K, value: EntryForm[K]) {
-    onChange({ ...form, [key]: value });
-  }
-
-  function handleDocumentChange(raw: string) {
-    const formatted = formatCpfCnpj(raw, form.documentType);
-    patch("document", formatted);
-  }
-
-  function handleMoneyChange(raw: string) {
-    const formatted = formatMoneyInput(raw);
-    patch("grossTotal", formatted);
-    if (form.netCalculated !== null) {
-      calculateNet(formatted);
-    }
-  }
-
-  function calculateNet(customGross?: string) {
-    const gross = parseMoney(customGross ?? form.grossTotal);
-    const charges = form.showCharges ? parseMoney(form.chargesAmount) : 0;
-    const fines = form.showFines ? parseMoney(form.finesAmount) : 0;
-    const total = (Number.isFinite(gross) ? gross : 0) + charges + fines;
-    patch("netCalculated", total);
-  }
-
-  return (
-    <div className={styles.modalOverlay} role="presentation" onMouseDown={onClose}>
-      <section
-        className={styles.entryModal}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="entry-modal-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          className={styles.modalClose}
-          onClick={onClose}
-          aria-label="Fechar"
-          disabled={submitting}
-        >
-          <X aria-hidden="true" />
-        </button>
-
-        <h2 id="entry-modal-title" className={styles.modalTitle}>
-          REGISTRO DE ENTRADA
-        </h2>
-
-        <form onSubmit={onSubmit} className={styles.entryForm}>
-          {/* Coluna Esquerda */}
-          <div className={styles.formColumn}>
-            <fieldset className={styles.formBlock}>
-              <legend>INQUILINO:</legend>
-              <div className={styles.documentTypeRow}>
-                <label>
-                  CPF:
-                  <input
-                    type="radio"
-                    name="documentType"
-                    checked={form.documentType === "CPF"}
-                    onChange={() => {
-                      patch("documentType", "CPF");
-                      if (form.document) {
-                        patch("document", formatCpfCnpj(form.document, "CPF"));
-                      }
-                    }}
-                  />
-                </label>
-                <label>
-                  CNPJ:
-                  <input
-                    type="radio"
-                    name="documentType"
-                    checked={form.documentType === "CNPJ"}
-                    onChange={() => {
-                      patch("documentType", "CNPJ");
-                      if (form.document) {
-                        patch("document", formatCpfCnpj(form.document, "CNPJ"));
-                      }
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={styles.clearDocumentType}
-                  title="Anular identificação"
-                  aria-label="Anular identificação"
-                  onClick={() => onChange({ ...form, tenantName: "", document: "" })}
-                  disabled={submitting}
-                >
-                  ANULAR
-                </button>
-              </div>
-
-              <input
-                className={styles.textInput}
-                value={form.tenantName}
-                onChange={(event) => patch("tenantName", event.target.value)}
-                placeholder="NOME INQUILINO"
-                aria-label="Nome do inquilino"
-                maxLength={160}
-                required
-                disabled={submitting}
-              />
-              <input
-                className={`${styles.textInput} ${styles.shortInput}`}
-                value={form.document}
-                onChange={(event) => handleDocumentChange(event.target.value)}
-                placeholder={form.documentType === "CPF" ? "000.000.000-00" : "00.000.000/0000-00"}
-                aria-label={form.documentType}
-                inputMode="numeric"
-                required
-                disabled={submitting}
-              />
-            </fieldset>
-
-            <label className={styles.formBlock}>
-              <span className={styles.blockTitle}>IMÓVEL:</span>
-              <input
-                className={styles.textInput}
-                value={form.propertyRegistration}
-                onChange={(event) => patch("propertyRegistration", event.target.value)}
-                placeholder="REGISTRO DO IMÓVEL (ex: IM-001)"
-                maxLength={80}
-                required
-                disabled={submitting}
-              />
-            </label>
-
-            <label className={`${styles.formBlock} ${styles.dateBlock}`}>
-              <span className={styles.blockTitle}>DATA:</span>
-              <span className={styles.dateInputWrap}>
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={(event) => patch("date", event.target.value)}
-                  required
-                  disabled={submitting}
-                />
-                <CalendarDays aria-hidden="true" />
-              </span>
-            </label>
-          </div>
-
-          {/* Coluna Direita */}
-          <div className={styles.formColumn}>
-            <div>
-              <div className={styles.inlineRuleBlock}>
-                <span className={styles.blockTitle}>ENCARGOS:</span>
-                <button
-                  type="button"
-                  className={`${styles.rulePlus} ${form.showCharges ? styles.rulePlusActive : ""}`}
-                  title="Adicionar encargo (IPTU, condomínio, etc.)"
-                  aria-label="Adicionar encargo"
-                  onClick={() => patch("showCharges", !form.showCharges)}
-                >
-                  <Plus aria-hidden="true" />
-                </button>
-              </div>
-              {form.showCharges ? (
-                <div className={styles.subFieldRow}>
-                  <input
-                    className={styles.subFieldInput}
-                    placeholder="Descrição do encargo"
-                    value={form.chargesDesc}
-                    onChange={(e) => patch("chargesDesc", e.target.value)}
-                  />
-                  <input
-                    className={`${styles.subFieldInput} ${styles.moneyInput}`}
-                    placeholder="R$ 0,00"
-                    value={form.chargesAmount}
-                    onChange={(e) => {
-                      patch("chargesAmount", formatMoneyInput(e.target.value));
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={styles.subFieldRemove}
-                    onClick={() => patch("showCharges", false)}
-                    title="Remover encargo"
-                  >
-                    <X />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div>
-              <div className={styles.inlineRuleBlock}>
-                <span className={styles.blockTitle}>MULTAS:</span>
-                <button
-                  type="button"
-                  className={`${styles.rulePlus} ${form.showFines ? styles.rulePlusActive : ""}`}
-                  title="Adicionar multa por atraso ou juros"
-                  aria-label="Adicionar multa"
-                  onClick={() => patch("showFines", !form.showFines)}
-                >
-                  <Plus aria-hidden="true" />
-                </button>
-              </div>
-              {form.showFines ? (
-                <div className={styles.subFieldRow}>
-                  <input
-                    className={styles.subFieldInput}
-                    placeholder="Motivo da multa"
-                    value={form.finesDesc}
-                    onChange={(e) => patch("finesDesc", e.target.value)}
-                  />
-                  <input
-                    className={`${styles.subFieldInput} ${styles.moneyInput}`}
-                    placeholder="R$ 0,00"
-                    value={form.finesAmount}
-                    onChange={(e) => {
-                      patch("finesAmount", formatMoneyInput(e.target.value));
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={styles.subFieldRemove}
-                    onClick={() => patch("showFines", false)}
-                    title="Remover multa"
-                  >
-                    <X />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <label className={styles.formBlock}>
-              <span className={styles.blockTitle}>TOTAL BRUTO:</span>
-              <input
-                className={`${styles.textInput} ${styles.moneyInput}`}
-                inputMode="numeric"
-                value={form.grossTotal}
-                onChange={(event) => handleMoneyChange(event.target.value)}
-                placeholder="R$ 0,00"
-                required
-                disabled={submitting}
-              />
-            </label>
-
-            <div className={styles.netValueRow}>
-              <button
-                type="button"
-                className={styles.netValueButton}
-                title="Calcular valor líquido considerando encargos e multas"
-                onClick={() => calculateNet()}
-              >
-                VALOR LÍQUIDO
-              </button>
-              {form.netCalculated !== null ? (
-                <span className={styles.netValueBadge}>
-                  {currency(form.netCalculated)}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-                    {/* Vínculo com Recibos / Comprovantes (Sprint 3) */}
-          <div style={{ gridColumn: "1 / -1", background: "#f8fafc", padding: "12px 16px", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#092a54", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-              <Paperclip size={16} /> VINCULAR RECIBO OU DOCUMENTO DIGITALIZADO (OPCIONAL):
-            </span>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", display: "block", marginBottom: "2px" }}>
-                  Selecionar documento da Central de Documentos:
-                </label>
-                <select
-                  className={styles.filterSelect}
-                  value={form.attachedDocName ?? ""}
-                  onChange={(e) => patch("attachedDocName", e.target.value)}
-                >
-                  <option value="">Nenhum documento vinculado</option>
-                  {availableDocs.map((doc) => (
-                    <option key={doc.id} value={doc.name}>
-                      {doc.name} {doc.protocol ? `(${doc.protocol})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", display: "block", marginBottom: "2px" }}>
-                  Ou informe o número / identificador do recibo:
-                </label>
-                <input
-                  type="text"
-                  className={styles.filterSelect}
-                  placeholder="Ex.: Recibo #8820 / Comprovante Pix"
-                  value={form.attachedDocName && !availableDocs.some(d => d.name === form.attachedDocName) ? form.attachedDocName : ""}
-                  onChange={(e) => patch("attachedDocName", e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {message ? <p className={styles.formMessage}>{message}</p> : null}
-
-                    {/* Vínculo com Nota Fiscal / Comprovante de Despesa */}
-          <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: "8px", border: "1px dashed #cbd5e1", marginTop: "12px" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#991b1b", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-              <Paperclip size={16} /> ANEXAR COMPROVANTE / NOTA FISCAL (OPCIONAL):
-            </span>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", display: "block", marginBottom: "2px" }}>
-                  Selecionar documento existente:
-                </label>
-                <select
-                  className={styles.filterSelect}
-                  value={form.attachedDocName ?? ""}
-                  onChange={(e) => patch("attachedDocName", e.target.value)}
-                >
-                  <option value="">Nenhum documento vinculado</option>
-                  {availableDocs.map((doc) => (
-                    <option key={doc.id} value={doc.name}>
-                      {doc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", display: "block", marginBottom: "2px" }}>
-                  Ou informe o número da NF / Recibo:
-                </label>
-                <input
-                  type="text"
-                  className={styles.filterSelect}
-                  placeholder="Ex.: NF-e 4920 / Recibo de Reforma"
-                  value={form.attachedDocName && !availableDocs.some(d => d.name === form.attachedDocName) ? form.attachedDocName : ""}
-                  onChange={(e) => patch("attachedDocName", e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={onReset}
-              disabled={submitting}
-            >
-              LIMPAR TUDO
-            </button>
-            <button type="submit" className={styles.primaryButton} disabled={submitting}>
-              {submitting ? "SALVANDO..." : "FINALIZAR"}
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-function ExpenseModal({
-  form,
-  message,
-  submitting,
-  onChange,
-  onClose,
-  onReset,
-  onSubmit,
-  availableDocs,
-}: {
-  form: ExpenseForm;
-  message: string;
-  submitting: boolean;
-  onChange: (form: ExpenseForm) => void;
-  onClose: () => void;
-  onReset: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
-  availableDocs: { id: string; name: string; protocol?: string }[];
-}) {
-  function patch<K extends keyof ExpenseForm>(key: K, value: ExpenseForm[K]) {
-    onChange({ ...form, [key]: value });
-  }
-
-  function handleMoneyChange(raw: string) {
-    const formatted = formatMoneyInput(raw);
-    patch("grossTotal", formatted);
-    if (form.netCalculated !== null) {
-      calculateNet(formatted);
-    }
-  }
-
-  function calculateNet(customGross?: string) {
-    const gross = parseMoney(customGross ?? form.grossTotal);
-    const retention = form.showRetention ? parseMoney(form.retentionAmount) : 0;
-    const total = Math.max(0, (Number.isFinite(gross) ? gross : 0) - retention);
-    patch("netCalculated", total);
-  }
-
-  return (
-    <div className={styles.modalOverlay} role="presentation" onMouseDown={onClose}>
-      <section
-        className={styles.entryModal}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="expense-modal-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          className={styles.modalClose}
-          onClick={onClose}
-          aria-label="Fechar"
-          disabled={submitting}
-        >
-          <X aria-hidden="true" />
-        </button>
-
-        <h2 id="expense-modal-title" className={styles.modalTitle}>
-          REGISTRO DE SAÍDA
-        </h2>
-
-        <form onSubmit={onSubmit} className={styles.entryForm}>
-          {/* Coluna Esquerda */}
-          <div className={styles.formColumn}>
-            <label className={styles.formBlock}>
-              <span className={styles.blockTitle}>PRESTADOR / FAVORECIDO:</span>
-              <input
-                className={styles.textInput}
-                value={form.description}
-                onChange={(event) => patch("description", event.target.value)}
-                placeholder="Ex: Carlos Silva Eletricista"
-                maxLength={160}
-                required
-                disabled={submitting}
-              />
-            </label>
-
-            <label className={styles.formBlock}>
-              <span className={styles.blockTitle}>CATEGORIA:</span>
-              <select
-                className={styles.textInput}
-                value={form.category}
-                onChange={(event) => patch("category", event.target.value)}
-                disabled={submitting}
-              >
-                <option value="Manutenção">Manutenção Geral</option>
-                <option value="Reforma">Reforma / Infraestrutura</option>
-                <option value="Limpeza">Serviços de Limpeza</option>
-                <option value="Impostos">Impostos e Tributos (IPTU)</option>
-                <option value="Contas de Consumo">Contas de Consumo (Água/Luz)</option>
-                <option value="Serviços Gerais">Serviços e Honorários</option>
-                <option value="Outros">Outras Despesas</option>
-              </select>
-            </label>
-
-            <label className={styles.formBlock}>
-              <span className={styles.blockTitle}>IMÓVEL:</span>
-              <input
-                className={styles.textInput}
-                value={form.propertyRegistration}
-                onChange={(event) => patch("propertyRegistration", event.target.value)}
-                placeholder="REGISTRO DO IMÓVEL (ex: IM-001)"
-                maxLength={80}
-                required
-                disabled={submitting}
-              />
-            </label>
-
-            <label className={`${styles.formBlock} ${styles.dateBlock}`}>
-              <span className={styles.blockTitle}>DATA:</span>
-              <span className={styles.dateInputWrap}>
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={(event) => patch("date", event.target.value)}
-                  required
-                  disabled={submitting}
-                />
-                <CalendarDays aria-hidden="true" />
-              </span>
-            </label>
-          </div>
-
-          {/* Coluna Direita */}
-          <div className={styles.formColumn}>
-            <div>
-              <div className={styles.inlineRuleBlock}>
-                <span className={styles.blockTitle}>RETENÇÕES / IMPOSTOS:</span>
-                <button
-                  type="button"
-                  className={`${styles.rulePlus} ${form.showRetention ? styles.rulePlusActive : ""}`}
-                  title="Adicionar retenção de imposto na fonte (ex: ISS, IRRF)"
-                  aria-label="Adicionar retenção"
-                  onClick={() => patch("showRetention", !form.showRetention)}
-                >
-                  <Plus aria-hidden="true" />
-                </button>
-              </div>
-              {form.showRetention ? (
-                <div className={styles.subFieldRow}>
-                  <input
-                    className={styles.subFieldInput}
-                    placeholder="Descrição da retenção"
-                    value={form.retentionDesc}
-                    onChange={(e) => patch("retentionDesc", e.target.value)}
-                  />
-                  <input
-                    className={`${styles.subFieldInput} ${styles.moneyInput}`}
-                    placeholder="R$ 0,00"
-                    value={form.retentionAmount}
-                    onChange={(e) => {
-                      patch("retentionAmount", formatMoneyInput(e.target.value));
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={styles.subFieldRemove}
-                    onClick={() => patch("showRetention", false)}
-                    title="Remover retenção"
-                  >
-                    <X />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <label className={styles.formBlock}>
-              <span className={styles.blockTitle}>VALOR DA DESPESA:</span>
-              <input
-                className={`${styles.textInput} ${styles.moneyInput}`}
-                inputMode="numeric"
-                value={form.grossTotal}
-                onChange={(event) => handleMoneyChange(event.target.value)}
-                placeholder="R$ 0,00"
-                required
-                disabled={submitting}
-              />
-            </label>
-
-            <div className={styles.netValueRow}>
-              <button
-                type="button"
-                className={styles.netValueButton}
-                title="Calcular valor líquido a pagar com retenções"
-                onClick={() => calculateNet()}
-              >
-                VALOR LÍQUIDO
-              </button>
-              {form.netCalculated !== null ? (
-                <span className={styles.netValueBadge}>
-                  {currency(form.netCalculated)}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          {message ? <p className={styles.formMessage}>{message}</p> : null}
-
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={onReset}
-              disabled={submitting}
-            >
-              LIMPAR TUDO
-            </button>
-            <button type="submit" className={styles.primaryButton} disabled={submitting}>
-              {submitting ? "SALVANDO..." : "FINALIZAR"}
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-function HistoryModal({
-  movements: initialMovements,
-  summary: initialSummary,
-  onClose,
-}: {
-  movements: FinancialMovement[];
-  summary: FinancialSummary;
-  onClose: () => void;
-}) {
-  const [historyMovements, setHistoryMovements] = useState<FinancialMovement[]>(initialMovements);
-  const [historySummary, setHistorySummary] = useState<FinancialSummary>(initialSummary);
-  const [activePropertiesCount, setActivePropertiesCount] = useState<number>(5);
-  const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL");
-
-  useEffect(() => {
-    let active = true;
-
-    financialApi
-      .allMovements()
-      .then((data) => {
-        if (!active) return;
-        setHistoryMovements(data);
-        const inc = data.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
-        const exp = data.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
-        setHistorySummary({ income: inc, expense: exp, balance: inc - exp });
-      })
-      .catch(() => {
-        // Fallback mantém os initialMovements
-      });
-
-    propertiesApi
-      .metrics()
-      .then((metrics) => {
-        if (!active) return;
-        setActivePropertiesCount(Number(metrics.occupied));
-      })
-      .catch(() => {
-        // Mantém padrão
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const filtered = historyMovements.filter((m) => {
-    const matchesType = filterType === "ALL" || m.type === filterType;
-    const term = search.toLowerCase();
-    const matchesSearch =
-      !term ||
-      m.tenantName.toLowerCase().includes(term) ||
-      m.propertyRegistration.toLowerCase().includes(term);
-    return matchesType && matchesSearch;
-  });
-
-  return (
-    <div className={styles.fullModalOverlay} role="presentation" onMouseDown={onClose}>
-      <div
-        className={styles.fullModalCard}
-        role="dialog"
-        aria-modal="true"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className={styles.fullModalHeader}>
-          <h2>HISTÓRICO FINANCEIRO INTEGRADO (FMC)</h2>
-          <button type="button" className={styles.modalClose} onClick={onClose} aria-label="Fechar">
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* 4 Cards Coloridos do Figma */}
-        <div className={styles.historyCardsGrid}>
-          <div className={`${styles.historyColorCard} ${styles.cardGreen}`}>
-            <div className={styles.historyCardIcon}>
-              <ArrowDownLeft size={22} />
-            </div>
-            <div className={styles.historyCardData}>
-              <span>Receitas Totais</span>
-              <strong>{currency(historySummary.income)}</strong>
-            </div>
-          </div>
-
-          <div className={`${styles.historyColorCard} ${styles.cardBlue}`}>
-            <div className={styles.historyCardIcon}>
-              <CircleDollarSign size={22} />
-            </div>
-            <div className={styles.historyCardData}>
-              <span>Saldo em Caixa</span>
-              <strong>{currency(historySummary.balance)}</strong>
-            </div>
-          </div>
-
-          <div className={`${styles.historyColorCard} ${styles.cardYellow}`}>
-            <div className={styles.historyCardIcon}>
-              <CalendarDays size={22} />
-            </div>
-            <div className={styles.historyCardData}>
-              <span>Contratos Ativos</span>
-              <strong>{activePropertiesCount} Imóveis</strong>
-            </div>
-          </div>
-
-          <div className={`${styles.historyColorCard} ${styles.cardRed}`}>
-            <div className={styles.historyCardIcon}>
-              <ArrowUpRight size={22} />
-            </div>
-            <div className={styles.historyCardData}>
-              <span>Despesas Totais</span>
-              <strong>{currency(historySummary.expense)}</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Toolbar de Filtros */}
-        <div className={styles.tableToolbar}>
-          <input
-            type="text"
-            className={styles.tableSearchInput}
-            placeholder="Buscar por inquilino, prestador ou registro..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <div className={styles.tableFilters}>
-            <button
-              type="button"
-              className={`${styles.filterBtn} ${filterType === "ALL" ? styles.filterBtnActive : ""}`}
-              onClick={() => setFilterType("ALL")}
-            >
-              Todos ({historyMovements.length})
-            </button>
-            <button
-              type="button"
-              className={`${styles.filterBtn} ${filterType === "INCOME" ? styles.filterBtnActive : ""}`}
-              onClick={() => setFilterType("INCOME")}
-            >
-              Entradas ({historyMovements.filter((m) => m.type === "INCOME").length})
-            </button>
-            <button
-              type="button"
-              className={`${styles.filterBtn} ${filterType === "EXPENSE" ? styles.filterBtnActive : ""}`}
-              onClick={() => setFilterType("EXPENSE")}
-            >
-              Saídas ({historyMovements.filter((m) => m.type === "EXPENSE").length})
-            </button>
-          </div>
-        </div>
-
-        {/* Tabela */}
-        <table className={styles.historyTable}>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Tipo</th>
-              <th>Identificação / Locatário / Prestador</th>
-              <th>Imóvel</th>
-              <th>Valor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
-                  Nenhum registro encontrado para este filtro.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((item) => (
-                <tr key={item.id}>
-                  <td>{displayDate(item.date)}</td>
-                  <td>
-                    <span className={item.type === "INCOME" ? styles.positiveAmount : styles.negativeAmount}>
-                      {item.type === "INCOME" ? "Entrada" : "Saída"}
-                    </span>
-                  </td>
-                  <td><strong>{item.tenantName}</strong></td>
-                  <td><code>{item.propertyRegistration}</code></td>
-                  <td>
-                    <b className={item.type === "INCOME" ? styles.positiveAmount : styles.negativeAmount}>
-                      {currency(item.amount)}
-                    </b>
-                  </td>
-                  <td>
-                    <span className={`${styles.statusPill} ${item.type === "INCOME" ? styles.pillGreen : styles.pillRed}`}>
-                      {item.type === "INCOME" ? "Confirmado" : "Pago"}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function PropertiesModal({ onClose }: { onClose: () => void }) {
-  const [properties, setProperties] = useState(fmcProperties);
-
-  useEffect(() => {
-    let active = true;
-
-    propertiesApi
-      .list()
-      .then((data) => {
-        if (!active) return;
-        setProperties(
-          data.map((p) => ({
-            id: p.registrationCode,
-            address: p.address,
-            tenant: p.currentTenant,
-            status: p.status,
-            rent: Number(p.monthlyRent),
-          }))
-        );
-      })
-      .catch(() => {
-        // Fallback para fmcProperties
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  return (
-    <div className={styles.fullModalOverlay} role="presentation" onMouseDown={onClose}>
-      <div
-        className={styles.fullModalCard}
-        role="dialog"
-        aria-modal="true"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className={styles.fullModalHeader}>
-          <h2>PATRIMÔNIO IMOBILIÁRIO - FUNDAÇÃO MANUEL CRUZ</h2>
-          <button type="button" className={styles.modalClose} onClick={onClose} aria-label="Fechar">
-            <X size={20} />
-          </button>
-        </div>
-
-        <table className={styles.historyTable}>
-          <thead>
-            <tr>
-              <th>Inscrição</th>
-              <th>Endereço do Imóvel</th>
-              <th>Locatário Atual</th>
-              <th>Valor Mensal</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {properties.map((p) => (
-              <tr key={p.id}>
-                <td><strong>{p.id}</strong></td>
-                <td>{p.address}</td>
-                <td>{p.tenant}</td>
-                <td>{p.rent > 0 ? currency(p.rent) : "-"}</td>
-                <td>
-                  <span
-                    className={`${styles.statusPill} ${
-                      p.status === "Ocupado"
-                        ? styles.pillGreen
-                        : p.status === "Em Reforma"
-                        ? styles.pillRed
-                        : ""
-                    }`}
-                    style={p.status === "Disponível" ? { background: "#dbeafe", color: "#1e40af" } : {}}
-                  >
-                    {p.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// --- NOVOS MODAIS SPRINT 3 (FMC) ---
-
-function EditPropertyModal({
-  property,
-  onClose,
-  onSave,
-}: {
-  property: FMCProperty;
-  onClose: () => void;
-  onSave: (prop: FMCProperty) => void;
-}) {
-  const [situation, setSituation] = useState<PropertySituation>(property.situation);
-  const [address, setAddress] = useState(property.address);
-  const [value, setValue] = useState(property.value);
-  const [tenant, setTenant] = useState(property.tenant);
-  const [details, setDetails] = useState(property.details);
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    onSave({
-      ...property,
-      situation,
-      statusType: situation === "Ocupado" ? "green" : situation === "Livre" ? "yellow" : "red",
-      address,
-      value,
-      tenant,
-      details,
-    });
-  }
-
-  return (
-    <div className={styles.propertyModalOverlay} role="presentation" onMouseDown={onClose}>
-      <div
-        className={styles.propertyModalCard}
-        role="dialog"
-        aria-modal="true"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className={styles.propertyModalHeader}>
-          <h3>MODIFICAR SITUAÇÃO DO IMÓVEL {property.code}</h3>
-          <button type="button" className={styles.modalClose} onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className={styles.propertyModalBody}>
-          <div>
-            <label style={{ fontSize: "13px", fontWeight: 700, color: "#334155", display: "block" }}>
-              Situação Atual do Imóvel:
-            </label>
-            <div className={styles.situationButtonsGrid}>
-              <button
-                type="button"
-                className={`${styles.situationBtn} ${situation === "Ocupado" ? styles.situationBtnActiveGreen : ""}`}
-                onClick={() => {
-                  setSituation("Ocupado");
-                  if (tenant === "Disponível para locação" || tenant === "Em Manutenção") setTenant("");
-                }}
-              >
-                <span className={styles.dotGreen} /> Ocupado
-              </button>
-              <button
-                type="button"
-                className={`${styles.situationBtn} ${situation === "Livre" ? styles.situationBtnActiveYellow : ""}`}
-                onClick={() => {
-                  setSituation("Livre");
-                  setTenant("Disponível para locação");
-                }}
-              >
-                <span className={styles.dotYellow} /> Livre
-              </button>
-              <button
-                type="button"
-                className={`${styles.situationBtn} ${situation === "Manutenção" ? styles.situationBtnActiveRed : ""}`}
-                onClick={() => {
-                  setSituation("Manutenção");
-                  setTenant("Em Manutenção");
-                }}
-              >
-                <span className={styles.dotRed} /> Manutenção
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-              Endereço Completo:
-            </label>
-            <input
-              type="text"
-              className={styles.filterSelect}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              required
-            />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div>
-              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Inquilino Atual:
-              </label>
-              <input
-                type="text"
-                className={styles.filterSelect}
-                value={tenant}
-                onChange={(e) => setTenant(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Valor de Locação / Avaliação:
-              </label>
-              <input
-                type="text"
-                className={styles.filterSelect}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-              Observações / Histórico:
-            </label>
-            <textarea
-              className={styles.filterSelect}
-              rows={3}
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-            />
-          </div>
-
-          <div className={styles.modalFooterActions}>
-            <button type="button" className={styles.modalCancelBtn} onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="submit" className={styles.modalConfirmBtn}>
-              Salvar Alterações
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function CreateReminderModal({
-  onClose,
-  onSave,
-}: {
-  onClose: () => void;
-  onSave: (rem: FMCReminder) => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<FMCReminder["category"]>("Financeiro");
-  const [priority, setPriority] = useState<FMCReminder["priority"]>("Alta");
-  const [deadline, setDeadline] = useState("");
-  const [responsible, setResponsible] = useState("Gabriel Sarges");
-  const [description, setDescription] = useState("");
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    onSave({
-      id: String(Date.now()),
-      title: title.trim(),
-      category,
-      priority,
-      deadline: deadline || new Date().toISOString().split("T")[0],
-      responsible,
-      description: description.trim(),
-      done: false,
-      createdAt: new Date().toISOString().split("T")[0],
-    });
-  }
-
-  return (
-    <div className={styles.propertyModalOverlay} role="presentation" onMouseDown={onClose}>
-      <div
-        className={styles.propertyModalCard}
-        role="dialog"
-        aria-modal="true"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className={styles.propertyModalHeader}>
-          <h3>CRIAR NOVO LEMBRETE OPERACIONAL / FINANCEIRO</h3>
-          <button type="button" className={styles.modalClose} onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className={styles.propertyModalBody}>
-          <div>
-            <label style={{ fontSize: "13px", fontWeight: 700, color: "#334155", display: "block", marginBottom: 4 }}>
-              Título / Assunto do Lembrete:
-            </label>
-            <input
-              type="text"
-              className={styles.filterSelect}
-              placeholder="Ex.: Vistoria no IM-003, Cobrança de aluguel..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div>
-              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Categoria:
-              </label>
-              <select
-                className={styles.filterSelect}
-                value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
-              >
-                <option value="Financeiro">Financeiro</option>
-                <option value="Imóvel / Reforma">Imóvel / Reforma</option>
-                <option value="Prestação MP">Prestação MP</option>
-                <option value="Contrato">Contrato</option>
-                <option value="Operacional">Operacional</option>
-                <option value="Outro">Outro</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Prioridade:
-              </label>
-              <select
-                className={styles.filterSelect}
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as any)}
-              >
-                <option value="Alta">Alta (Urgente)</option>
-                <option value="Média">Média</option>
-                <option value="Baixa">Baixa</option>
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div>
-              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Data Limite / Prazo:
-              </label>
-              <input
-                type="date"
-                className={styles.filterSelect}
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Responsável:
-              </label>
-              <select
-                className={styles.filterSelect}
-                value={responsible}
-                onChange={(e) => setResponsible(e.target.value)}
-              >
-                <option value="Gabriel Sarges">Gabriel Sarges</option>
-                <option value="Flávio">Flávio</option>
-                <option value="Daniel">Daniel</option>
-                <option value="Lara">Lara</option>
-                <option value="Hannah">Hannah</option>
-                <option value="Emilly">Emilly</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-              Descrição / Detalhes:
-            </label>
-            <textarea
-              className={styles.filterSelect}
-              rows={3}
-              placeholder="Instruções e dados necessários para a execução desta atividade..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          <div className={styles.modalFooterActions}>
-            <button type="button" className={styles.modalCancelBtn} onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="submit" className={styles.modalConfirmBtn}>
-              Salvar Lembrete
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function ReminderDetailModal({
-  reminder,
-  onClose,
-  onToggle,
-  onDelete,
-}: {
-  reminder: FMCReminder;
-  onClose: () => void;
-  onToggle: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className={styles.propertyModalOverlay} role="presentation" onMouseDown={onClose}>
-      <div
-        className={styles.propertyModalCard}
-        role="dialog"
-        aria-modal="true"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className={styles.propertyModalHeader}>
-          <h3>DETALHES DO LEMBRETE</h3>
-          <button type="button" className={styles.modalClose} onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className={styles.propertyModalBody}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <h2 style={{ margin: 0, fontSize: "18px", color: "#0f172a" }}>{reminder.title}</h2>
-            <span
-              className={`${styles.reminderPriorityBadge} ${
-                reminder.priority === "Alta"
-                  ? styles.priorityAlta
-                  : reminder.priority === "Média"
-                  ? styles.priorityMedia
-                  : styles.priorityBaixa
-              }`}
-            >
-              {reminder.priority}
-            </span>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", background: "#f8fafc", padding: "12px", borderRadius: "6px" }}>
-            <div>
-              <span style={{ fontSize: "11px", color: "#64748b", display: "block" }}>Categoria:</span>
-              <strong style={{ fontSize: "13px", color: "#1e293b" }}>{reminder.category}</strong>
-            </div>
-            <div>
-              <span style={{ fontSize: "11px", color: "#64748b", display: "block" }}>Prazo Limite:</span>
-              <strong style={{ fontSize: "13px", color: "#1e293b" }}>{displayDate(reminder.deadline)}</strong>
-            </div>
-            <div>
-              <span style={{ fontSize: "11px", color: "#64748b", display: "block" }}>Responsável:</span>
-              <strong style={{ fontSize: "13px", color: "#1e293b" }}>{reminder.responsible}</strong>
-            </div>
-            <div>
-              <span style={{ fontSize: "11px", color: "#64748b", display: "block" }}>Status:</span>
-              <strong style={{ fontSize: "13px", color: reminder.done ? "#16a34a" : "#dc2626" }}>
-                {reminder.done ? "Concluído" : "Pendente"}
-              </strong>
-            </div>
-          </div>
-
-          <div>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>
-              Descrição Completa:
-            </span>
-            <p style={{ margin: 0, fontSize: "14px", color: "#1e293b", lineHeight: "20px", background: "#ffffff", padding: "12px", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
-              {reminder.description || "Nenhuma observação adicional informada."}
-            </p>
-          </div>
-
-          <div className={styles.modalFooterActions} style={{ justifyContent: "space-between" }}>
-            <button
-              type="button"
-              onClick={onDelete}
-              style={{ background: "#fee2e2", border: "1px solid #fca5a5", color: "#dc2626", padding: "8px 14px", borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
-            >
-              Excluir Lembrete
-            </button>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                type="button"
-                onClick={onToggle}
-                style={{ background: reminder.done ? "#fef9c3" : "#dcfce7", border: "1px solid #cbd5e1", color: reminder.done ? "#854d0e" : "#166534", padding: "8px 14px", borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
-              >
-                {reminder.done ? "Marcar como Pendente" : "Marcar como Concluído"}
-              </button>
-              <button type="button" className={styles.modalConfirmBtn} onClick={onClose}>
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

@@ -1,1191 +1,309 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Banknote,
-  Building2,
-  CalendarDays,
-  ChevronDown,
-  Home,
-  KeyRound,
-  Wrench,
-  TrendingUp,
-} from "lucide-react";
+import { Banknote, Building2, Home, KeyRound, Wrench } from "lucide-react";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { deadlineLabel } from "@/components/finance/RemindersPanel";
 import { AppShell } from "@/components/layout/AppShell";
 import {
+  FINANCE_CHANGED_EVENT,
+  errorMessage,
   financialApi,
   propertiesApi,
+  remindersApi,
   type FinancialMovement,
   type FinancialSummary,
-  type LeaseContract,
   type PropertyMetrics,
+  type ReminderItem,
 } from "@/lib/financial-api";
-import {
-  getPropertyMetricsFromStore,
-  getStoredMovements,
-  type FMCSharedMovement,
-} from "@/lib/shared-store";
+import { MONTHS, daysUntil, formatCurrency, formatDate, todayIso } from "@/lib/format";
+import { useRecords } from "@/lib/records";
+import { clientSchema, mpSubmissionSchema } from "@/lib/schemas";
 
-function currency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: 2,
-  }).format(value);
+// Paleta validada (scripts/validate_palette.js da skill de dataviz): azul = receitas, laranja = despesas.
+const INCOME_COLOR = "#1d4ed8";
+const EXPENSE_COLOR = "#c2410c";
+
+type ChartPoint = { day: number; receitas: number; despesas: number };
+
+function cumulativeByDay(movements: FinancialMovement[], month: number, year: number): ChartPoint[] {
+  const lastDay = new Date(year, month, 0).getDate();
+  const today = todayIso();
+  const isCurrentMonth = today.startsWith(`${year}-${String(month).padStart(2, "0")}`);
+  const untilDay = isCurrentMonth ? Number(today.slice(8, 10)) : lastDay;
+  const incomeByDay = new Array<number>(lastDay + 1).fill(0);
+  const expenseByDay = new Array<number>(lastDay + 1).fill(0);
+  movements.forEach((movement) => {
+    const day = Number(movement.date.slice(8, 10));
+    const cents = Math.round(movement.amount * 100);
+    if (movement.type === "INCOME") incomeByDay[day] += cents;
+    else expenseByDay[day] += cents;
+  });
+  const points: ChartPoint[] = [];
+  let income = 0;
+  let expense = 0;
+  for (let day = 1; day <= untilDay; day += 1) {
+    income += incomeByDay[day];
+    expense += expenseByDay[day];
+    points.push({ day, receitas: income / 100, despesas: expense / 100 });
+  }
+  return points;
 }
-
-function displayDate(value: string) {
-  if (!value) return "-";
-  const [year, month, day] = value.split("-");
-  return year && month && day ? `${day}/${month}/${year}` : value;
-}
-
-const MONTHS = [
-  { value: 1, label: "Janeiro" },
-  { value: 2, label: "Fevereiro" },
-  { value: 3, label: "Março" },
-  { value: 4, label: "Abril" },
-  { value: 5, label: "Maio" },
-  { value: 6, label: "Junho" },
-  { value: 7, label: "Julho" },
-  { value: 8, label: "Agosto" },
-  { value: 9, label: "Setembro" },
-  { value: 10, label: "Outubro" },
-  { value: 11, label: "Novembro" },
-  { value: 12, label: "Dezembro" },
-];
-
-const YEARS = [2024, 2025, 2026, 2027];
-
-const CONTRACT_STATUS: Record<string, { label: string; background: string; color: string }> = {
-  PROXIMO_AO_VENCIMENTO: { label: "Próximo ao vencimento", background: "#fef3c7", color: "#92400e" },
-  EXPIRANDO: { label: "Próximo ao vencimento", background: "#fef3c7", color: "#92400e" },
-  VENCIDO: { label: "Vencido", background: "#fee2e2", color: "#991b1b" },
-  ATIVO: { label: "Ativo", background: "#dcfce7", color: "#166534" },
-};
-
-function contractStatus(status: string) {
-  return CONTRACT_STATUS[status] ?? { label: status, background: "#e2e8f0", color: "#334155" };
-}
-
-type SeasonalConfig = {
-  incMult: number;
-  expMult: number;
-  incDist: number[];
-  expDist: number[];
-};
-
-// Configuração sazonal realista com base na dinâmica imobiliária da FMC
-const SEASONAL_CONFIG: Record<number, SeasonalConfig> = {
-  1: { incMult: 1.05, expMult: 1.35, incDist: [0, 0.12, 0.35, 0.65, 0.8, 0.9, 1.0], expDist: [0, 0.25, 0.45, 0.7, 0.85, 0.95, 1.0] },
-  2: { incMult: 0.96, expMult: 0.9, incDist: [0, 0.1, 0.3, 0.6, 0.75, 0.88, 1.0], expDist: [0, 0.1, 0.35, 0.55, 0.75, 0.9, 1.0] },
-  3: { incMult: 1.01, expMult: 1.03, incDist: [0, 0.1, 0.3, 0.62, 0.73, 0.82, 1.0], expDist: [0, 0.1, 0.3, 0.55, 0.85, 0.92, 1.0] },
-  4: { incMult: 1.0, expMult: 0.95, incDist: [0, 0.08, 0.32, 0.6, 0.74, 0.85, 1.0], expDist: [0, 0.12, 0.32, 0.58, 0.8, 0.9, 1.0] },
-  5: { incMult: 1.03, expMult: 1.12, incDist: [0, 0.1, 0.3, 0.64, 0.76, 0.85, 1.0], expDist: [0, 0.15, 0.35, 0.62, 0.82, 0.92, 1.0] },
-  6: { incMult: 0.99, expMult: 0.98, incDist: [0, 0.1, 0.3, 0.61, 0.74, 0.82, 1.0], expDist: [0, 0.1, 0.28, 0.54, 0.8, 0.9, 1.0] },
-  7: { incMult: 1.05, expMult: 1.24, incDist: [0, 0.1, 0.3, 0.63, 0.75, 0.84, 1.0], expDist: [0, 0.2, 0.42, 0.68, 0.86, 0.94, 1.0] },
-  8: { incMult: 1.04, expMult: 0.99, incDist: [0, 0.1, 0.3, 0.62, 0.73, 0.81, 1.0], expDist: [0, 0.1, 0.3, 0.55, 0.84, 0.9, 1.0] },
-  9: { incMult: 0.99, expMult: 0.93, incDist: [0, 0.1, 0.3, 0.62, 0.73, 0.81, 1.0], expDist: [0, 0.1, 0.3, 0.55, 0.85, 0.91, 1.0] },
-  10: {
-    incMult: 1.0,
-    expMult: 1.0,
-    // Valores canônicos de Outubro: Receitas 24.750, Despesas 9.900
-    incDist: [0, 2500 / 24750, 7500 / 24750, 15500 / 24750, 18000 / 24750, 20000 / 24750, 1.0],
-    expDist: [0, 1000 / 9900, 3000 / 9900, 5500 / 9900, 8400 / 9900, 9000 / 9900, 1.0],
-  },
-  11: { incMult: 1.09, expMult: 1.09, incDist: [0, 0.12, 0.34, 0.65, 0.78, 0.88, 1.0], expDist: [0, 0.14, 0.36, 0.62, 0.82, 0.92, 1.0] },
-  12: { incMult: 1.19, expMult: 1.57, incDist: [0, 0.15, 0.38, 0.68, 0.82, 0.9, 1.0], expDist: [0, 0.25, 0.5, 0.75, 0.88, 0.96, 1.0] },
-};
-
-function getMonthlyFallbackData(month: number, year: number) {
-  const season = SEASONAL_CONFIG[month] ?? SEASONAL_CONFIG[10];
-  const yearGrowth = 1 + (year - 2026) * 0.05;
-
-  const totalIncome = Math.round(24750 * season.incMult * yearGrowth);
-  const totalExpense = Math.round(9900 * season.expMult * yearGrowth);
-
-  const days = [1, 5, 10, 15, 20, 25, 30];
-
-  const cumulativeIncomes = season.incDist.map((ratio) => Math.round(totalIncome * ratio));
-  const cumulativeExpenses = season.expDist.map((ratio) => Math.round(totalExpense * ratio));
-
-  return {
-    totalIncome,
-    totalExpense,
-    days,
-    cumulativeIncomes,
-    cumulativeExpenses,
-  };
-}
-
 
 export function DashboardHome() {
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
-  const [propMetrics, setPropMetrics] = useState<PropertyMetrics | null>(null);
-  const [contracts, setContracts] = useState<LeaseContract[]>([]);
-  const [monthlyMovements, setMonthlyMovements] = useState<FinancialMovement[]>([]);
-  // true quando os dados do mês vieram da API Java (mesmo que o mês esteja vazio)
-  const [financeFromApi, setFinanceFromApi] = useState(false);
+  const [movements, setMovements] = useState<FinancialMovement[]>([]);
+  const [metrics, setMetrics] = useState<PropertyMetrics | null>(null);
+  const [reminders, setReminders] = useState<ReminderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showTable, setShowTable] = useState(false);
+  const { items: clients } = useRecords("clients", clientSchema);
+  const { items: submissions } = useRecords("mp-submissions", mpSubmissionSchema);
 
-  // Filtros dinâmicos de Mês e Ano
-  const [selectedMonthNum, setSelectedMonthNum] = useState<number>(10);
-  const [selectedYearNum, setSelectedYearNum] = useState<number>(2026);
-  const [chartMode, setChartMode] = useState<"acumulado" | "diario">("acumulado");
-
-  // Estado interativo de hover no gráfico
-  const [hoveredPoint, setHoveredPoint] = useState<{
-    day: number;
-    income: number;
-    expense: number;
-    x: number;
-    yIncome: number;
-    yExpense: number;
-  } | null>(null);
-
-  // Carrega métricas sincronizadas da loja de imóveis e contratos
-  function syncPropertyMetrics() {
-    const storeMetrics = getPropertyMetricsFromStore();
-    setPropMetrics({
-      totalProperties: storeMetrics.totalProperties,
-      occupied: storeMetrics.occupied,
-      available: storeMetrics.available,
-      underMaintenance: storeMetrics.underMaintenance,
-    });
-  }
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    const results = await Promise.allSettled([
+      financialApi.summary(month, year),
+      financialApi.movements(month, year),
+      propertiesApi.metrics(),
+      remindersApi.list(),
+    ]);
+    const [summaryRes, movementsRes, metricsRes, remindersRes] = results;
+    if (summaryRes.status === "fulfilled") setSummary(summaryRes.value);
+    if (movementsRes.status === "fulfilled") setMovements(movementsRes.value);
+    if (metricsRes.status === "fulfilled") setMetrics(metricsRes.value);
+    if (remindersRes.status === "fulfilled") setReminders(remindersRes.value);
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed && failed.status === "rejected") setError(errorMessage(failed.reason, "Parte dos dados não carregou."));
+    setLoading(false);
+  }, [month, year]);
 
   useEffect(() => {
-    syncPropertyMetrics();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga da API ao trocar o período
+    void load();
+    const onChange = () => void load();
+    window.addEventListener(FINANCE_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(FINANCE_CHANGED_EVENT, onChange);
+  }, [load]);
 
-    // Ouve atualizações de situação de imóveis feitas no Financeiro
-    const handlePropUpdate = () => syncPropertyMetrics();
-    window.addEventListener("fmc_properties_updated", handlePropUpdate);
+  const chart = useMemo(() => cumulativeByDay(movements, month, year), [movements, month, year]);
+  const expiring = clients
+    .filter((client) => {
+      const days = daysUntil(client.contractEndDate);
+      return client.contractStatus !== "Encerrado" && days >= 0 && days <= 30;
+    })
+    .sort((a, b) => a.contractEndDate.localeCompare(b.contractEndDate));
+  const pendingReminders = reminders.filter((reminder) => !reminder.done).slice(0, 5);
+  const pendingMp = submissions.filter((item) => item.status === "Pendente" || item.status === "Em revisão").sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 4);
 
-    propertiesApi
-      .expiringContracts()
-      .then((data) => setContracts(data))
-      .catch(() => {
-        setContracts([
-          {
-            id: 1,
-            propertyRegistration: "IM-001",
-            tenantName: "João Pedro Cavalcanti",
-            startDate: "2025-10-10",
-            endDate: "2026-10-25",
-            monthlyAmount: 3200.0,
-            status: "EXPIRANDO",
-          },
-          {
-            id: 2,
-            propertyRegistration: "IM-002",
-            tenantName: "Maria Helena Silva",
-            startDate: "2025-11-01",
-            endDate: "2026-11-05",
-            monthlyAmount: 2850.0,
-            status: "ATIVO",
-          },
-        ]);
-      });
-
-    return () => {
-      window.removeEventListener("fmc_properties_updated", handlePropUpdate);
-    };
-  }, []);
-
-  // Efeito dinâmico para carregar dados financeiros e movimentos
-  function loadMovements() {
-    const shared = getStoredMovements(selectedMonthNum, selectedYearNum);
-
-    Promise.allSettled([
-      financialApi.summary(selectedMonthNum, selectedYearNum),
-      financialApi.movements(selectedMonthNum, selectedYearNum),
-    ]).then(([summaryRes, movementsRes]) => {
-      let combined: FinancialMovement[] = [];
-
-      if (movementsRes.status === "fulfilled" && Array.isArray(movementsRes.value)) {
-        combined = [...movementsRes.value];
-      }
-
-      // Adiciona movimentos cadastrados localmente se ainda não estiverem no array
-      if (shared.length > 0) {
-        for (const s of shared) {
-          if (!combined.some((c) => String(c.id) === String(s.id))) {
-            combined.push({
-              id: typeof s.id === "number" ? s.id : Math.floor(Math.random() * 100000),
-              date: s.date,
-              tenantName: s.tenantName,
-              propertyRegistration: s.propertyRegistration,
-              amount: s.amount,
-              type: s.type,
-            });
-          }
-        }
-      }
-
-      // Se nenhum lançamento foi inserido na base para Outubro 2026, fornece a base inicial
-      if (combined.length === 0 && selectedMonthNum === 10 && selectedYearNum === 2026) {
-        combined = [
-          {
-            id: 1,
-            date: "2026-10-05",
-            tenantName: "João Pedro Cavalcanti (IM-001)",
-            propertyRegistration: "IM-001",
-            amount: 3200.0,
-            type: "INCOME",
-          },
-          {
-            id: 2,
-            date: "2026-10-10",
-            tenantName: "Maria Helena Silva (IM-002)",
-            propertyRegistration: "IM-002",
-            amount: 2850.0,
-            type: "INCOME",
-          },
-          {
-            id: 3,
-            date: "2026-10-12",
-            tenantName: "Manutenção Rocha Hidráulica",
-            propertyRegistration: "IM-004",
-            amount: 750.0,
-            type: "EXPENSE",
-          },
-          {
-            id: 4,
-            date: "2026-10-20",
-            tenantName: "Tech Soluções Ltda (IM-005)",
-            propertyRegistration: "IM-005",
-            amount: 4500.0,
-            type: "INCOME",
-          },
-          {
-            id: 5,
-            date: "2026-10-25",
-            tenantName: "Reforma Elétrica Predial",
-            propertyRegistration: "IM-003",
-            amount: 1400.0,
-            type: "EXPENSE",
-          },
-        ];
-      }
-
-      setMonthlyMovements(combined);
-
-      const totalInc = combined.filter((m) => m.type === "INCOME").reduce((s, m) => s + m.amount, 0);
-      const totalExp = combined.filter((m) => m.type === "EXPENSE").reduce((s, m) => s + m.amount, 0);
-
-      if (summaryRes.status === "fulfilled" && summaryRes.value && combined.length === 0) {
-        setSummary(summaryRes.value);
-      } else {
-        setSummary({
-          income: totalInc,
-          expense: totalExp,
-          balance: totalInc - totalExp,
-        });
-      }
-
-      setFinanceFromApi(summaryRes.status === "fulfilled" && movementsRes.status === "fulfilled");
-    });
-  }
-
-  useEffect(() => {
-    loadMovements();
-
-    const handleMovementsUpdate = () => loadMovements();
-    window.addEventListener("fmc_movements_updated", handleMovementsUpdate);
-    return () => {
-      window.removeEventListener("fmc_movements_updated", handleMovementsUpdate);
-    };
-  }, [selectedMonthNum, selectedYearNum]);
-
-  // Cálculos reativos dos dados do gráfico estritamente baseados nos lançamentos inseridos dia a dia
-  const chartData = useMemo(() => {
-    const fallback = getMonthlyFallbackData(selectedMonthNum, selectedYearNum);
-    const days = [1, 5, 10, 15, 20, 25, 30];
-
-    let incomePoints: number[] = [];
-    let expensePoints: number[] = [];
-
-    // Com dados reais do backend agregamos por checkpoint (mês sem lançamentos fica zerado);
-    // o modelo sazonal só é usado quando a API está indisponível
-    if (financeFromApi) {
-      const incByDay = new Map<number, number>();
-      const expByDay = new Map<number, number>();
-
-      for (const m of monthlyMovements) {
-        const day = Number(m.date.split("-")[2]) || 1;
-        if (m.type === "INCOME") {
-          incByDay.set(day, (incByDay.get(day) ?? 0) + m.amount);
-        } else {
-          expByDay.set(day, (expByDay.get(day) ?? 0) + m.amount);
-        }
-      }
-
-      let runningInc = 0;
-      let runningExp = 0;
-      const cumIncomes: number[] = [];
-      const cumExpenses: number[] = [];
-      const periodIncomes: number[] = [];
-      const periodExpenses: number[] = [];
-
-      let prevDay = 0;
-      for (const d of days) {
-        let periodInc = 0;
-        let periodExp = 0;
-        for (let i = prevDay + 1; i <= d; i++) {
-          periodInc += incByDay.get(i) ?? 0;
-          periodExp += expByDay.get(i) ?? 0;
-        }
-        runningInc += periodInc;
-        runningExp += periodExp;
-
-        cumIncomes.push(runningInc);
-        cumExpenses.push(runningExp);
-        periodIncomes.push(periodInc);
-        periodExpenses.push(periodExp);
-        prevDay = d;
-      }
-
-      incomePoints = chartMode === "acumulado" ? cumIncomes : periodIncomes;
-      expensePoints = chartMode === "acumulado" ? cumExpenses : periodExpenses;
-    } else {
-      // Usar a distribuição matemática do modelo dinâmico
-      if (chartMode === "acumulado") {
-        incomePoints = fallback.cumulativeIncomes;
-        expensePoints = fallback.cumulativeExpenses;
-      } else {
-        // Modo diário/intervalo
-        incomePoints = fallback.cumulativeIncomes.map((val, idx, arr) =>
-          idx === 0 ? val : Math.max(0, val - arr[idx - 1])
-        );
-        expensePoints = fallback.cumulativeExpenses.map((val, idx, arr) =>
-          idx === 0 ? val : Math.max(0, val - arr[idx - 1])
-        );
-      }
-    }
-
-    const hasData = monthlyMovements.length > 0;
-    const maxVal = hasData ? Math.max(...incomePoints, ...expensePoints, 1000) : 5000;
-
-    let step = 1000;
-    if (maxVal <= 5000) step = 1000;
-    else if (maxVal <= 15000) step = 2500;
-    else if (maxVal <= 35000) step = 5000;
-    else step = 10000;
-
-    const yAxisMax = Math.ceil(maxVal / step) * step;
-
-    const xCoordinates = [60, 130, 200, 270, 340, 410, 480];
-    const yBase = 180;
-    const yHeight = 160;
-
-    const mappedPoints = days.map((day, idx) => {
-      const incVal = incomePoints[idx] ?? 0;
-      const expVal = expensePoints[idx] ?? 0;
-      const x = xCoordinates[idx];
-      const yIncome = Math.round(yBase - (incVal / yAxisMax) * yHeight);
-      const yExpense = Math.round(yBase - (expVal / yAxisMax) * yHeight);
-
-      return {
-        day,
-        income: incVal,
-        expense: expVal,
-        x,
-        yIncome: Math.max(16, Math.min(yBase, yIncome)),
-        yExpense: Math.max(16, Math.min(yBase, yExpense)),
-      };
-    });
-
-    const incomePointsString = mappedPoints.map((p) => `${p.x},${p.yIncome}`).join(" ");
-    const expensePointsString = mappedPoints.map((p) => `${p.x},${p.yExpense}`).join(" ");
-
-    const yMarks = [
-      { y: 20, value: yAxisMax },
-      { y: 52, value: Math.round(yAxisMax * 0.8) },
-      { y: 84, value: Math.round(yAxisMax * 0.6) },
-      { y: 116, value: Math.round(yAxisMax * 0.4) },
-      { y: 148, value: Math.round(yAxisMax * 0.2) },
-      { y: 180, value: 0 },
-    ];
-
-    return {
-      hasData,
-      mappedPoints,
-      incomePointsString,
-      expensePointsString,
-      yMarks,
-      yAxisMax,
-    };
-  }, [monthlyMovements, financeFromApi, selectedMonthNum, selectedYearNum, chartMode]);
-
-  // Enquanto a API responde mostramos "—" em vez de números fictícios
-  const LOADING = "—";
-  const totalProps = propMetrics ? String(propMetrics.totalProperties) : LOADING;
-  const occupiedProps = propMetrics ? String(propMetrics.occupied) : LOADING;
-  const availableProps = propMetrics ? String(propMetrics.available) : LOADING;
-  const maintenanceProps = propMetrics ? String(propMetrics.underMaintenance) : LOADING;
-
-  const currentBalance = summary?.balance ?? 0;
-  const monthlyRevenue = summary ? currency(summary.income) : LOADING;
-  const monthlyExpense = summary ? currency(summary.expense) : LOADING;
-  const monthlyBalance = summary ? currency(summary.balance) : LOADING;
-
-
-  const selectedMonthName = MONTHS.find((m) => m.value === selectedMonthNum)?.label ?? "Outubro";
-
-  const metricCards = [
-    {
-      label: "Total de imóveis",
-      value: totalProps,
-      icon: Building2,
-      bgColor: "#E0F2FE",
-      iconColor: "#0284C7",
-    },
-    {
-      label: "Ocupados",
-      value: occupiedProps,
-      icon: KeyRound,
-      bgColor: "#FEE2E2",
-      iconColor: "#EF4444",
-    },
-    {
-      label: "Disponíveis",
-      value: availableProps,
-      icon: Home,
-      bgColor: "#DCFCE7",
-      iconColor: "#16A34A",
-    },
-    {
-      label: "Manutenções",
-      value: maintenanceProps,
-      icon: Wrench,
-      bgColor: "#FEF9C3",
-      iconColor: "#CA8A04",
-    },
-    {
-      label: `Receita (${selectedMonthName})`,
-      value: monthlyRevenue,
-      icon: Banknote,
-      bgColor: "#DCFCE7",
-      iconColor: "#16A34A",
-    },
+  const cards = [
+    { label: "Total de imóveis", value: metrics?.totalProperties, icon: Building2, href: "/imoveis" },
+    { label: "Ocupados", value: metrics?.occupied, icon: KeyRound, href: "/imoveis" },
+    { label: "Disponíveis", value: metrics?.available, icon: Home, href: "/imoveis" },
+    { label: "Em manutenção", value: metrics?.underMaintenance, icon: Wrench, href: "/imoveis" },
+    { label: `Saldo de ${MONTHS[month - 1]}`, value: summary ? formatCurrency(summary.balance) : undefined, icon: Banknote, href: "/financeiro" },
   ];
 
   return (
     <AppShell>
-      <section className="dashboard-home" aria-label="Painel de gestão">
-        {/* 5 Cards de Métricas do Topo Dinâmicos */}
-        <div className="home-metrics-grid">
-          {metricCards.map((c) => {
-            const Icon = c.icon;
-            return (
-              <div
-                key={c.label}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "14px",
-                  padding: "16px 18px",
-                  background: "#ffffff",
-                  borderRadius: "8px",
-                  boxShadow: "0 1px 4px rgba(0, 0, 0, 0.08)",
-                  border: "1px solid #f1f5f9",
-                  transition: "transform 140ms ease, box-shadow 140ms ease",
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    placeItems: "center",
-                    width: "44px",
-                    height: "44px",
-                    borderRadius: "50%",
-                    backgroundColor: c.bgColor,
-                    color: c.iconColor,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon size={22} strokeWidth={2} />
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                  <span
-                    style={{
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#475569",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {c.label}
-                  </span>
-                  <strong
-                    style={{
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: "20px",
-                      fontWeight: 700,
-                      color: "#0f172a",
-                      lineHeight: "26px",
-                    }}
-                  >
-                    {c.value}
-                  </strong>
-                </div>
-              </div>
-            );
-          })}
+      <section className="ui-page" aria-labelledby="painel-title">
+        <div className="ui-page-header">
+          <h1 id="painel-title">Painel</h1>
+          <div className="ui-row-actions">
+            <label className="sr-only" htmlFor="painel-mes">
+              Mês
+            </label>
+            <select id="painel-mes" className="ui-input" style={{ width: "auto" }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+              {MONTHS.map((label, index) => (
+                <option key={label} value={index + 1}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <label className="sr-only" htmlFor="painel-ano">
+              Ano
+            </label>
+            <select id="painel-ano" className="ui-input" style={{ width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              {Array.from({ length: 6 }, (_, index) => now.getFullYear() - 4 + index).map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Grade Central: Gráfico de Linha à Esquerda + Contratos à Direita */}
-        <div className="home-panels-grid">
-          {/* Card Esquerdo: Receitas x Despesas (mês) com Gráfico Dinâmico */}
+        {error ? (
+          <p className="ui-alert ui-alert-error" role="alert">
+            {error}{" "}
+            <button type="button" className="ui-link" onClick={() => void load()}>
+              Tentar de novo
+            </button>
+          </p>
+        ) : null}
 
-          <article
-            style={{
-              background: "#ffffff",
-              borderRadius: "8px",
-              padding: "20px 24px",
-              boxShadow: "0 1px 4px rgba(0, 0, 0, 0.08)",
-              border: "1px solid #e2e8f0",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* Header do Card com Controles Interativos */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: "12px",
-                marginBottom: "12px",
-              }}
-            >
+        <div className="ui-stat-grid">
+          {cards.map(({ label, value, icon: Icon, href }) => (
+            <Link key={label} href={href} className="ui-card ui-stat" style={{ color: "inherit" }}>
+              <span className="ui-stat-icon" style={{ background: "#3c8dbc", color: "#fff" }} aria-hidden="true">
+                <Icon size={22} />
+              </span>
+              <span>
+                <span className="ui-stat-label" style={{ display: "block" }}>
+                  {label}
+                </span>
+                <span className="ui-stat-value" style={{ fontSize: typeof value === "string" ? 20 : undefined }}>
+                  {loading && value === undefined ? "…" : (value ?? "—")}
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(320px, 100%), 1fr))", gap: 16 }}>
+          <section className="ui-card" aria-labelledby="grafico-title" style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
               <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: "18px",
-                    fontWeight: 700,
-                    color: "#0f172a",
-                  }}
-                >
-                  Receitas x Despesas (mês)
+                <h2 id="grafico-title" style={{ margin: 0, fontSize: 18, color: "var(--ui-primary)" }}>
+                  Receitas x despesas
                 </h2>
-                <span style={{ fontSize: "12px", color: "#64748b" }}>
-                  Evolução financeira moldada dia a dia • {selectedMonthName} de {selectedYearNum}
-                </span>
-              </div>
-
-              {/* Controles Dinâmicos: Seletor de Mês, Ano e Modo */}
-              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                {/* Seletor de Modo: Acumulado / Diário */}
-
-                <div
-                  style={{
-                    display: "inline-flex",
-                    background: "#f1f5f9",
-                    padding: "2px",
-                    borderRadius: "14px",
-                    border: "1px solid #e2e8f0",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setChartMode("acumulado")}
-                    style={{
-                      border: 0,
-                      background: chartMode === "acumulado" ? "#092A54" : "transparent",
-                      color: chartMode === "acumulado" ? "#ffffff" : "#475569",
-                      padding: "3px 10px",
-                      borderRadius: "12px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      transition: "all 140ms ease",
-                    }}
-                    title="Ver valor acumulado progressivo"
-                  >
-                    Acumulado
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChartMode("diario")}
-                    style={{
-                      border: 0,
-                      background: chartMode === "diario" ? "#092A54" : "transparent",
-                      color: chartMode === "diario" ? "#ffffff" : "#475569",
-                      padding: "3px 10px",
-                      borderRadius: "12px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      transition: "all 140ms ease",
-                    }}
-                    title="Ver entradas e saídas de cada período"
-                  >
-                    Por Período
-                  </button>
-                </div>
-
-                {/* Seletor de Mês */}
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={selectedMonthNum}
-                    onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
-                    aria-label="Selecionar mês"
-                    style={{
-                      appearance: "none",
-                      padding: "0 28px 0 12px",
-                      height: "28px",
-                      borderRadius: "14px",
-                      border: "1px solid #cbd5e1",
-                      background: "#ffffff",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#334155",
-                      cursor: "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    {MONTHS.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={14}
-                    style={{
-                      position: "absolute",
-                      right: "10px",
-                      top: "7px",
-                      pointerEvents: "none",
-                      color: "#64748b",
-                    }}
-                  />
-                </div>
-
-                {/* Seletor de Ano */}
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={selectedYearNum}
-                    onChange={(e) => setSelectedYearNum(Number(e.target.value))}
-                    aria-label="Selecionar ano"
-                    style={{
-                      appearance: "none",
-                      padding: "0 28px 0 12px",
-                      height: "28px",
-                      borderRadius: "14px",
-                      border: "1px solid #cbd5e1",
-                      background: "#ffffff",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#334155",
-                      cursor: "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    {YEARS.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={14}
-                    style={{
-                      position: "absolute",
-                      right: "10px",
-                      top: "7px",
-                      pointerEvents: "none",
-                      color: "#64748b",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Legenda com Indicador Ativo */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "24px",
-                marginBottom: "12px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  color: "#092A54",
-                }}
-              >
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "50%",
-                    background: "#092A54",
-                  }}
-                />
-                Receitas ({monthlyRevenue})
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  color: "#D4B35A",
-                }}
-              >
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "50%",
-                    background: "#D4B35A",
-                  }}
-                />
-                Despesas ({monthlyExpense})
-              </div>
-            </div>
-
-            {/* Gráfico SVG de Linha Totalmente Dinâmico e Reativo */}
-            <div
-              style={{
-                position: "relative",
-                width: "100%",
-                height: "230px",
-              }}
-              onMouseLeave={() => setHoveredPoint(null)}
-            >
-              <svg
-                viewBox="0 0 540 210"
-                style={{ width: "100%", height: "100%", overflow: "visible" }}
-                aria-label="Gráfico de evolução financeira dinâmica"
-              >
-                {/* Linhas de Grade Horizontais Dinâmicas */}
-                {chartData.yMarks.map((m, idx) => (
-                  <line
-                    key={idx}
-                    x1="45"
-                    y1={m.y}
-                    x2="520"
-                    y2={m.y}
-                    stroke={m.y === 180 ? "#e2e8f0" : "#f1f5f9"}
-                    strokeWidth={m.y === 180 ? "1.2" : "1"}
-                  />
-                ))}
-
-                <text
-                  x="5"
-                  y="100"
-                  fill="#64748b"
-                  fontSize="10"
-                  fontWeight="600"
-                  transform="rotate(-90 10 100)"
-                >
-                  R$
-                </text>
-
-                {chartData.yMarks.map((m, idx) => (
-                  <text
-                    key={idx}
-                    x="40"
-                    y={m.y + 4}
-                    fill="#64748b"
-                    fontSize="10"
-                    textAnchor="end"
-                  >
-                    {m.value.toLocaleString("pt-BR")}
-                  </text>
-                ))}
-
-                {chartData.mappedPoints.map((p) => (
-                  <text
-                    key={p.day}
-                    x={p.x}
-                    y="196"
-                    fill={hoveredPoint?.day === p.day ? "#092A54" : "#64748b"}
-                    fontWeight={hoveredPoint?.day === p.day ? 700 : 400}
-                    fontSize="10"
-                    textAnchor="middle"
-                  >
-                    {p.day}
-                  </text>
-                ))}
-                <text
-                  x="270"
-                  y="210"
-                  fill="#64748b"
-                  fontSize="10"
-                  fontWeight="600"
-                  textAnchor="middle"
-                >
-                  Dias ({selectedMonthName})
-                </text>
-
-                {/* Linha de Receitas */}
-                <polyline
-                  fill="none"
-                  stroke="#092A54"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  points={chartData.incomePointsString}
-                  style={{ transition: "points 300ms ease" }}
-                />
-
-                {/* Pontos de Receitas com Interação Hover */}
-                {chartData.mappedPoints.map((p) => {
-                  const isHovered = hoveredPoint?.day === p.day;
-                  return (
-                    <g key={`inc-${p.day}`}>
-                      {isHovered && (
-                        <circle
-                          cx={p.x}
-                          cy={p.yIncome}
-                          r="7"
-                          fill="#092A54"
-                          opacity="0.25"
-                        />
-                      )}
-                      <circle
-                        cx={p.x}
-                        cy={p.yIncome}
-                        r={isHovered ? "5" : "3.5"}
-                        fill="#092A54"
-                        stroke="#ffffff"
-                        strokeWidth={isHovered ? "2" : "0"}
-                        style={{ cursor: "pointer", transition: "all 150ms ease" }}
-                        onMouseEnter={() => setHoveredPoint(p)}
-                      />
-                    </g>
-                  );
-                })}
-
-                {/* Linha de Despesas */}
-                <polyline
-                  fill="none"
-                  stroke="#D4B35A"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  points={chartData.expensePointsString}
-                  style={{ transition: "points 300ms ease" }}
-                />
-
-                {/* Pontos de Despesas com Interação Hover */}
-                {chartData.mappedPoints.map((p) => {
-                  const isHovered = hoveredPoint?.day === p.day;
-                  return (
-                    <g key={`exp-${p.day}`}>
-                      {isHovered && (
-                        <circle
-                          cx={p.x}
-                          cy={p.yExpense}
-                          r="7"
-                          fill="#D4B35A"
-                          opacity="0.25"
-                        />
-                      )}
-                      <circle
-                        cx={p.x}
-                        cy={p.yExpense}
-                        r={isHovered ? "5" : "3.5"}
-                        fill="#D4B35A"
-                        stroke="#ffffff"
-                        strokeWidth={isHovered ? "2" : "0"}
-                        style={{ cursor: "pointer", transition: "all 150ms ease" }}
-                        onMouseEnter={() => setHoveredPoint(p)}
-                      />
-                    </g>
-                  );
-                })}
-              </svg>
-
-              {/* Tooltip Interativo Flutuante */}
-              {hoveredPoint && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: `${(hoveredPoint.x / 540) * 100}%`,
-                    top: `${Math.max(8, (Math.min(hoveredPoint.yIncome, hoveredPoint.yExpense) / 210) * 100 - 36)}%`,
-                    transform: "translate(-50%, -100%)",
-                    background: "rgba(15, 23, 42, 0.95)",
-                    backdropFilter: "blur(4px)",
-                    color: "#ffffff",
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    boxShadow: "0 4px 14px rgba(0, 0, 0, 0.25)",
-                    pointerEvents: "none",
-                    zIndex: 20,
-                    fontSize: "11px",
-                    whiteSpace: "nowrap",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                  }}
-                >
-                  <div style={{ fontWeight: 700, marginBottom: "4px", color: "#f8fafc" }}>
-                    Dia {hoveredPoint.day} de {selectedMonthName}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#93c5fd" }}>
-                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#60a5fa" }} />
-                    Receitas: {currency(hoveredPoint.income)}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#fde047" }}>
-                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#facc15" }} />
-                    Despesas: {currency(hoveredPoint.expense)}
-                  </div>
-                  <div
-                    style={{
-                      borderTop: "1px solid #334155",
-                      marginTop: "4px",
-                      paddingTop: "4px",
-                      fontWeight: 600,
-                      color: hoveredPoint.income >= hoveredPoint.expense ? "#86efac" : "#fca5a5",
-                    }}
-                  >
-                    Saldo: {currency(hoveredPoint.income - hoveredPoint.expense)}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Aviso quando não há dados ainda para o mês */}
-            {!chartData.hasData && (
-              <div
-                style={{
-                  marginTop: "8px",
-                  padding: "8px 12px",
-                  background: "#f8fafc",
-                  border: "1px dashed #cbd5e1",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  color: "#64748b",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <TrendingUp size={16} color="#092A54" />
-                <span>
-                  O gráfico se molda automaticamente à medida que as entradas e saídas são inseridas no Painel Financeiro.
-                </span>
-              </div>
-            )}
-
-            {/* Rodapé Dinâmico com Métricas Calculadas em Tempo Real */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: "12px",
-                marginTop: "16px",
-                paddingTop: "14px",
-                borderTop: "1px solid #f1f5f9",
-              }}
-            >
-              <div>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "#64748b",
-                    display: "block",
-                  }}
-                >
-                  Receitas ({selectedMonthName})
-                </span>
-                <strong
-                  style={{
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    color: "#092A54",
-                  }}
-                >
-                  {monthlyRevenue}
-                </strong>
-              </div>
-
-              <div>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "#64748b",
-                    display: "block",
-                  }}
-                >
-                  Despesas ({selectedMonthName})
-                </span>
-                <strong
-                  style={{
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    color: "#D4B35A",
-                  }}
-                >
-                  {monthlyExpense}
-                </strong>
-              </div>
-
-              <div>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "#64748b",
-                    display: "block",
-                  }}
-                >
-                  Saldo Líquido ({selectedMonthName})
-                </span>
-                <strong
-                  style={{
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    color: currentBalance >= 0 ? "#16a34a" : "#dc2626",
-                  }}
-                >
-                  {monthlyBalance}
-                </strong>
-              </div>
-            </div>
-          </article>
-
-          {/* Card Direito: Contratos próximos ao vencimento */}
-          <article
-            style={{
-              background: "#ffffff",
-              borderRadius: "8px",
-              padding: "20px 24px",
-              boxShadow: "0 1px 4px rgba(0, 0, 0, 0.08)",
-              border: "1px solid #e2e8f0",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: "16px",
-              }}
-            >
-              <h2
-                style={{
-                  margin: 0,
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "17px",
-                  fontWeight: 700,
-                  color: "#0f172a",
-                }}
-              >
-                Contratos próximos ao vencimento
-              </h2>
-              <Link
-                href="/financeiro"
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  color: "#2563eb",
-                  textDecoration: "none",
-                }}
-              >
-                Ver todos
-              </Link>
-            </div>
-
-            {contracts.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {contracts.map((c) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                      gap: "8px",
-                      padding: "12px 14px",
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span
-                          style={{
-                            background: "#e0f2fe",
-                            color: "#0369a1",
-                            fontWeight: 700,
-                            fontSize: "11px",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                          }}
-                        >
-                          {c.propertyRegistration}
-                        </span>
-                        <strong style={{ color: "#1e293b" }}>{c.tenantName}</strong>
-                      </div>
-                      <span style={{ color: "#64748b", fontSize: "12px" }}>
-                        Vencimento: {displayDate(c.endDate)} • {currency(c.monthlyAmount)}/mês
-                      </span>
-                    </div>
-
-                    <span
-                      style={{
-                        padding: "3px 8px",
-                        borderRadius: "12px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        background: contractStatus(c.status).background,
-                        color: contractStatus(c.status).color,
-                      }}
-                    >
-                      {contractStatus(c.status).label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: "220px",
-                  color: "#94a3b8",
-                  textAlign: "center",
-                }}
-              >
-                <CalendarDays size={42} strokeWidth={1.5} />
-                <p style={{ marginTop: "12px", fontSize: "13px" }}>
-                  Nenhum contrato com vencimento nos próximos 30 dias.
+                <p className="ui-field-hint" style={{ margin: "2px 0 0" }}>
+                  Acumulado de {MONTHS[month - 1]}/{year}, dia a dia, conforme os lançamentos
                 </p>
               </div>
+              <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setShowTable((v) => !v)} aria-pressed={showTable}>
+                {showTable ? "Ver gráfico" : "Ver como tabela"}
+              </button>
+            </div>
+            <p style={{ margin: "10px 0", fontSize: 14 }}>
+              Receitas <strong>{formatCurrency(summary?.income ?? 0)}</strong> · Despesas <strong>{formatCurrency(summary?.expense ?? 0)}</strong>
+            </p>
+            {loading ? (
+              <div className="ui-skeleton" style={{ height: 260 }} />
+            ) : movements.length === 0 ? (
+              <p className="ui-empty">Nenhum lançamento neste mês. O gráfico aparece assim que houver entradas ou saídas.</p>
+            ) : showTable ? (
+              <div className="ui-table-wrap" style={{ maxHeight: 280, overflowY: "auto" }}>
+                <table className="ui-table" style={{ minWidth: 0 }}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Dia</th>
+                      <th scope="col">Receitas acumuladas</th>
+                      <th scope="col">Despesas acumuladas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chart.map((point) => (
+                      <tr key={point.day}>
+                        <td>{point.day}</td>
+                        <td>{formatCurrency(point.receitas)}</td>
+                        <td>{formatCurrency(point.despesas)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ width: "100%", height: 260 }} role="img" aria-label={`Gráfico de receitas e despesas acumuladas em ${MONTHS[month - 1]} de ${year}`}>
+                <ResponsiveContainer>
+                  <LineChart data={chart} margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
+                    <CartesianGrid stroke="#e2e8f0" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#475569" }} tickLine={false} axisLine={{ stroke: "#cbd5e1" }} />
+                    <YAxis
+                      tick={{ fontSize: 12, fill: "#475569" }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={72}
+                      tickFormatter={(value: number) => new Intl.NumberFormat("pt-BR", { notation: "compact", style: "currency", currency: "BRL" }).format(value)}
+                    />
+                    <Tooltip
+                      formatter={(value) => formatCurrency(Number(value))}
+                      labelFormatter={(day) => `Dia ${day}`}
+                      contentStyle={{ borderRadius: 8, borderColor: "#e2e8f0", fontSize: 13 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 13 }} />
+                    <Line type="monotone" dataKey="receitas" name="Receitas" stroke={INCOME_COLOR} strokeWidth={2} dot={false} activeDot={{ r: 5 }} />
+                    <Line type="monotone" dataKey="despesas" name="Despesas" stroke={EXPENSE_COLOR} strokeWidth={2} strokeDasharray="6 4" dot={false} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             )}
-          </article>
+          </section>
+
+          <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
+            <section className="ui-card" aria-labelledby="contratos-title">
+              <h2 id="contratos-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>
+                Contratos a vencer (30 dias)
+              </h2>
+              {expiring.length === 0 ? (
+                <p className="ui-field-hint">Nenhum contrato vencendo nos próximos 30 dias.</p>
+              ) : (
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, fontSize: 14 }}>
+                  {expiring.map((client) => (
+                    <li key={client.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <Link href={`/clientes?cliente=${client.id}`} className="ui-link">
+                        {client.name}
+                      </Link>
+                      <span className="ui-field-hint">
+                        {client.propertyCode} · {formatDate(client.contractEndDate)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="ui-card" aria-labelledby="lembretes-title">
+              <h2 id="lembretes-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>
+                Lembretes pendentes
+              </h2>
+              {pendingReminders.length === 0 ? (
+                <p className="ui-field-hint">Nenhum lembrete pendente.</p>
+              ) : (
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, fontSize: 14 }}>
+                  {pendingReminders.map((reminder) => {
+                    const badge = deadlineLabel(reminder);
+                    return (
+                      <li key={reminder.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                        <span>{reminder.title}</span>
+                        <span className={`ui-badge ${badge.tone}`}>{badge.text}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <Link href="/financeiro" className="ui-link" style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}>
+                Gerenciar lembretes
+              </Link>
+            </section>
+
+            <section className="ui-card" aria-labelledby="mp-pend-title">
+              <h2 id="mp-pend-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>
+                Ministério Público
+              </h2>
+              {pendingMp.length === 0 ? (
+                <p className="ui-field-hint">Nenhum envio pendente.</p>
+              ) : (
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, fontSize: 14 }}>
+                  {pendingMp.map((item) => (
+                    <li key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <span>
+                        {item.title} <span className="ui-field-hint">({item.referencePeriod})</span>
+                      </span>
+                      <span className="ui-field-hint">prazo {formatDate(item.dueDate)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link href="/ministerio-publico" className="ui-link" style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}>
+                Abrir prestação de contas
+              </Link>
+            </section>
+          </div>
         </div>
       </section>
     </AppShell>

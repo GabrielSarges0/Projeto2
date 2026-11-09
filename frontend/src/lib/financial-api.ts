@@ -1,21 +1,26 @@
-import { clearAuthToken, getAuthToken } from "./auth";
+import { z } from "zod";
+import { apiRequest, apiRequestVoid } from "./api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+export { ApiError, NetworkError, UnauthorizedError, errorMessage, isApiError } from "./api-client";
 
-export type FinancialSummary = {
-  income: number;
-  expense: number;
-  balance: number;
-};
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export type FinancialMovement = {
-  id: number;
-  date: string;
-  tenantName: string;
-  propertyRegistration: string;
-  amount: number;
-  type: "INCOME" | "EXPENSE";
-};
+const summarySchema = z.object({
+  income: z.number(),
+  expense: z.number(),
+  balance: z.number(),
+});
+export type FinancialSummary = z.infer<typeof summarySchema>;
+
+const movementSchema = z.object({
+  id: z.number(),
+  date: isoDate,
+  tenantName: z.string(),
+  propertyRegistration: z.string(),
+  amount: z.number(),
+  type: z.enum(["INCOME", "EXPENSE"]),
+});
+export type FinancialMovement = z.infer<typeof movementSchema>;
 
 export type CreateIncomeRequest = {
   documentType: "CPF" | "CNPJ";
@@ -33,106 +38,104 @@ export type CreateExpenseRequest = {
   grossAmount: number;
 };
 
-type ApiErrorBody = {
-  message?: string;
-  fieldErrors?: Record<string, string>;
+export const PROPERTY_STATUSES = ["OCUPADO", "DISPONIVEL", "MANUTENCAO"] as const;
+export type PropertyStatus = (typeof PROPERTY_STATUSES)[number];
+export const PROPERTY_STATUS_LABEL: Record<PropertyStatus, string> = {
+  OCUPADO: "Ocupado",
+  DISPONIVEL: "Disponível",
+  MANUTENCAO: "Manutenção",
 };
 
-export class UnauthorizedError extends Error {
-  constructor() {
-    super("Usuário ou senha inválidos.");
-    this.name = "UnauthorizedError";
-  }
-}
+const propertySchema = z.object({
+  id: z.number(),
+  registrationCode: z.string(),
+  address: z.string(),
+  currentTenant: z.string().nullable(),
+  monthlyRent: z.number(),
+  status: z.enum(PROPERTY_STATUSES),
+  notes: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+});
+export type PropertyItem = z.infer<typeof propertySchema>;
 
-// Erro devolvido pelo backend (HTTP 4xx/5xx). Falhas de rede continuam como TypeError do fetch.
-export class ApiError extends Error {
-  constructor(message: string, readonly status: number) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-export function isApiError(error: unknown): error is ApiError {
-  return error instanceof ApiError;
-}
-
-async function request<T>(path: string, init?: RequestInit, token: string | null = getAuthToken()): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Basic ${token}` } : {}),
-      ...(init?.headers ?? {}),
-    },
-    cache: "no-store",
-  });
-
-  if (response.status === 401) {
-    // O AuthGate observa a sessão e leva para /login.
-    clearAuthToken();
-    throw new UnauthorizedError();
-  }
-
-  if (!response.ok) {
-    let message = `Falha na API Java (HTTP ${response.status}).`;
-
-    try {
-      const body = (await response.json()) as ApiErrorBody;
-      if (body.message) message = body.message;
-
-      if (body.fieldErrors) {
-        const firstFieldMessage = Object.values(body.fieldErrors)[0];
-        if (firstFieldMessage) message = firstFieldMessage;
-      }
-    } catch {
-      // Mantem a mensagem HTTP quando o backend nao devolve JSON.
-    }
-
-    throw new ApiError(message, response.status);
-  }
-
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
-}
-
-export type PropertyItem = {
-  id: number;
-  registrationCode: string;
+export type PropertyRequest = {
+  registrationCode?: string;
   address: string;
-  currentTenant: string;
+  currentTenant: string | null;
   monthlyRent: number;
-  status: string;
+  status: PropertyStatus;
+  notes: string | null;
 };
 
-export type PropertyMetrics = {
-  totalProperties: number;
-  occupied: number;
-  available: number;
-  underMaintenance: number;
+const metricsSchema = z.object({
+  totalProperties: z.number(),
+  occupied: z.number(),
+  available: z.number(),
+  underMaintenance: z.number(),
+});
+export type PropertyMetrics = z.infer<typeof metricsSchema>;
+
+const contractSchema = z.object({
+  id: z.number(),
+  propertyRegistration: z.string(),
+  tenantName: z.string(),
+  startDate: isoDate,
+  endDate: isoDate,
+  monthlyAmount: z.number(),
+  status: z.string(),
+});
+export type LeaseContract = z.infer<typeof contractSchema>;
+
+export const REMINDER_CATEGORIES = ["FINANCEIRO", "IMOVEL", "PRESTACAO_MP", "CONTRATO", "OPERACIONAL", "OUTRO"] as const;
+export type ReminderCategory = (typeof REMINDER_CATEGORIES)[number];
+export const REMINDER_CATEGORY_LABEL: Record<ReminderCategory, string> = {
+  FINANCEIRO: "Financeiro",
+  IMOVEL: "Imóvel / Reforma",
+  PRESTACAO_MP: "Prestação MP",
+  CONTRATO: "Contrato",
+  OPERACIONAL: "Operacional",
+  OUTRO: "Outro",
 };
 
-export type LeaseContract = {
-  id: number;
-  propertyRegistration: string;
-  tenantName: string;
-  startDate: string;
-  endDate: string;
-  monthlyAmount: number;
-  status: string;
+export const REMINDER_PRIORITIES = ["ALTA", "MEDIA", "BAIXA"] as const;
+export type ReminderPriority = (typeof REMINDER_PRIORITIES)[number];
+export const REMINDER_PRIORITY_LABEL: Record<ReminderPriority, string> = {
+  ALTA: "Alta",
+  MEDIA: "Média",
+  BAIXA: "Baixa",
 };
 
-export type ReminderItem = {
-  id: number;
-  text: string;
-  done: boolean;
-  createdAt: string;
+const reminderSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  dueDate: isoDate,
+  category: z.enum(REMINDER_CATEGORIES),
+  priority: z.enum(REMINDER_PRIORITIES),
+  responsible: z.string().nullable(),
+  description: z.string().nullable(),
+  done: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string().nullable(),
+});
+export type ReminderItem = z.infer<typeof reminderSchema>;
+
+export type ReminderRequest = {
+  title: string;
+  dueDate: string;
+  category: ReminderCategory;
+  priority: ReminderPriority;
+  responsible: string | null;
+  description: string | null;
 };
 
-export type CreateReminderRequest = {
-  text: string;
-};
+const currentUserSchema = z.object({ username: z.string(), name: z.string() });
+const loginResponseSchema = z.object({
+  token: z.string(),
+  expiresAt: z.string(),
+  user: currentUserSchema,
+});
+export type LoginResponse = z.infer<typeof loginResponseSchema>;
 
 function periodQuery(month: number, year: number) {
   return `?month=${encodeURIComponent(month)}&year=${encodeURIComponent(year)}`;
@@ -140,70 +143,51 @@ function periodQuery(month: number, year: number) {
 
 export const financialApi = {
   summary: (month: number, year: number) =>
-    request<FinancialSummary>(`/api/v1/financial/summary${periodQuery(month, year)}`),
-
+    apiRequest(`/api/v1/financial/summary${periodQuery(month, year)}`, summarySchema),
   movements: (month: number, year: number) =>
-    request<FinancialMovement[]>(`/api/v1/financial/movements${periodQuery(month, year)}`),
-
-  allMovements: () =>
-    request<FinancialMovement[]>("/api/v1/financial/all"),
-
+    apiRequest(`/api/v1/financial/movements${periodQuery(month, year)}`, z.array(movementSchema)),
+  allMovements: () => apiRequest("/api/v1/financial/all", z.array(movementSchema)),
   createIncome: (payload: CreateIncomeRequest) =>
-    request<FinancialMovement>("/api/v1/financial/incomes", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
+    apiRequest("/api/v1/financial/incomes", movementSchema, { method: "POST", body: payload }),
   createExpense: (payload: CreateExpenseRequest) =>
-    request<FinancialMovement>("/api/v1/financial/expenses", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
+    apiRequest("/api/v1/financial/expenses", movementSchema, { method: "POST", body: payload }),
   deleteTransaction: (id: number) =>
-    request<void>(`/api/v1/financial/transactions/${id}`, {
-      method: "DELETE",
-    }),
+    apiRequestVoid(`/api/v1/financial/transactions/${id}`, { method: "DELETE" }),
 };
 
 export const propertiesApi = {
-  list: () =>
-    request<PropertyItem[]>("/api/v1/properties"),
-
-  metrics: () =>
-    request<PropertyMetrics>("/api/v1/properties/metrics"),
-
-  expiringContracts: () =>
-    request<LeaseContract[]>("/api/v1/properties/contracts/expiring"),
+  list: () => apiRequest("/api/v1/properties", z.array(propertySchema)),
+  create: (payload: PropertyRequest) =>
+    apiRequest("/api/v1/properties", propertySchema, { method: "POST", body: payload }),
+  update: (id: number, payload: PropertyRequest) =>
+    apiRequest(`/api/v1/properties/${id}`, propertySchema, { method: "PUT", body: payload }),
+  metrics: () => apiRequest("/api/v1/properties/metrics", metricsSchema),
+  expiringContracts: () => apiRequest("/api/v1/properties/contracts/expiring", z.array(contractSchema)),
 };
 
 export const remindersApi = {
-  list: () =>
-    request<ReminderItem[]>("/api/v1/reminders"),
-
-  create: (payload: CreateReminderRequest) =>
-    request<ReminderItem>("/api/v1/reminders", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  toggle: (id: number) =>
-    request<ReminderItem>(`/api/v1/reminders/${id}/toggle`, {
-      method: "PATCH",
-    }),
-
-  delete: (id: number) =>
-    request<void>(`/api/v1/reminders/${id}`, {
-      method: "DELETE",
-    }),
-};
-
-export type CurrentUser = {
-  username: string;
+  list: () => apiRequest("/api/v1/reminders", z.array(reminderSchema)),
+  create: (payload: ReminderRequest) =>
+    apiRequest("/api/v1/reminders", reminderSchema, { method: "POST", body: payload }),
+  update: (id: number, payload: ReminderRequest) =>
+    apiRequest(`/api/v1/reminders/${id}`, reminderSchema, { method: "PUT", body: payload }),
+  toggle: (id: number) => apiRequest(`/api/v1/reminders/${id}/toggle`, reminderSchema, { method: "PATCH" }),
+  delete: (id: number) => apiRequestVoid(`/api/v1/reminders/${id}`, { method: "DELETE" }),
 };
 
 export const authApi = {
-  // Valida as credenciais antes de gravá-las: usa o token informado, não o da sessão.
-  verify: (token: string) =>
-    request<CurrentUser>("/api/v1/auth/me", undefined, token),
+  login: (email: string, password: string, name?: string) =>
+    apiRequest("/api/v1/auth/login", loginResponseSchema, {
+      method: "POST",
+      body: { email, password, name },
+      anonymous: true,
+    }),
+  me: () => apiRequest("/api/v1/auth/me", currentUserSchema),
+  updateName: (name: string) => apiRequest("/api/v1/auth/me", loginResponseSchema, { method: "PUT", body: { name } }),
 };
+
+/** Notifica telas abertas (Painel, Financeiro, Imóveis) de que dados financeiros/imóveis mudaram. */
+export const FINANCE_CHANGED_EVENT = "fmc-finance-changed";
+export function notifyFinanceChanged() {
+  window.dispatchEvent(new Event(FINANCE_CHANGED_EVENT));
+}
