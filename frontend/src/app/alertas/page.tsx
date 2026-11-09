@@ -15,6 +15,8 @@ export default function AlertasPage() {
   const [filter, setFilter] = useState<AlertKind | "ALL">("ALL");
   const visible = alerts.filter((alert) => filter === "ALL" || alert.kind === filter);
   const critical = alerts.filter((alert) => alert.severity === "critical").length;
+  // O toast fica na página: o formulário é remontado quando as preferências salvas voltam do servidor.
+  const { show, node: toast } = useToast();
 
   return (
     <AppShell>
@@ -92,16 +94,16 @@ export default function AlertasPage() {
             )}
           </section>
 
-          <PreferencesForm key={JSON.stringify(prefs)} prefs={prefs} />
+          <PreferencesForm key={JSON.stringify(prefs)} prefs={prefs} onSaved={() => show("Preferências de alerta salvas.")} />
         </div>
       </section>
+      {toast}
     </AppShell>
   );
 }
 
-function PreferencesForm({ prefs }: { prefs: AlertPrefs }) {
+function PreferencesForm({ prefs, onSaved }: { prefs: AlertPrefs; onSaved: () => void }) {
   const canReview = useCan("review");
-  const { show, node: toast } = useToast();
   const [draft, setDraft] = useState<AlertPrefs>(prefs);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -112,7 +114,7 @@ function PreferencesForm({ prefs }: { prefs: AlertPrefs }) {
     setError("");
     try {
       await saveAlertPrefs(draft);
-      show("Preferências de alerta salvas.");
+      onSaved();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -170,7 +172,6 @@ function PreferencesForm({ prefs }: { prefs: AlertPrefs }) {
       <button type="submit" className="ui-btn ui-btn-primary" style={{ justifySelf: "start" }} disabled={saving} aria-busy={saving}>
         {saving ? "Salvando..." : "Salvar preferências"}
       </button>
-      {toast}
     </form>
   );
 }
