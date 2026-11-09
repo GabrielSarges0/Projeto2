@@ -161,6 +161,16 @@ function PreferencesForm({ prefs, onSaved }: { prefs: AlertPrefs; onSaved: () =>
         {numberField("contractDays", "Contratos: avisar com", 7, 120)}
         {numberField("mpDays", "Envios ao MP: avisar com", 1, 60)}
       </div>
+      <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 8 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 500, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={Boolean(draft.emailNotifications)}
+            onChange={(e) => setDraft({ ...draft, emailNotifications: e.target.checked })}
+          />
+          Receber resumo diário de alertas por e-mail
+        </label>
+      </div>
       <p className="ui-field-hint" style={{ margin: 0 }}>
         As preferências valem para a sua conta, em qualquer computador. O envio por e-mail depende de configurar um serviço de e-mail no servidor.
       </p>

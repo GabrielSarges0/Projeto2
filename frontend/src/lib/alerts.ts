@@ -39,6 +39,7 @@ const alertPrefsSchema = z.object({
   reminderDays: z.number().int().min(0).max(30).catch(3),
   contractDays: z.number().int().min(7).max(120).catch(30),
   mpDays: z.number().int().min(1).max(60).catch(7),
+  emailNotifications: z.boolean().catch(false),
 });
 export type AlertPrefs = z.infer<typeof alertPrefsSchema>;
 

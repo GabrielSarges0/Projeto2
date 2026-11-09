@@ -149,7 +149,7 @@ function ManagerView() {
       const id = `att-${item.date.replace(/-/g, "")}-${item.employeeId}`;
       const existing = attendanceStore.items.find((record) => record.id === id);
       await attendanceStore.save({
-        ...(existing ?? { id, employeeId: item.employeeId, date: item.date, entryTime: null, breakStart: null, breakEnd: null, exitTime: null }),
+        ...(existing ?? { id, employeeId: item.employeeId, date: item.date, entryTime: null, entryLocation: null, breakStart: null, breakStartLocation: null, breakEnd: null, breakEndLocation: null, exitTime: null, exitLocation: null }),
         status: "Atestado",
         registeredBy: session?.user.name ?? "Gestor",
       });
@@ -246,7 +246,14 @@ function ManagerView() {
                       ) : null}
                     </td>
                     <td>{employee.role}</td>
-                    <td>{record?.entryTime ?? "—"}</td>
+                    <td>
+                      <div>{record?.entryTime ?? "—"}</div>
+                      {record?.entryLocation ? (
+                        <span className="ui-field-hint" style={{ display: "block", fontSize: 11 }} title={`Entrada com localização: ${record.entryLocation}`}>
+                          📍 {record.entryLocation}
+                        </span>
+                      ) : null}
+                    </td>
                     <td>{record?.breakStart ? `${record.breakStart} – ${record.breakEnd ?? "…"}` : "—"}</td>
                     <td>{record?.exitTime ?? "—"}</td>
                     <td>{worked !== null ? formatMinutes(worked) : "—"}</td>
@@ -541,9 +548,13 @@ function AttendanceEditModal({
         date,
         status,
         entryTime: present ? entry || null : null,
+        entryLocation: record?.entryLocation ?? null,
         breakStart: present ? breakStart || null : null,
+        breakStartLocation: record?.breakStartLocation ?? null,
         breakEnd: present ? breakEnd || null : null,
+        breakEndLocation: record?.breakEndLocation ?? null,
         exitTime: present ? exit || null : null,
+        exitLocation: record?.exitLocation ?? null,
         registeredBy: "",
       });
     } catch (err) {
@@ -607,15 +618,34 @@ function AttendanceEditModal({
   );
 }
 
-type PunchEvent = { time: string; label: string };
+type PunchEvent = { time: string; label: string; location?: string | null };
 
 function punchEvents(record: Attendance): PunchEvent[] {
   const events: PunchEvent[] = [];
-  if (record.entryTime) events.push({ time: record.entryTime, label: "Entrada" });
-  if (record.breakStart) events.push({ time: record.breakStart, label: "Saída para intervalo" });
-  if (record.breakEnd) events.push({ time: record.breakEnd, label: "Retorno" });
-  if (record.exitTime) events.push({ time: record.exitTime, label: "Saída final" });
+  if (record.entryTime) events.push({ time: record.entryTime, label: "Entrada", location: record.entryLocation });
+  if (record.breakStart) events.push({ time: record.breakStart, label: "Saída para intervalo", location: record.breakStartLocation });
+  if (record.breakEnd) events.push({ time: record.breakEnd, label: "Retorno", location: record.breakEndLocation });
+  if (record.exitTime) events.push({ time: record.exitTime, label: "Saída final", location: record.exitLocation });
   return events.reverse();
+}
+
+/** Localização aproximada com consentimento para registro de ponto (Backlog 7.3 e LGPD). */
+async function captureLocation(): Promise<string | null> {
+  if (typeof window === "undefined" || !("geolocation" in navigator)) {
+    return null;
+  }
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(4);
+        const lon = pos.coords.longitude.toFixed(4);
+        const accuracy = Math.round(pos.coords.accuracy);
+        resolve(`Lat ${lat}, Long ${lon} (±${accuracy}m)`);
+      },
+      () => resolve(null),
+      { timeout: 5000, maximumAge: 60000, enableHighAccuracy: false }
+    );
+  });
 }
 
 /** "Reloginho" do protótipo: justificativas e histórico de pontos lado a lado, cada um com rolagem própria. */
@@ -694,8 +724,15 @@ function HistoryModal({
                     ) : (
                       <ul style={{ listStyle: "none", margin: "4px 0 0", padding: 0, display: "grid", gap: 2 }}>
                         {events.map((event) => (
-                          <li key={event.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
-                            <span>{event.label}</span>
+                          <li key={event.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: 13.5 }}>
+                            <span>
+                              {event.label}
+                              {event.location ? (
+                                <span className="ui-field-hint" style={{ display: "block", fontSize: 11.5 }}>
+                                  📍 {event.location}
+                                </span>
+                              ) : null}
+                            </span>
                             <span>{event.time}</span>
                           </li>
                         ))}
@@ -898,10 +935,10 @@ function EmployeeForm({ employee, others, onClose, onSave }: { employee: Employe
 
 // --------------------------------------------------------------- Funcionário
 const PUNCH_STEPS = [
-  { key: "entryTime", label: "Entrada" },
-  { key: "breakStart", label: "Saída para intervalo" },
-  { key: "breakEnd", label: "Retorno" },
-  { key: "exitTime", label: "Saída final" },
+  { key: "entryTime", locationKey: "entryLocation", label: "Entrada" },
+  { key: "breakStart", locationKey: "breakStartLocation", label: "Saída para intervalo" },
+  { key: "breakEnd", locationKey: "breakEndLocation", label: "Retorno" },
+  { key: "exitTime", locationKey: "exitLocation", label: "Saída final" },
 ] as const;
 
 function EmployeeView() {
@@ -913,6 +950,8 @@ function EmployeeView() {
   const [cpf, setCpf] = useState("");
   const [punchError, setPunchError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [includeLocation, setIncludeLocation] = useState(true);
   const [newJustification, setNewJustification] = useState(false);
 
   const employees = employeesStore.items.filter((employee) => employee.active).sort((a, b) => a.name.localeCompare(b.name));
@@ -945,9 +984,13 @@ function EmployeeView() {
       date: today,
       status: "Presente",
       entryTime: null,
+      entryLocation: null,
       breakStart: null,
+      breakStartLocation: null,
       breakEnd: null,
+      breakEndLocation: null,
       exitTime: null,
+      exitLocation: null,
       registeredBy: "",
     };
     const previous = PUNCH_STEPS.map((step) => base[step.key]).filter(Boolean).pop();
@@ -956,9 +999,25 @@ function EmployeeView() {
       setBusy(false);
       return;
     }
+    let loc: string | null = null;
+    if (includeLocation) {
+      setLocating(true);
+      try {
+        loc = await captureLocation();
+      } finally {
+        setLocating(false);
+      }
+    }
     try {
-      await attendanceStore.save({ ...base, status: "Presente", [nextStep.key]: time, registeredBy: employee.name });
-      show(`${nextStep.label} registrada às ${time}.`);
+      const locationField = nextStep.locationKey;
+      await attendanceStore.save({
+        ...base,
+        status: "Presente",
+        [nextStep.key]: time,
+        ...(loc ? { [locationField]: loc } : {}),
+        registeredBy: employee.name,
+      });
+      show(`${nextStep.label} registrada às ${time}${loc ? ` · ${loc}` : ""}.`);
       setCpf("");
     } catch (err) {
       setPunchError(errorMessage(err));
@@ -999,9 +1058,19 @@ function EmployeeView() {
                 </div>
               ))}
             </div>
-            <button type="button" className="ui-btn ui-btn-primary" style={{ justifySelf: "start", minHeight: 48 }} disabled={!nextStep || busy} onClick={() => void punch()} aria-busy={busy}>
-              <Clock size={18} aria-hidden="true" /> {nextStep ? `Registrar ${nextStep.label.toLowerCase()} agora` : "Jornada de hoje concluída"}
-            </button>
+            <div style={{ display: "grid", gap: 10 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ui-text-muted)", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={includeLocation}
+                  onChange={(e) => setIncludeLocation(e.target.checked)}
+                />
+                <span>Anexar localização aproximada ao ponto (com consentimento, nos termos da LGPD)</span>
+              </label>
+              <button type="button" className="ui-btn ui-btn-primary" style={{ justifySelf: "start", minHeight: 48 }} disabled={!nextStep || busy || locating} onClick={() => void punch()} aria-busy={busy || locating}>
+                <Clock size={18} aria-hidden="true" /> {locating ? "Obtendo localização GPS..." : busy ? "Registrando ponto..." : nextStep ? `Registrar ${nextStep.label.toLowerCase()} agora` : "Jornada de hoje concluída"}
+              </button>
+            </div>
           </>
         ) : (
           <p className="ui-field-hint">Selecione seu nome para registrar o ponto de hoje ({formatDate(today)}).</p>
@@ -1052,12 +1121,19 @@ function EmployeeView() {
                 {history.map((record) => {
                   const minutes = workedMinutes(record);
                   return (
-                    <li key={record.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, borderBottom: "1px solid #f1f5f9", paddingBottom: 4 }}>
-                      <span>{record.date === today ? "Hoje" : formatDate(record.date)}</span>
-                      <span>
-                        {record.status === "Presente" ? `${record.entryTime ?? "--"} → ${record.exitTime ?? "--"}` : record.status}
-                        {minutes !== null ? ` · ${formatMinutes(minutes)}` : ""}
-                      </span>
+                    <li key={record.id} style={{ display: "grid", gap: 2, borderBottom: "1px solid #f1f5f9", paddingBottom: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                        <span>{record.date === today ? "Hoje" : formatDate(record.date)}</span>
+                        <span>
+                          {record.status === "Presente" ? `${record.entryTime ?? "--"} → ${record.exitTime ?? "--"}` : record.status}
+                          {minutes !== null ? ` · ${formatMinutes(minutes)}` : ""}
+                        </span>
+                      </div>
+                      {record.entryLocation || record.exitLocation ? (
+                        <div className="ui-field-hint" style={{ fontSize: 12 }}>
+                          📍 {record.entryLocation ? `Entrada: ${record.entryLocation}` : ""}{record.entryLocation && record.exitLocation ? " · " : ""}{record.exitLocation ? `Saída: ${record.exitLocation}` : ""}
+                        </div>
+                      ) : null}
                     </li>
                   );
                 })}
