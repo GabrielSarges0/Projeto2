@@ -78,7 +78,11 @@ export const inventoryMovementSchema = z.object({
 export type InventoryMovement = z.infer<typeof inventoryMovementSchema>;
 
 // ---------- Funcionários e presença ----------
-export const employeeSchema = z.object({
+export const EMPLOYEE_ROLES = ["Porteiro", "Serviços Gerais", "Assistente Administrativo", "Administrador", "Auxiliar de Limpeza"] as const;
+export const EMPLOYEE_SITUATIONS = ["Ativo", "Inativo", "Afastado", "Férias", "Licença", "Desligado"] as const;
+export type EmployeeSituation = (typeof EMPLOYEE_SITUATIONS)[number];
+
+const employeeObject = z.object({
   id: z.string(),
   name: z.string(),
   role: z.string(),
@@ -88,8 +92,17 @@ export const employeeSchema = z.object({
   breakStart: time,
   breakEnd: time,
   active: z.boolean().default(true),
+  /** Situação no quadro (protótipo). "active" continua valendo: Desligado/Inativo saem da lista do dia. */
+  situation: z.enum(EMPLOYEE_SITUATIONS).catch("Ativo"),
 });
-export type Employee = z.infer<typeof employeeSchema>;
+
+export const employeeSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object") return value;
+  const raw = value as Record<string, unknown>;
+  if (raw.situation === undefined) return { ...raw, situation: raw.active === false ? "Desligado" : "Ativo" };
+  return raw;
+}, employeeObject);
+export type Employee = z.infer<typeof employeeObject>;
 
 export const ATTENDANCE_STATUSES = ["Presente", "Ausente", "Folga", "Atestado"] as const;
 
@@ -207,24 +220,60 @@ export const documentFilePartSchema = z.object({
 });
 
 // ---------- Ministério Público ----------
-export const MP_STATUSES = ["Pendente", "Em revisão", "Enviado", "Confirmado"] as const;
-export const MP_CATEGORIES = ["Prestação de Contas", "Imóveis", "Financeiro", "Contratos", "Atas", "Relatórios"] as const;
+export const MP_STATUSES = ["Pendente", "Em revisão", "Aprovado", "Rejeitado", "Enviado", "Arquivado"] as const;
+export const MP_CATEGORIES = [
+  "Prestação de contas",
+  "Relatórios financeiros",
+  "Comprovante de despesas",
+  "Contratos",
+  "Documentos de imóveis",
+  "Recibos de aluguel",
+  "Notas fiscais",
+  "Folhas de pagamento",
+  "Documentos administrativos",
+  "Outros",
+] as const;
+export type MpCategory = (typeof MP_CATEGORIES)[number];
 
-export const mpSubmissionSchema = z.object({
+// Valores gravados antes da tela seguir o protótipo (PDF "Tela de funcionários e MP").
+const LEGACY_MP_CATEGORY: Record<string, MpCategory> = {
+  "Prestação de Contas": "Prestação de contas",
+  Imóveis: "Documentos de imóveis",
+  Financeiro: "Relatórios financeiros",
+  Atas: "Documentos administrativos",
+  Relatórios: "Relatórios financeiros",
+};
+
+const mpSubmissionObject = z.object({
   id: z.string(),
   title: z.string(),
-  category: z.enum(MP_CATEGORIES),
+  category: z.enum(MP_CATEGORIES).catch("Outros"),
   referencePeriod: z.string(),
   dueDate: isoDate,
   responsible: z.string(),
-  status: z.enum(MP_STATUSES),
+  status: z.enum(MP_STATUSES).catch("Pendente"),
   documentIds: z.array(z.string()).default([]),
   sentAt: z.string().nullable().default(null),
+  /** Quando o MP confirmou o recebimento (antes era o status "Confirmado"). */
+  confirmedAt: z.string().nullable().default(null),
   protocol: z.string().nullable().default(null),
   notes: z.string().default(""),
+  /** Na lixeira: some da lista, mas pode ser restaurado. */
+  trashedAt: z.string().nullable().default(null),
   history: z
     .array(z.object({ at: z.string(), by: z.string(), action: z.string() }))
     .default([]),
   createdAt: z.string(),
 });
-export type MpSubmission = z.infer<typeof mpSubmissionSchema>;
+
+export const mpSubmissionSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object") return value;
+  const raw = { ...(value as Record<string, unknown>) };
+  if (typeof raw.category === "string" && LEGACY_MP_CATEGORY[raw.category]) raw.category = LEGACY_MP_CATEGORY[raw.category];
+  if (raw.status === "Confirmado") {
+    raw.status = "Enviado";
+    raw.confirmedAt = raw.confirmedAt ?? raw.sentAt ?? null;
+  }
+  return raw;
+}, mpSubmissionObject);
+export type MpSubmission = z.infer<typeof mpSubmissionObject>;
