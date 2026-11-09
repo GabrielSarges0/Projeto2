@@ -12,7 +12,7 @@ O projeto é dividido em uma arquitetura desacoplada:
   - **Framework**: Spring Boot 4 (Java 21).
   - **Persistência**: Spring Data JPA com Hibernate.
   - **Banco de Dados**: PostgreSQL no Supabase (projeto `Projeto2-FMC`, schema `projeto2`) em produção; H2 em modo arquivo (`./data/projeto2`) só para rodar localmente.
-  - **Migrações**: Flyway (`db/migration/V3__financial_transactions.sql`).
+  - **Migrações**: Flyway (`db/migration/V3`…`V9`). V6–V9: prazo dos lembretes, situação dos imóveis, tabela `app_record` (módulos compartilhados) e dados iniciais.
   - **Segurança**: Spring Security com CORS configurado para Next.js.
   - **Validações**: Bean Validation com validador de CPF/CNPJ brasileiro.
 
@@ -20,7 +20,7 @@ O projeto é dividido em uma arquitetura desacoplada:
   - **Framework**: Next.js 16 (App Router) + React 19 + TypeScript.
   - **Estilização**: CSS Modules + Tailwind CSS v4.
   - **Ícones**: Lucide React.
-  - **Módulos**: Visão Geral (Dashboard Home), Painel Financeiro, Estoque, Funcionários, Governança, Ministério Público, Documentos e Configurações.
+  - **Módulos**: Painel, Clientes, Imóveis, Documentos (com formulários/modelos), Financeiro (com lembretes e histórico), Ministério Público, Funcionários, Estoque e Perfil.
 
 ## ☁️ Produção (nada depende de computador local)
 
@@ -31,7 +31,8 @@ O projeto é dividido em uma arquitetura desacoplada:
 | Banco | Supabase `Projeto2-FMC` (sa-east-1), schema `projeto2`, usuário `projeto2_app` | Migrations Flyway rodam ao iniciar o backend |
 
 - O backend usa o perfil `prod` (`application-prod.properties`) e lê `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, `APP_ADMIN_USER` e `APP_ADMIN_PASSWORD` do Render — nunca do Git.
-- **Login:** toda a API exige usuário e senha (HTTP Basic sobre HTTPS); o frontend pede em `/login` e guarda só na aba aberta (`sessionStorage`). Localmente, sem variáveis, o login é `admin` / `admin12345`.
+- **Login:** o painel aceita **qualquer conta** (e-mail válido + senha de 6+ caracteres) em `/login` ou `/cadastro`. O backend devolve um token assinado (12 h) que o frontend guarda só na aba aberta (`sessionStorage`); toda a API exige esse token (`Authorization: Bearer …`). A senha não é armazenada — o login serve para identificar quem fez cada ação. O usuário técnico `APP_ADMIN_*` continua aceito via HTTP Basic para scripts.
+- `APP_TOKEN_SECRET` assina os tokens (o `render.yaml` gera um valor; sem ele, o backend deriva da `APP_ADMIN_PASSWORD`).
 - O frontend lê a URL da API de `frontend/.env.production` (`NEXT_PUBLIC_API_URL`).
 - No plano gratuito o Render hiberna após 15 min sem acesso: a primeira requisição depois disso leva ~1 min.
 
@@ -92,9 +93,16 @@ Base URL: `http://localhost:8080/api/v1/financial`
 | `POST` | `/expenses` | Registra nova saída/despesa operacional (prestador, reforma, etc.) |
 | `DELETE` | `/transactions/{id}` | Exclui movimentação financeira por ID |
 | `GET` | `/actuator/health` | Health check da aplicação (público) |
-| `GET` | `/api/v1/auth/me` | Valida o login e devolve o usuário |
+| `POST` | `/api/v1/auth/login` | Login aberto (público): `{email, password, name?}` → token |
+| `GET` / `PUT` | `/api/v1/auth/me` | Usuário logado / troca do nome de exibição |
+| `GET` `POST` / `PUT` | `/api/v1/properties`, `/api/v1/properties/{id}` | Imóveis (situação Ocupado/Disponível/Manutenção) |
+| `GET` | `/api/v1/properties/metrics` | Contagem real por situação |
+| `GET` `POST` / `PUT` `PATCH` `DELETE` | `/api/v1/reminders`, `/api/v1/reminders/{id}` | Lembretes com data limite (edição via `PUT`) |
+| `GET` / `PUT` `DELETE` | `/api/v1/records/{coleção}`, `/api/v1/records/{coleção}/{id}` | Clientes, estoque, presença, documentos e envios ao MP |
 
-Todas as rotas `/api/**` exigem `Authorization: Basic …`.
+Regras de valores em entradas/saídas: nome com 3+ letras, CPF/CNPJ com dígitos válidos, imóvel cadastrado (`GERAL` para despesas sem imóvel), data entre 01/01/2000 e hoje, valor entre R$ 0,01 e R$ 1.000.000,00.
+
+Todas as rotas `/api/**` (exceto o login) exigem `Authorization: Bearer <token>`.
 
 ---
 

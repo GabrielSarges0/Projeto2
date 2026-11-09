@@ -30,3 +30,6 @@ services:
         sync: false
       - key: APP_ADMIN_PASSWORD
         sync: false
+      # Assina os tokens de sessão do /login. Gerado pelo Render; sem ele, deriva de APP_ADMIN_PASSWORD.
+      - key: APP_TOKEN_SECRET
+        generateValue: true
