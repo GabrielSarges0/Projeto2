@@ -20,7 +20,7 @@ O projeto é dividido em uma arquitetura desacoplada:
   - **Framework**: Next.js 16 (App Router) + React 19 + TypeScript.
   - **Estilização**: CSS Modules + Tailwind CSS v4.
   - **Ícones**: Lucide React.
-  - **Módulos**: Painel, Clientes, Imóveis, Documentos (com formulários/modelos), Financeiro (com lembretes e histórico), Ministério Público, Funcionários, Estoque e Perfil.
+  - **Módulos**: Painel, Clientes, Imóveis, Documentos (com formulários/modelos e formatação editável), Financeiro (com lembretes e histórico), Ministério Público, Funcionários, Estoque, Alertas de prazo, Equipe (níveis de acesso) e Perfil.
 
 ## ☁️ Produção (nada depende de computador local)
 
@@ -32,6 +32,16 @@ O projeto é dividido em uma arquitetura desacoplada:
 
 - O backend usa o perfil `prod` (`application-prod.properties`) e lê `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, `APP_ADMIN_USER` e `APP_ADMIN_PASSWORD` do Render — nunca do Git.
 - **Login:** o painel aceita **qualquer conta** (e-mail válido + senha de 6+ caracteres) em `/login` ou `/cadastro`. O backend devolve um token assinado (12 h) que o frontend guarda só na aba aberta (`sessionStorage`); toda a API exige esse token (`Authorization: Bearer …`). A senha não é armazenada — o login serve para identificar quem fez cada ação. O usuário técnico `APP_ADMIN_*` continua aceito via HTTP Basic para scripts.
+- **Níveis de acesso:** cada conta tem um papel, guardado na tabela `app_user` (migration V10):
+  | Papel | Pode |
+  |---|---|
+  | Gerente | Tudo, inclusive a tela **Equipe** (mudar papel, desativar/reativar contas) |
+  | Administrador | Cadastrar, editar, excluir, aprovar justificativas e mudar a formatação dos modelos |
+  | Funcionário | Consultar, registrar ponto, enviar justificativas e documentos, dar baixa no estoque |
+
+  A **primeira conta** a entrar vira Gerente; as seguintes entram como Funcionário. E-mails em `APP_MANAGER_EMAILS` (separados por vírgula) sempre entram como Gerente. O sistema não deixa ficar sem nenhum Gerente ativo, e mudanças de papel valem na hora.
+- **Alertas de prazo** (`/alertas`): lembretes, contratos a vencer, envios ao MP, estoque abaixo do mínimo e justificativas pendentes. Cada conta escolhe o que ver e com quantos dias de antecedência; a escolha fica salva na conta (`/api/v1/auth/me/preferences`). Envio por e-mail ainda depende de configurar um serviço de e-mail no servidor.
+- **Formatação dos modelos** (`/documentos/modelos`, Gerente/Administrador): texto, cabeçalho, fonte, alinhamento e tamanho de cada modelo, com campos `{campo}` preenchidos pelo formulário. Cada documento gerado guarda uma cópia do texto: mudar o modelo depois não altera documentos já emitidos.
 - `APP_TOKEN_SECRET` assina os tokens (o `render.yaml` gera um valor; sem ele, o backend deriva da `APP_ADMIN_PASSWORD`).
 - O frontend lê a URL da API de `frontend/.env.production` (`NEXT_PUBLIC_API_URL`).
 - No plano gratuito o Render hiberna após 15 min sem acesso: a primeira requisição depois disso leva ~1 min.
@@ -94,15 +104,18 @@ Base URL: `http://localhost:8080/api/v1/financial`
 | `DELETE` | `/transactions/{id}` | Exclui movimentação financeira por ID |
 | `GET` | `/actuator/health` | Health check da aplicação (público) |
 | `POST` | `/api/v1/auth/login` | Login aberto (público): `{email, password, name?}` → token |
-| `GET` / `PUT` | `/api/v1/auth/me` | Usuário logado / troca do nome de exibição |
+| `GET` / `PUT` | `/api/v1/auth/me` | Usuário logado (com papel) / troca do nome de exibição |
+| `PUT` | `/api/v1/auth/me/preferences` | Preferências da conta (ex.: alertas) |
+| `GET` | `/api/v1/users` | Equipe (só Gerente) |
+| `PUT` | `/api/v1/users/{email}/role`, `/api/v1/users/{email}/active` | Muda papel / desativa ou reativa conta (só Gerente) |
 | `GET` `POST` / `PUT` | `/api/v1/properties`, `/api/v1/properties/{id}` | Imóveis (situação Ocupado/Disponível/Manutenção) |
 | `GET` | `/api/v1/properties/metrics` | Contagem real por situação |
 | `GET` `POST` / `PUT` `PATCH` `DELETE` | `/api/v1/reminders`, `/api/v1/reminders/{id}` | Lembretes com data limite (edição via `PUT`) |
-| `GET` / `PUT` `DELETE` | `/api/v1/records/{coleção}`, `/api/v1/records/{coleção}/{id}` | Clientes, estoque, presença, documentos e envios ao MP |
+| `GET` / `PUT` `DELETE` | `/api/v1/records/{coleção}`, `/api/v1/records/{coleção}/{id}` | Clientes, estoque, presença, documentos, envios ao MP e formatação dos modelos (`template-settings`) |
 
 Regras de valores em entradas/saídas: nome com 3+ letras, CPF/CNPJ com dígitos válidos, imóvel cadastrado (`GERAL` para despesas sem imóvel), data entre 01/01/2000 e hoje, valor entre R$ 0,01 e R$ 1.000.000,00.
 
-Todas as rotas `/api/**` (exceto o login) exigem `Authorization: Bearer <token>`.
+Todas as rotas `/api/**` (exceto o login) exigem `Authorization: Bearer <token>`. Leitura vale para qualquer papel; gravação e exclusão exigem Gerente ou Administrador, exceto o que o Funcionário pode fazer (ponto, justificativa nova, documento novo, retirada/descarte e baixa de estoque). Sem permissão a API responde `403`.
 
 ---
 
