@@ -72,11 +72,20 @@ class ApiFlowsIntegrationTest {
 
     @Test
     void trocaDeNomeEmiteNovoToken() throws Exception {
-        mockMvc.perform(json(put("/api/v1/auth/me"), "{\"name\":\"Hannah Souza\"}"))
+        String body = mockMvc.perform(post("/api/v1/auth/login")
+                        .header("X-Forwarded-For", "10.2.0.1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"renomear@exemplo.com\",\"password\":\"qualquer\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String own = objectMapper.readTree(body).get("token").asString();
+        mockMvc.perform(put("/api/v1/auth/me").header("Authorization", "Bearer " + own)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Hannah Souza\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.name").value("Hannah Souza"))
-                .andExpect(jsonPath("$.user.username").value("hannah.teste@exemplo.com"));
-        mockMvc.perform(json(put("/api/v1/auth/me"), "{\"name\":\"x\"}"))
+                .andExpect(jsonPath("$.user.username").value("renomear@exemplo.com"));
+        mockMvc.perform(put("/api/v1/auth/me").header("Authorization", "Bearer " + own)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"x\"}"))
                 .andExpect(status().isBadRequest());
     }
 
