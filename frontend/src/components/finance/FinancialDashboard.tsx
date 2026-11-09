@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight, CircleDollarSign, History, House, Paperclip, Plus, Trash2 } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CircleDollarSign, Download, History, House, Paperclip, Plus, Trash2 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { documentHref } from "@/lib/documents";
+import { exportFinancialMovementsToCsv } from "@/lib/export-csv";
 import {
   errorMessage,
   financialApi,
@@ -193,6 +194,15 @@ export function FinancialDashboard() {
             <RemindersPanel notify={show} />
 
             <div className={styles.quickActions}>
+              <button
+                type="button"
+                className={styles.quickAction}
+                onClick={() => exportFinancialMovementsToCsv(movements, `${monthLabel}_${year}`)}
+                title="Exportar lançamentos do mês em planilha CSV"
+              >
+                <Download aria-hidden="true" />
+                <span>Exportar CSV</span>
+              </button>
               <Link href="/imoveis" className={styles.quickAction} title="Imóveis agora têm aba própria no menu lateral">
                 <House aria-hidden="true" />
                 <span>Imóveis</span>

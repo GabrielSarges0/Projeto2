@@ -26,6 +26,15 @@ Tudo abaixo está implementado e validado (backend 31/31 testes verdes, frontend
 - Ministério Público e Funcionários ajustados ao protótipo:
   - MP: cards de contadores, filtros dos 10 tipos, períodos relativos, menu ⋮ com ações de arquivo e lixeira.
   - Funcionários: filtros de Função e Status no quadro, reloginho lateral com histórico de pontos e justificativas com aprovação/rejeição.
+- **Pacote Completo de Melhorias Funcionais da Plataforma (PR aberto):**
+  - **Exportação de Dados em Planilha (CSV/Excel):** Adicionada funcionalidade de exportação com UTF-8 BOM em todos os módulos principais:
+    - *Financeiro:* Exportação de extrato mensal e histórico completo com formatação em R$ e vínculo de imóveis.
+    - *Clientes:* Exportação de cadastro com contratos, e-mails, telefones e valores de aluguel.
+    - *Estoque:* Exportação de inventário completo com status de reposição (Normal, Baixo, Esgotado).
+    - *Funcionários:* Exportação do espelho de ponto de cada colaborador no modal de histórico ("reloginho").
+  - **Diagramação e Impressão Oficial de Documentos em PDF:** Estilos de impressão `@page { size: A4 }` e cabeçalho timbrado estatutário da Fundação Manuel Cruz em `layoutToHtml`, permitindo impressão e download direto de PDFs com formatação impecável.
+  - **Upload com Drag & Drop e Pré-visualização:** Nova zona de soltura de arquivos em `NewDocumentModal` com feedback visual imediato, tamanho formatado e botão de troca rápida.
+  - **Orientações de Acesso e Ajuda Institucional no Login:** Atualizado o diálogo de ajuda no `AuthForm` para explicar com clareza a autenticação simplificada e o modelo de perfis da FMC.
 - **Identidade Visual e Logo Oficial do Figma (Telas 00 e 01 — PR aberto):**
   - Resgatadas diretamente da API do Figma (`IvNhLg0cTwcZo15D5YF9vI`) via integração Composio com a conta proprietária.
   - Imagem oficial da Logo adicionada no topo da barra de navegação lateral (`Sidebar.tsx`), eliminando o espaçamento artificial vazio de `254px`.

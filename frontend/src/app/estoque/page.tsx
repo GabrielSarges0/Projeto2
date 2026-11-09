@@ -2,12 +2,13 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { History, Minus, Pencil, Plus } from "lucide-react";
+import { Download, History, Minus, Pencil, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { FOLDER_IDS, createDocument, documentHref } from "@/lib/documents";
+import { exportInventoryToCsv } from "@/lib/export-csv";
 import { ACCEPTED_FILE_TYPES, fileTooLargeMessage } from "@/lib/files";
 import { errorMessage, financialApi, notifyFinanceChanged } from "@/lib/financial-api";
 import { MONTHS, formatCurrency, formatDate, formatMoneyInput, newId, normalizeText, parseMoney, toCents, todayIso } from "@/lib/format";
@@ -68,6 +69,14 @@ export default function EstoquePage() {
             <p>Materiais de limpeza e insumos de obra: compras, retiradas, descartes e histórico.</p>
           </div>
           <div className="ui-row-actions">
+            <button
+              type="button"
+              className="ui-btn ui-btn-secondary"
+              onClick={() => exportInventoryToCsv(itemsStore.items)}
+              title="Exportar inventário completo em planilha CSV"
+            >
+              <Download size={18} aria-hidden="true" /> Exportar Inventário
+            </button>
             <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setHistoryOpen(true)}>
               <History size={18} aria-hidden="true" /> Histórico
             </button>

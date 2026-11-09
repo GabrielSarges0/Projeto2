@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Paperclip } from "lucide-react";
+import { Download, Paperclip } from "lucide-react";
 import { documentHref } from "@/lib/documents";
+import { exportFinancialMovementsToCsv } from "@/lib/export-csv";
 import { errorMessage, financialApi, type FinancialMovement } from "@/lib/financial-api";
 import { MONTHS, formatCurrency, formatDate, normalizeText } from "@/lib/format";
 import type { DocumentItem } from "@/lib/schemas";
@@ -67,9 +68,19 @@ export function HistoryView({ receipts, onBack }: { receipts: Map<number, Docume
           <h1 id="history-title">Histórico financeiro</h1>
           <p>Todas as entradas e saídas registradas, com filtros.</p>
         </div>
-        <button type="button" className="ui-btn ui-btn-secondary" onClick={onBack}>
-          ← Voltar ao mês
-        </button>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="ui-btn ui-btn-secondary"
+            onClick={() => exportFinancialMovementsToCsv(filtered, "historico_filtrado")}
+            title="Exportar registros filtrados em planilha CSV"
+          >
+            <Download size={16} aria-hidden="true" /> Exportar CSV
+          </button>
+          <button type="button" className="ui-btn ui-btn-secondary" onClick={onBack}>
+            ← Voltar ao mês
+          </button>
+        </div>
       </div>
 
       <div className="ui-toolbar">
