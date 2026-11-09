@@ -62,8 +62,9 @@ export function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showTable, setShowTable] = useState(false);
-  const { items: clients } = useRecords("clients", clientSchema);
-  const { items: submissions } = useRecords("mp-submissions", mpSubmissionSchema);
+  const { items: clients, loading: clientsLoading } = useRecords("clients", clientSchema);
+  const { items: submissions, loading: submissionsLoading } = useRecords("mp-submissions", mpSubmissionSchema);
+  const skeleton = <div className="ui-skeleton" style={{ height: 48 }} aria-busy="true" />;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -239,7 +240,9 @@ export function DashboardHome() {
               <h2 id="contratos-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>
                 Contratos a vencer (30 dias)
               </h2>
-              {expiring.length === 0 ? (
+              {clientsLoading ? (
+                skeleton
+              ) : expiring.length === 0 ? (
                 <p className="ui-field-hint">Nenhum contrato vencendo nos próximos 30 dias.</p>
               ) : (
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, fontSize: 14 }}>
@@ -261,7 +264,9 @@ export function DashboardHome() {
               <h2 id="lembretes-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>
                 Lembretes pendentes
               </h2>
-              {pendingReminders.length === 0 ? (
+              {loading ? (
+                skeleton
+              ) : pendingReminders.length === 0 ? (
                 <p className="ui-field-hint">Nenhum lembrete pendente.</p>
               ) : (
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, fontSize: 14 }}>
@@ -285,7 +290,9 @@ export function DashboardHome() {
               <h2 id="mp-pend-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>
                 Ministério Público
               </h2>
-              {pendingMp.length === 0 ? (
+              {submissionsLoading ? (
+                skeleton
+              ) : pendingMp.length === 0 ? (
                 <p className="ui-field-hint">Nenhum envio pendente.</p>
               ) : (
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, fontSize: 14 }}>

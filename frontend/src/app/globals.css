@@ -1151,3 +1151,35 @@ textarea.ui-input {
   outline: 3px solid var(--ui-focus);
   outline-offset: 2px;
 }
+
+.sidebar-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #fbbf24;
+  color: #1f2937;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sidebar-badge-critical {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+@media (max-width: 860px) {
+  .sidebar-badge {
+    position: absolute;
+    top: 2px;
+    right: 10px;
+    min-width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0 4px;
+    font-size: 10px;
+  }
+}
