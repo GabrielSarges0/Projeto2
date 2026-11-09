@@ -12,6 +12,7 @@ import { FOLDER_IDS, createDocument, documentHref } from "@/lib/documents";
 import { ACCEPTED_FILE_TYPES } from "@/lib/files";
 import { errorMessage, notifyFinanceChanged, propertiesApi, type PropertyItem } from "@/lib/financial-api";
 import { daysUntil, formatCurrency, formatDate, formatMoneyInput, isValidIsoDate, newId, normalizeText, parseMoney, toCents, todayIso } from "@/lib/format";
+import { useCan } from "@/lib/permissions";
 import { useRecords } from "@/lib/records";
 import { clientSchema, documentSchema, type Client } from "@/lib/schemas";
 import {
@@ -64,6 +65,8 @@ export default function ClientesPage() {
   const [deleting, setDeleting] = useState<Client | null>(null);
   const [uploading, setUploading] = useState(false);
   const { show, node: toast } = useToast();
+  const canEdit = useCan("edit");
+  const canDelete = useCan("delete");
   const selected = clients.find((client) => client.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -143,9 +146,11 @@ export default function ClientesPage() {
             <h1 id="clientes-title">Clientes</h1>
             <p>Inquilinos, fiadores, imóveis alugados e contratos.</p>
           </div>
-          <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget("new")}>
-            <Plus size={18} aria-hidden="true" /> Novo inquilino / contrato
-          </button>
+          {canEdit ? (
+            <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget("new")}>
+              <Plus size={18} aria-hidden="true" /> Novo inquilino / contrato
+            </button>
+          ) : null}
         </div>
 
         <div className="ui-stat-grid">
@@ -182,9 +187,11 @@ export default function ClientesPage() {
                     <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setSelectedId(client.id)}>
                       Ver detalhes
                     </button>
-                    <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => setRenewing(client)}>
-                      Renovar
-                    </button>
+                    {canEdit ? (
+                      <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => setRenewing(client)}>
+                        Renovar
+                      </button>
+                    ) : null}
                   </span>
                 </li>
               ))}
@@ -271,9 +278,11 @@ export default function ClientesPage() {
                           <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setSelectedId(client.id)}>
                             Ver detalhes
                           </button>
-                          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setFormTarget(client)} aria-label={`Editar ${client.name}`}>
-                            <Pencil size={14} aria-hidden="true" /> Editar
-                          </button>
+                          {canEdit ? (
+                            <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setFormTarget(client)} aria-label={`Editar ${client.name}`}>
+                              <Pencil size={14} aria-hidden="true" /> Editar
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -293,23 +302,27 @@ export default function ClientesPage() {
           busy={uploading}
           footer={
             <>
-              <button type="button" className="ui-btn ui-btn-secondary" style={{ color: "var(--ui-danger)" }} onClick={() => setDeleting(selected)}>
-                <Trash2 size={16} aria-hidden="true" /> Excluir cliente
-              </button>
+              {canDelete ? (
+                <button type="button" className="ui-btn ui-btn-secondary" style={{ color: "var(--ui-danger)" }} onClick={() => setDeleting(selected)}>
+                  <Trash2 size={16} aria-hidden="true" /> Excluir cliente
+                </button>
+              ) : null}
               <Link href={`/documentos?novo=recibo&cliente=${selected.id}`} className="ui-btn ui-btn-secondary">
                 <FilePlus2 size={16} aria-hidden="true" /> Emitir recibo
               </Link>
               <Link href={`/documentos?novo=contrato&cliente=${selected.id}`} className="ui-btn ui-btn-secondary">
                 <FilePlus2 size={16} aria-hidden="true" /> Gerar contrato
               </Link>
-              {displayStatus(selected) !== "Ativo" && displayStatus(selected) !== "Renovado" ? (
+              {canEdit && displayStatus(selected) !== "Ativo" && displayStatus(selected) !== "Renovado" ? (
                 <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setRenewing(selected)}>
                   <RefreshCw size={16} aria-hidden="true" /> Renovar 12 meses
                 </button>
               ) : null}
-              <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget(selected)}>
-                <Pencil size={16} aria-hidden="true" /> Editar dados
-              </button>
+              {canEdit ? (
+                <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget(selected)}>
+                  <Pencil size={16} aria-hidden="true" /> Editar dados
+                </button>
+              ) : null}
             </>
           }
         >
@@ -339,10 +352,12 @@ export default function ClientesPage() {
                 })}
               </ul>
             )}
-            <label className="ui-btn ui-btn-secondary ui-btn-sm" style={{ marginTop: 10, cursor: "pointer" }}>
-              <Paperclip size={14} aria-hidden="true" /> {uploading ? "Enviando..." : "Anexar documento"}
-              <input type="file" className="sr-only" accept={ACCEPTED_FILE_TYPES} disabled={uploading} onChange={(e) => void attachDocument(selected, e.target.files?.[0])} />
-            </label>
+            {canEdit ? (
+              <label className="ui-btn ui-btn-secondary ui-btn-sm" style={{ marginTop: 10, cursor: "pointer" }}>
+                <Paperclip size={14} aria-hidden="true" /> {uploading ? "Enviando..." : "Anexar documento"}
+                <input type="file" className="sr-only" accept={ACCEPTED_FILE_TYPES} disabled={uploading} onChange={(e) => void attachDocument(selected, e.target.files?.[0])} />
+              </label>
+            ) : null}
           </section>
         </Modal>
       ) : null}

@@ -15,6 +15,7 @@ import { errorMessage } from "@/lib/financial-api";
 import { MONTHS, addDaysIso, daysUntil, formatDate, formatDateTime, newId, normalizeText, todayIso } from "@/lib/format";
 import { useRecords } from "@/lib/records";
 import { MP_CATEGORIES, MP_STATUSES, documentSchema, folderSchema, mpSubmissionSchema, type DocumentItem, type Folder, type MpSubmission } from "@/lib/schemas";
+import { useCan } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 import { findTemplate, renderTemplateHtml } from "@/lib/templates";
 import { deadlineError, lengthError } from "@/lib/validation";
@@ -39,6 +40,7 @@ export default function MinisterioPublicoPage() {
   const { items: folders } = useRecords("folders", folderSchema);
   const session = useSession();
   const { show, node: toast } = useToast();
+  const canEdit = useCan("edit");
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
@@ -116,9 +118,11 @@ export default function MinisterioPublicoPage() {
             <Link href="/documentos?novo=prestacao" className="ui-btn ui-btn-secondary">
               <FilePlus2 size={16} aria-hidden="true" /> Gerar documento
             </Link>
-            <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget("new")}>
-              <Plus size={16} aria-hidden="true" /> Novo envio
-            </button>
+            {canEdit ? (
+              <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget("new")}>
+                <Plus size={16} aria-hidden="true" /> Novo envio
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -278,6 +282,7 @@ export default function MinisterioPublicoPage() {
                     <td>
                       <RowMenu
                         item={item}
+                        canEdit={canEdit}
                         onOpen={() => setDetailId(item.id)}
                         onEdit={() => setFormTarget(item)}
                         onDownload={() => void downloadAll(item)}
@@ -312,6 +317,7 @@ export default function MinisterioPublicoPage() {
       {detail && !formTarget && !deleting ? (
         <SubmissionDetail
           item={detail}
+          canEdit={canEdit}
           docsById={docsById}
           onClose={() => setDetailId(null)}
           onEdit={() => setFormTarget(detail)}
@@ -352,6 +358,7 @@ export default function MinisterioPublicoPage() {
 
 function RowMenu({
   item,
+  canEdit,
   onOpen,
   onEdit,
   onDownload,
@@ -359,6 +366,7 @@ function RowMenu({
   onDelete,
 }: {
   item: MpSubmission;
+  canEdit: boolean;
   onOpen: () => void;
   onEdit: () => void;
   onDownload: () => void;
@@ -370,7 +378,7 @@ function RowMenu({
     setOpen(false);
     fn();
   };
-  const editable = item.status === "Pendente" || item.status === "Em revisão";
+  const editable = canEdit && (item.status === "Pendente" || item.status === "Em revisão");
   return (
     <div style={{ position: "relative" }}>
       <button type="button" className="ui-icon-btn" aria-label={`Ações de ${item.title}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
@@ -564,6 +572,7 @@ function SubmissionForm({
 
 function SubmissionDetail({
   item,
+  canEdit,
   docsById,
   onClose,
   onEdit,
@@ -571,6 +580,7 @@ function SubmissionDetail({
   onConfirm,
 }: {
   item: MpSubmission;
+  canEdit: boolean;
   docsById: Map<string, DocumentItem>;
   onClose: () => void;
   onEdit: () => void;
@@ -582,7 +592,7 @@ function SubmissionDetail({
   const [confirmReceipt, setConfirmReceipt] = useState(false);
   const docs = item.documentIds.map((id) => ({ id, doc: docsById.get(id) }));
   const missing = docs.filter((entry) => !entry.doc).length;
-  const editable = item.status === "Pendente" || item.status === "Em revisão";
+  const editable = canEdit && (item.status === "Pendente" || item.status === "Em revisão");
   const allChecked = docs.length > 0 && docs.every((entry) => entry.doc && checked.has(entry.id));
   const days = daysUntil(item.dueDate);
 
@@ -637,7 +647,7 @@ function SubmissionDetail({
                 <Send size={16} aria-hidden="true" /> Enviar ao MP
               </button>
             </>
-          ) : item.status === "Enviado" ? (
+          ) : canEdit && item.status === "Enviado" ? (
             <button type="button" className="ui-btn ui-btn-primary" onClick={() => setConfirmReceipt(true)}>
               <CheckCircle2 size={16} aria-hidden="true" /> Registrar confirmação do MP
             </button>

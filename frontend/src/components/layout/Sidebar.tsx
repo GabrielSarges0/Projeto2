@@ -11,9 +11,11 @@ import {
   Home,
   LogOut,
   Scale,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { logout } from "@/lib/logout";
+import { useCan } from "@/lib/permissions";
 
 // "Formulários" agora fica dentro de Documentos → Novo Documento (Relatório Sprint 3).
 const items = [
@@ -25,11 +27,13 @@ const items = [
   { href: "/ministerio-publico", label: "Ministério Público", icon: Scale },
   { href: "/funcionarios", label: "Funcionários", icon: Contact },
   { href: "/estoque", label: "Estoque", icon: Boxes },
-] as const;
+];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const canManageTeam = useCan("team");
+  const visibleItems = canManageTeam ? [...items, { href: "/equipe", label: "Equipe", icon: ShieldCheck }] : items;
 
   function handleLogout() {
     logout();
@@ -39,7 +43,7 @@ export function Sidebar() {
   return (
     <aside className="sidebar" aria-label="Navegação principal">
       <nav className="sidebar-nav">
-        {items.map(({ href, label, icon: Icon }) => {
+        {visibleItems.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
 
           return (

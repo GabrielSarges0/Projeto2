@@ -22,6 +22,7 @@ import {
   type InventoryItem,
   type InventoryMovement,
 } from "@/lib/schemas";
+import { useCan } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 import { amountError, lengthError, pastDateError } from "@/lib/validation";
 
@@ -32,6 +33,7 @@ export default function EstoquePage() {
   const movementsStore = useRecords("inventory-movements", inventoryMovementSchema);
   const { items: employees } = useRecords("employees", employeeSchema);
   const { show, node: toast } = useToast();
+  const canEdit = useCan("edit");
   const now = new Date();
   const [year, setYear] = useState(String(now.getFullYear()));
   const [month, setMonth] = useState(String(now.getMonth() + 1));
@@ -69,9 +71,11 @@ export default function EstoquePage() {
             <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setHistoryOpen(true)}>
               <History size={18} aria-hidden="true" /> Histórico
             </button>
-            <button type="button" className="ui-btn ui-btn-primary" onClick={() => setPurchaseFor("new")}>
-              <Plus size={18} aria-hidden="true" /> Registrar compra / entrada
-            </button>
+            {canEdit ? (
+              <button type="button" className="ui-btn ui-btn-primary" onClick={() => setPurchaseFor("new")}>
+                <Plus size={18} aria-hidden="true" /> Registrar compra / entrada
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -169,15 +173,19 @@ export default function EstoquePage() {
                     <td>{formatDate(item.lastPurchaseDate)}</td>
                     <td>
                       <div className="ui-row-actions">
-                        <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setPurchaseFor(item)} aria-label={`Registrar compra de ${item.name}`}>
-                          <Plus size={14} aria-hidden="true" /> Entrada
-                        </button>
+                        {canEdit ? (
+                          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setPurchaseFor(item)} aria-label={`Registrar compra de ${item.name}`}>
+                            <Plus size={14} aria-hidden="true" /> Entrada
+                          </button>
+                        ) : null}
                         <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setWithdrawFor(item)} disabled={item.quantity === 0} aria-label={`Retirar ${item.name}`}>
                           <Minus size={14} aria-hidden="true" /> Retirar
                         </button>
-                        <button type="button" className="ui-icon-btn" onClick={() => setEditing(item)} aria-label={`Editar ${item.name}`} title="Editar item">
-                          <Pencil size={15} aria-hidden="true" />
-                        </button>
+                        {canEdit ? (
+                          <button type="button" className="ui-icon-btn" onClick={() => setEditing(item)} aria-label={`Editar ${item.name}`} title="Editar item">
+                            <Pencil size={15} aria-hidden="true" />
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

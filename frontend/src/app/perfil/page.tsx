@@ -6,7 +6,7 @@ import { LogOut, UserRound } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Field } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
-import { authApi, errorMessage } from "@/lib/financial-api";
+import { USER_ROLE_LABEL, authApi, errorMessage } from "@/lib/financial-api";
 import { formatDateTime } from "@/lib/format";
 import { logout } from "@/lib/logout";
 import { saveSession, useSession } from "@/lib/session";
@@ -30,7 +30,7 @@ export default function PerfilPage() {
     setError("");
     try {
       const response = await authApi.updateName(trimmed);
-      saveSession({ token: response.token, expiresAt: response.expiresAt, user: response.user });
+      saveSession({ token: response.token, expiresAt: response.expiresAt, user: { username: response.user.username, name: response.user.name, role: response.user.role } });
       show("Nome de exibição atualizado.");
     } catch (err) {
       setError(errorMessage(err));
@@ -62,6 +62,11 @@ export default function PerfilPage() {
             <div>
               <strong style={{ display: "block", fontSize: 16 }}>{session?.user.name}</strong>
               <span className="ui-field-hint">{session?.user.username}</span>
+              {session ? (
+                <span className="ui-badge ui-badge-info" style={{ marginTop: 4 }}>
+                  {USER_ROLE_LABEL[session.user.role]}
+                </span>
+              ) : null}
             </div>
           </div>
           <Field label="Nome de exibição" error={error} required hint="Aparece no cabeçalho e como responsável nos registros que você criar.">

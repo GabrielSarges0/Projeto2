@@ -17,6 +17,7 @@ import {
   type PropertyItem,
 } from "@/lib/financial-api";
 import { MONTHS, formatCurrency, formatDate } from "@/lib/format";
+import { useCan } from "@/lib/permissions";
 import { useRecords } from "@/lib/records";
 import { documentSchema, type DocumentItem } from "@/lib/schemas";
 import { HistoryView } from "./HistoryView";
@@ -44,6 +45,7 @@ export function FinancialDashboard() {
   const [toDelete, setToDelete] = useState<FinancialMovement | null>(null);
   const { show, node: toast } = useToast();
   const { items: documents } = useRecords("documents", documentSchema);
+  const canEdit = useCan("edit");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -166,8 +168,8 @@ export function FinancialDashboard() {
                   loading={loading}
                   emptyText="Nenhuma entrada neste mês."
                   actionLabel="Registrar entrada"
-                  onAction={() => setModal("entry")}
-                  onDelete={setToDelete}
+                  onAction={canEdit ? () => setModal("entry") : undefined}
+                  onDelete={canEdit ? setToDelete : undefined}
                   receipts={receiptsByMovement}
                 />
                 <TransactionPanel
@@ -177,8 +179,8 @@ export function FinancialDashboard() {
                   loading={loading}
                   emptyText="Nenhuma saída neste mês."
                   actionLabel="Registrar saída"
-                  onAction={() => setModal("expense")}
-                  onDelete={setToDelete}
+                  onAction={canEdit ? () => setModal("expense") : undefined}
+                  onDelete={canEdit ? setToDelete : undefined}
                   receipts={receiptsByMovement}
                 />
               </section>
@@ -266,8 +268,8 @@ function TransactionPanel({
   loading: boolean;
   emptyText: string;
   actionLabel: string;
-  onAction: () => void;
-  onDelete: (movement: FinancialMovement) => void;
+  onAction?: () => void;
+  onDelete?: (movement: FinancialMovement) => void;
   receipts: Map<number, DocumentItem>;
 }) {
   return (
@@ -277,9 +279,11 @@ function TransactionPanel({
           <h2>{title}</h2>
           <span className={styles.panelMonth}>({month})</span>
         </div>
-        <button type="button" className={styles.iconButton} aria-label={actionLabel} title={actionLabel} onClick={onAction}>
-          <Plus aria-hidden="true" />
-        </button>
+        {onAction ? (
+          <button type="button" className={styles.iconButton} aria-label={actionLabel} title={actionLabel} onClick={onAction}>
+            <Plus aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
 
       {loading ? (
@@ -311,15 +315,17 @@ function TransactionPanel({
                 </div>
                 <div className={styles.movementRight}>
                   <b className={item.type === "INCOME" ? styles.positiveAmount : styles.negativeAmount}>{formatCurrency(item.amount)}</b>
-                  <button
-                    type="button"
-                    className={styles.deleteRowButton}
-                    title="Excluir movimentação"
-                    aria-label={`Excluir movimentação de ${item.tenantName}`}
-                    onClick={() => onDelete(item)}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
+                  {onDelete ? (
+                    <button
+                      type="button"
+                      className={styles.deleteRowButton}
+                      title="Excluir movimentação"
+                      aria-label={`Excluir movimentação de ${item.tenantName}`}
+                      onClick={() => onDelete(item)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );

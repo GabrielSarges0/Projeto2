@@ -14,7 +14,8 @@ type Props = {
   document: DocumentItem;
   folderPath: string;
   onClose: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
+  canAttach: boolean;
   notify: (message: string, tone?: "success" | "error") => void;
 };
 
@@ -30,7 +31,7 @@ export function folderPathOf(folderId: string | null, folders: Folder[]): string
   return names.length ? names.join(" › ") : "Sem pasta";
 }
 
-export function DocumentViewer({ document, folderPath, onClose, onDelete, notify }: Props) {
+export function DocumentViewer({ document, folderPath, onClose, onDelete, canAttach, notify }: Props) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(document.fileParts > 0);
   const [loadError, setLoadError] = useState("");
@@ -112,9 +113,11 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, notify
       busy={uploading}
       footer={
         <>
-          <button type="button" className="ui-btn ui-btn-secondary" onClick={onDelete} style={{ color: "var(--ui-danger)" }}>
-            <Trash2 size={16} aria-hidden="true" /> Excluir
-          </button>
+          {onDelete ? (
+            <button type="button" className="ui-btn ui-btn-secondary" onClick={onDelete} style={{ color: "var(--ui-danger)" }}>
+              <Trash2 size={16} aria-hidden="true" /> Excluir
+            </button>
+          ) : null}
           <button type="button" className="ui-btn ui-btn-secondary" onClick={() => void copyLink()}>
             <Link2 size={16} aria-hidden="true" /> Copiar link
           </button>
@@ -173,6 +176,7 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, notify
         ) : (
           <div className="ui-empty" style={{ display: "grid", gap: 12, justifyItems: "center" }}>
             <p style={{ margin: 0 }}>Este registro ainda não tem arquivo digitalizado.</p>
+            {canAttach ? (
             <label className="ui-btn ui-btn-primary" style={{ cursor: "pointer" }}>
               <Paperclip size={16} aria-hidden="true" /> {uploading ? "Enviando..." : "Anexar arquivo"}
               <input
@@ -183,6 +187,9 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, notify
                 onChange={(e) => void attachFile(e.target.files?.[0])}
               />
             </label>
+            ) : (
+              <p className="ui-field-hint" style={{ margin: 0 }}>Peça a um Administrador para anexar o arquivo.</p>
+            )}
           </div>
         )}
       </div>

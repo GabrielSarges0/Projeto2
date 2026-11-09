@@ -22,6 +22,7 @@ import {
   type Employee,
   type Justification,
 } from "@/lib/schemas";
+import { useCan } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 import { EARLIEST_DATE, formatCpf, isValidCpf, personNameError } from "@/lib/validation";
 
@@ -67,7 +68,10 @@ const STATUS_TONE: Record<Justification["status"], string> = {
 };
 
 export default function FuncionariosPage() {
-  const [tab, setTab] = useState<"gestor" | "ponto">("gestor");
+  const canReview = useCan("review");
+  const [chosenTab, setTab] = useState<"gestor" | "ponto" | null>(null);
+  // Funcionário vê só o registro de presença; quem analisa abre na visão do gestor.
+  const tab = canReview ? (chosenTab ?? "gestor") : "ponto";
   return (
     <AppShell>
       <section className="ui-page" aria-labelledby="func-title">
@@ -77,9 +81,11 @@ export default function FuncionariosPage() {
             <p>Presença, jornada e justificativas de falta.</p>
           </div>
           <div role="tablist" aria-label="Visões" className="ui-row-actions">
-            <button type="button" role="tab" aria-selected={tab === "gestor"} className={`ui-btn ${tab === "gestor" ? "ui-btn-primary" : "ui-btn-secondary"}`} onClick={() => setTab("gestor")}>
-              Visão do gestor
-            </button>
+            {canReview ? (
+              <button type="button" role="tab" aria-selected={tab === "gestor"} className={`ui-btn ${tab === "gestor" ? "ui-btn-primary" : "ui-btn-secondary"}`} onClick={() => setTab("gestor")}>
+                Visão do gestor
+              </button>
+            ) : null}
             <button type="button" role="tab" aria-selected={tab === "ponto"} className={`ui-btn ${tab === "ponto" ? "ui-btn-primary" : "ui-btn-secondary"}`} onClick={() => setTab("ponto")}>
               <Clock size={16} aria-hidden="true" /> Registro de presença
             </button>

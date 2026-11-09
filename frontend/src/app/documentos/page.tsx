@@ -13,6 +13,7 @@ import { FOLDER_IDS, createDocument } from "@/lib/documents";
 import { deleteFileContent, downloadDataUrl, downloadText, loadFileContent } from "@/lib/files";
 import { errorMessage } from "@/lib/financial-api";
 import { formatDate, newId, normalizeText, todayIso } from "@/lib/format";
+import { useCan } from "@/lib/permissions";
 import { useRecords } from "@/lib/records";
 import { DOCUMENT_CATEGORIES, clientSchema, documentSchema, folderSchema, type DocumentCategory, type DocumentItem, type Folder } from "@/lib/schemas";
 import { findTemplate, renderTemplateHtml } from "@/lib/templates";
@@ -29,6 +30,8 @@ export default function DocumentosPage() {
   const documents = docsStore.items;
   const folders = foldersStore.items;
   const { show, node: toast } = useToast();
+  const canEdit = useCan("edit");
+  const canDelete = useCan("delete");
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -176,9 +179,11 @@ export default function DocumentosPage() {
             <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setScanOpen(true)}>
               <ScanLine size={18} aria-hidden="true" /> Digitalizar
             </button>
-            <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setFolderForm("new")}>
-              <FolderPlus size={18} aria-hidden="true" /> Nova pasta
-            </button>
+            {canEdit ? (
+              <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setFolderForm("new")}>
+                <FolderPlus size={18} aria-hidden="true" /> Nova pasta
+              </button>
+            ) : null}
             <button type="button" className="ui-btn ui-btn-primary" onClick={() => setNewDoc({ templateId: null })}>
               <Plus size={18} aria-hidden="true" /> Novo documento
             </button>
@@ -249,7 +254,7 @@ export default function DocumentosPage() {
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }}>
                   {visibleFolders.map((folder) => {
                     const count = countInside(folder.id);
-                    const locked = PROTECTED_FOLDERS.has(folder.id);
+                    const locked = PROTECTED_FOLDERS.has(folder.id) || !canEdit;
                     return (
                       <li key={folder.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f1f5f9", padding: "6px 0" }}>
                         <button
@@ -300,8 +305,8 @@ export default function DocumentosPage() {
                     path={searching ? folderPathOf(doc.folderId, folders) : null}
                     onOpen={() => setViewing(doc)}
                     onDownload={() => void download(doc)}
-                    onEdit={() => setEditingDoc(doc)}
-                    onDelete={() => setDeletingDoc(doc)}
+                    onEdit={canEdit ? () => setEditingDoc(doc) : undefined}
+                    onDelete={canDelete ? () => setDeletingDoc(doc) : undefined}
                   />
                 ))}
               </ul>
@@ -316,7 +321,8 @@ export default function DocumentosPage() {
           document={documents.find((doc) => doc.id === viewing.id) ?? viewing}
           folderPath={folderPathOf(viewing.folderId, folders)}
           onClose={() => setViewing(null)}
-          onDelete={() => setDeletingDoc(viewing)}
+          onDelete={canDelete ? () => setDeletingDoc(viewing) : undefined}
+          canAttach={canEdit}
           notify={show}
         />
       ) : null}
@@ -435,8 +441,8 @@ function DocumentRow({
   path: string | null;
   onOpen: () => void;
   onDownload: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
@@ -468,12 +474,16 @@ function DocumentRow({
             <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onOpen(); }}>
               <Eye size={15} aria-hidden="true" /> Abrir
             </button>
-            <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onEdit(); }}>
-              <Pencil size={15} aria-hidden="true" /> Renomear / mover
-            </button>
-            <button type="button" role="menuitem" className="ui-menu-danger" onClick={() => { setMenuOpen(false); onDelete(); }}>
-              <Trash2 size={15} aria-hidden="true" /> Excluir
-            </button>
+            {onEdit ? (
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onEdit(); }}>
+                <Pencil size={15} aria-hidden="true" /> Renomear / mover
+              </button>
+            ) : null}
+            {onDelete ? (
+              <button type="button" role="menuitem" className="ui-menu-danger" onClick={() => { setMenuOpen(false); onDelete(); }}>
+                <Trash2 size={15} aria-hidden="true" /> Excluir
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
