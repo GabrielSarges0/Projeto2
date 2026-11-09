@@ -71,6 +71,16 @@ class ApiFlowsIntegrationTest {
     }
 
     @Test
+    void trocaDeNomeEmiteNovoToken() throws Exception {
+        mockMvc.perform(json(put("/api/v1/auth/me"), "{\"name\":\"Hannah Souza\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.name").value("Hannah Souza"))
+                .andExpect(jsonPath("$.user.username").value("hannah.teste@exemplo.com"));
+        mockMvc.perform(json(put("/api/v1/auth/me"), "{\"name\":\"x\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void loginRecusaEmailInvalidoESenhaCurta() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"sem-arroba\",\"password\":\"123\"}"))

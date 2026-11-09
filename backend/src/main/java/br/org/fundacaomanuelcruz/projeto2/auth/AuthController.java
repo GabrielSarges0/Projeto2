@@ -6,6 +6,7 @@ import java.util.Locale;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -52,6 +53,14 @@ public class AuthController {
         return new CurrentUserResponse(authentication.getName(), authentication.getName());
     }
 
+    /** Troca o nome de exibição: emite um token novo com o mesmo e-mail (a sessão não guarda estado). */
+    @PutMapping("/me")
+    public LoginResponse updateMe(@Valid @RequestBody UpdateProfileRequest request, Authentication authentication) {
+        String email = authentication.getPrincipal() instanceof SessionUser user ? user.email() : authentication.getName();
+        SessionTokenService.IssuedToken issued = tokenService.issue(email, request.name().trim());
+        return new LoginResponse(issued.token(), issued.expiresAt(), new CurrentUserResponse(email, request.name().trim()));
+    }
+
     // O Render fica atrás de proxy: o IP real é o primeiro do X-Forwarded-For.
     private static String clientKey(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
@@ -84,6 +93,12 @@ public class AuthController {
             String password,
 
             @Size(max = 120, message = "O nome deve ter no máximo 120 caracteres.")
+            String name) {
+    }
+
+    public record UpdateProfileRequest(
+            @NotBlank(message = "Informe o nome.")
+            @Size(min = 3, max = 120, message = "O nome deve ter entre 3 e 120 caracteres.")
             String name) {
     }
 
