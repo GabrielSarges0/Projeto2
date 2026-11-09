@@ -15,12 +15,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+
+import br.org.fundacaomanuelcruz.projeto2.auth.BearerTokenAuthenticationFilter;
+import br.org.fundacaomanuelcruz.projeto2.auth.SessionTokenService;
 
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, SessionTokenService tokenService) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
@@ -28,7 +32,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .anyRequest().authenticated())
+                .addFilterBefore(new BearerTokenAuthenticationFilter(tokenService), BasicAuthenticationFilter.class)
+                // Basic continua para o usuário técnico (APP_ADMIN_*); o painel usa o token do /login.
                 // 401 sem "WWW-Authenticate" para o navegador não abrir a janela nativa de login: quem pede a senha é a tela /login do frontend.
                 .httpBasic(basic -> basic.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .build();

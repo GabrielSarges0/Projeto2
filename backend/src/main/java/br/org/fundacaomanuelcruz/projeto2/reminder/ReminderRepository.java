@@ -7,7 +7,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ReminderRepository extends JpaRepository<Reminder, Long> {
-
-    List<Reminder> findAllByOrderByDoneAscIdDesc();
+    List<Reminder> findAllByOrderByDoneAscDueDateAscIdAsc();
 }
-

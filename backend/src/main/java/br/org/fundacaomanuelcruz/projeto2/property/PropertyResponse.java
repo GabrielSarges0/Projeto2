@@ -1,6 +1,7 @@
 package br.org.fundacaomanuelcruz.projeto2.property;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 public record PropertyResponse(
         Long id,
@@ -8,7 +9,8 @@ public record PropertyResponse(
         String address,
         String currentTenant,
         BigDecimal monthlyRent,
-        String status
-) {
+        PropertyStatus status,
+        String notes,
+        OffsetDateTime updatedAt,
+        String updatedBy) {
 }
-

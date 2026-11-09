@@ -5,10 +5,13 @@ import java.time.OffsetDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
@@ -31,21 +34,37 @@ public class Property {
     @Column(name = "monthly_rent", nullable = false, precision = 19, scale = 2)
     private BigDecimal monthlyRent;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private String status;
+    private PropertyStatus status;
+
+    @Column(length = 1000)
+    private String notes;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
+    @Column(name = "updated_by", length = 160)
+    private String updatedBy;
+
     protected Property() {
     }
 
-    public Property(String registrationCode, String address, String currentTenant, BigDecimal monthlyRent, String status) {
+    public Property(String registrationCode, PropertyDetails details, String author) {
         this.registrationCode = registrationCode;
-        this.address = address;
-        this.currentTenant = currentTenant;
-        this.monthlyRent = monthlyRent;
-        this.status = status;
+        apply(details, author);
+    }
+
+    public void apply(PropertyDetails details, String author) {
+        this.address = details.address();
+        this.currentTenant = details.currentTenant();
+        this.monthlyRent = details.monthlyRent();
+        this.status = details.status();
+        this.notes = details.notes();
+        this.updatedBy = author;
     }
 
     @PrePersist
@@ -53,6 +72,11 @@ public class Property {
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
         }
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = OffsetDateTime.now();
     }
 
     public Long getId() {
@@ -75,12 +99,27 @@ public class Property {
         return monthlyRent;
     }
 
-    public String getStatus() {
+    public PropertyStatus getStatus() {
         return status;
     }
 
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
+    public String getNotes() {
+        return notes;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public String getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public record PropertyDetails(
+            String address,
+            String currentTenant,
+            BigDecimal monthlyRent,
+            PropertyStatus status,
+            String notes) {
     }
 }
-
