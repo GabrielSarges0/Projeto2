@@ -38,8 +38,7 @@ Tudo abaixo está implementado e validado (backend 31/31 testes verdes, frontend
   - Card "Minha Assinatura Digital Padrão" no `/perfil` para assinatura em 1 clique em qualquer novo documento.
   - Modal de verificação de autenticidade (`SignatureVerifyModal`) acionado pelo visualizador de documentos ou via escaneamento do QR code (`/documentos?doc={id}&verify=1`).
 
-Produção: o banco ainda não tinha nenhuma conta em 09/11. **A primeira conta que entrar vira Gerente**;
-`APP_MANAGER_EMAILS` (Render) garante Gerente para `gabrielsarges1926@gmail.com` e `hbsv@cesar.school`.
+Produção: as contas `gabrielsarges1926@gmail.com` e `hbsv@cesar.school` têm garantia nativa de papel **Gerente** no código (`UserService.java`) e fallback em propriedades, além da primeira conta a entrar virar Gerente.
 
 ## O que falta (por prioridade)
 
