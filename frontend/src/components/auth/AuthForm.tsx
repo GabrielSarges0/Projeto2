@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { Landmark } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { authApi, errorMessage } from "@/lib/financial-api";
 import { saveSession } from "@/lib/session";
@@ -53,11 +53,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <main className={styles.page}>
       <section className={styles.brand} aria-label="Fundação Manuel Cruz">
-        <span className={styles.brandMark} aria-hidden="true">
-          <Landmark size={34} />
-        </span>
-        <h1>MANUEL CRUZ</h1>
-        <p>Gestão de imóveis, finanças, documentos e prestação de contas da Fundação Manuel Cruz.</p>
+        <div className={styles.brandLogoWrap}>
+          <Image
+            src="/fmc-logo.png"
+            alt="Fundação Manuel Cruz — Gestão de Imóveis"
+            width={320}
+            height={347}
+            priority
+            className={styles.brandLogo}
+          />
+        </div>
+        <p className={styles.brandTagline}>
+          Gestão de imóveis, finanças, documentos e prestação de contas da Fundação Manuel Cruz.
+        </p>
       </section>
 
       <section className={styles.formSide}>
