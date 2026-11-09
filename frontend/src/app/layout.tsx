@@ -6,6 +6,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Fundação Manuel Cruz | Painel de Gestão",
   description: "Sistema de gestão da Fundação Manuel Cruz",
+  icons: {
+    icon: "/fmc-icon.png",
+    apple: "/fmc-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

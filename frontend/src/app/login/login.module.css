@@ -9,35 +9,37 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 16px;
+  align-items: center;
+  gap: 20px;
   padding: 48px;
   background: var(--fmc-blue);
   color: #ffffff;
+  text-align: center;
 }
 
-.brandMark {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  background: var(--fmc-gold);
-  color: var(--fmc-blue);
+.brandLogoWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
 }
 
-.brand h1 {
-  margin: 0;
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+.brandLogo {
+  width: 100%;
+  height: auto;
+  max-width: 320px;
+  max-height: 360px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.28));
 }
 
-.brand p {
-  max-width: 420px;
+.brandTagline {
+  max-width: 380px;
   margin: 0;
   color: #dbe4f0;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 15px;
+  line-height: 22px;
 }
 
 .formSide {
@@ -93,16 +95,22 @@
   }
 
   .brand {
-    padding: 28px 16px;
+    padding: 32px 16px 24px;
     align-items: center;
     text-align: center;
+    gap: 14px;
   }
 
-  .brand h1 {
-    font-size: 26px;
+  .brandLogoWrap {
+    max-width: 220px;
   }
 
-  .brand p {
+  .brandLogo {
+    max-height: 240px;
+  }
+
+  .brandTagline {
     font-size: 14px;
+    line-height: 20px;
   }
 }

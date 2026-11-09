@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -50,6 +51,26 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar" aria-label="Navegação principal">
+      <div className="sidebar-brand">
+        <Link href="/" className="sidebar-brand-link" title="Fundação Manuel Cruz — Início">
+          <Image
+            src="/fmc-logo-sidebar.png"
+            alt="Fundação Manuel Cruz"
+            width={187}
+            height={57}
+            priority
+            className="sidebar-brand-full"
+          />
+          <Image
+            src="/fmc-icon.png"
+            alt="Fundação Manuel Cruz"
+            width={44}
+            height={44}
+            priority
+            className="sidebar-brand-compact"
+          />
+        </Link>
+      </div>
       <nav className="sidebar-nav">
         {visibleItems.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);

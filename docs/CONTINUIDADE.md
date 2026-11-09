@@ -26,6 +26,12 @@ Tudo abaixo está implementado e validado (backend 31/31 testes verdes, frontend
 - Ministério Público e Funcionários ajustados ao protótipo:
   - MP: cards de contadores, filtros dos 10 tipos, períodos relativos, menu ⋮ com ações de arquivo e lixeira.
   - Funcionários: filtros de Função e Status no quadro, reloginho lateral com histórico de pontos e justificativas com aprovação/rejeição.
+- **Identidade Visual e Logo Oficial do Figma (Telas 00 e 01 — PR aberto):**
+  - Resgatadas diretamente da API do Figma (`IvNhLg0cTwcZo15D5YF9vI`) via integração Composio com a conta proprietária.
+  - Imagem oficial da Logo adicionada no topo da barra de navegação lateral (`Sidebar.tsx`), eliminando o espaçamento artificial vazio de `254px`.
+  - Responsividade na barra lateral: versão horizontal completa (`187x57`) no desktop e brasão dourado isolado (`44x44`) no menu colapsado/mobile.
+  - Logo oficial da Fundação Manuel Cruz na tela de Login/Cadastro (`AuthForm.tsx`), substituindo o ícone genérico do Lucide (`<Landmark>`).
+  - Metadados e favicons atualizados no `RootLayout` apontando para a identidade visual da FMC.
 - **Assinatura Digital Completa Multi-Modalidade (Backlog 2, tela 2.3 — PR #10 aberto):**
   - 5 modalidades de assinatura:
     1. Carimbo Digital Criptográfico (SHA-256 e selo formal verde).
