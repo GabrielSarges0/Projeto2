@@ -12,13 +12,14 @@ public enum RecordCollection {
     ATTENDANCE("attendance", 20_000, 50_000),
     EMPLOYEES("employees", 20_000, 2_000),
     JUSTIFICATIONS("justifications", 20_000, 20_000),
-    DOCUMENTS("documents", 50_000, 5_000),
+    // Inclui a cópia do texto gerado pelo modelo (até 20 parágrafos), além dos dados do formulário.
+    DOCUMENTS("documents", 120_000, 5_000),
     // Conteúdo dos arquivos (data URL) em partes; lido sob demanda, nunca na listagem inicial.
     DOCUMENT_FILES("document-files", AppRecord.MAX_PAYLOAD_CHARS, 100_000),
     FOLDERS("folders", 5_000, 1_000),
     MP_SUBMISSIONS("mp-submissions", 20_000, 10_000),
     // Texto editável dos modelos de documento (Backlog 3), um registro por modelo.
-    TEMPLATE_SETTINGS("template-settings", 30_000, 100);
+    TEMPLATE_SETTINGS("template-settings", 60_000, 100);
 
     private final String slug;
     private final int maxPayloadChars;

@@ -8,7 +8,8 @@ import { ACCEPTED_FILE_TYPES, downloadDataUrl, downloadText, fileTooLargeMessage
 import { errorMessage } from "@/lib/financial-api";
 import { formatDate, formatFileSize } from "@/lib/format";
 import type { DocumentItem, Folder } from "@/lib/schemas";
-import { findTemplate, renderTemplateHtml } from "@/lib/templates";
+import { documentLayout, findTemplate, layoutToHtml, useTemplateSettings } from "@/lib/templates";
+import { DocumentPreview } from "./DocumentPreview";
 
 type Props = {
   document: DocumentItem;
@@ -36,7 +37,10 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
   const [loading, setLoading] = useState(document.fileParts > 0);
   const [loadError, setLoadError] = useState("");
   const [uploading, setUploading] = useState(false);
-  const template = findTemplate(document.template);
+  const { layoutFor, loading: settingsLoading } = useTemplateSettings();
+  // Documento antigo (sem cópia do texto) usa a formatação atual do modelo: espera ela carregar.
+  const waitingForLayout = !document.rendered && settingsLoading && Boolean(findTemplate(document.template) && document.templateData);
+  const layout = waitingForLayout ? null : documentLayout(document, layoutFor);
 
   useEffect(() => {
     if (document.fileParts === 0) return;
@@ -53,19 +57,19 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
   function download() {
     if (content) {
       downloadDataUrl(content, document.name);
-    } else if (template && document.templateData) {
-      downloadText(renderTemplateHtml(template, document.templateData, document.protocol), document.name.replace(/\.pdf$/i, ".html"));
+    } else if (layout) {
+      downloadText(layoutToHtml(layout, document.protocol), document.name.replace(/\.pdf$/i, ".html"));
     }
   }
 
   function print() {
-    if (!template || !document.templateData) return;
+    if (!layout) return;
     const win = window.open("", "_blank");
     if (!win) {
       notify("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.", "error");
       return;
     }
-    win.document.write(renderTemplateHtml(template, document.templateData, document.protocol));
+    win.document.write(layoutToHtml(layout, document.protocol));
     win.document.close();
     win.focus();
     win.print();
@@ -102,8 +106,7 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
     }
   }
 
-  const canDownload = Boolean(content) || Boolean(template && document.templateData);
-  const rendered = template && document.templateData ? template.render(document.templateData) : null;
+  const canDownload = Boolean(content) || Boolean(layout);
 
   return (
     <Modal
@@ -121,7 +124,7 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
           <button type="button" className="ui-btn ui-btn-secondary" onClick={() => void copyLink()}>
             <Link2 size={16} aria-hidden="true" /> Copiar link
           </button>
-          {rendered ? (
+          {layout && !content ? (
             <button type="button" className="ui-btn ui-btn-secondary" onClick={print}>
               <Printer size={16} aria-hidden="true" /> Imprimir / PDF
             </button>
@@ -150,7 +153,7 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
       {document.description ? <p style={{ margin: 0, fontSize: 14 }}>{document.description}</p> : null}
 
       <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 16, minHeight: 200, background: "#fff" }}>
-        {loading ? (
+        {loading || (waitingForLayout && !content) ? (
           <div className="ui-skeleton" style={{ height: 180 }} aria-busy="true" />
         ) : loadError ? (
           <p className="ui-alert ui-alert-error" role="alert">
@@ -163,16 +166,8 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
           <iframe src={content} title={`PDF ${document.name}`} style={{ width: "100%", height: 520, border: 0 }} />
         ) : content ? (
           <p style={{ margin: 0, fontSize: 14 }}>Pré-visualização indisponível para este tipo de arquivo. Use “Baixar”.</p>
-        ) : rendered ? (
-          <article style={{ fontFamily: "Georgia, serif", lineHeight: 1.6, maxWidth: 640, margin: "0 auto" }}>
-            <p style={{ textAlign: "center", fontWeight: 700, margin: 0, fontSize: 13 }}>FUNDAÇÃO MANUEL CRUZ</p>
-            <h3 style={{ textAlign: "center", color: "var(--ui-primary)", fontSize: 16 }}>{rendered.title}</h3>
-            {rendered.paragraphs.map((paragraph) => (
-              <p key={paragraph} style={{ textAlign: "justify", fontSize: 14 }}>
-                {paragraph}
-              </p>
-            ))}
-          </article>
+        ) : layout ? (
+          <DocumentPreview layout={layout} />
         ) : (
           <div className="ui-empty" style={{ display: "grid", gap: 12, justifyItems: "center" }}>
             <p style={{ margin: 0 }}>Este registro ainda não tem arquivo digitalizado.</p>

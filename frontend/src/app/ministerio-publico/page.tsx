@@ -17,7 +17,7 @@ import { useRecords } from "@/lib/records";
 import { MP_CATEGORIES, MP_STATUSES, documentSchema, folderSchema, mpSubmissionSchema, type DocumentItem, type Folder, type MpSubmission } from "@/lib/schemas";
 import { useCan } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
-import { findTemplate, renderTemplateHtml } from "@/lib/templates";
+import { documentLayout, layoutToHtml, useTemplateSettings } from "@/lib/templates";
 import { deadlineError, lengthError } from "@/lib/validation";
 
 const STATUS_TONE: Record<MpSubmission["status"], string> = {
@@ -37,6 +37,7 @@ function submissionYear(item: MpSubmission) {
 export default function MinisterioPublicoPage() {
   const store = useRecords("mp-submissions", mpSubmissionSchema);
   const { items: documents } = useRecords("documents", documentSchema);
+  const { layoutFor } = useTemplateSettings();
   const { items: folders } = useRecords("folders", folderSchema);
   const session = useSession();
   const { show, node: toast } = useToast();
@@ -87,8 +88,8 @@ export default function MinisterioPublicoPage() {
       for (const doc of docs) {
         if (doc.fileParts > 0) downloadDataUrl(await loadFileContent(doc.id, doc.fileParts), doc.name);
         else {
-          const template = findTemplate(doc.template);
-          if (template && doc.templateData) downloadText(renderTemplateHtml(template, doc.templateData, doc.protocol), doc.name.replace(/\.pdf$/i, ".html"));
+          const layout = documentLayout(doc, layoutFor);
+          if (layout) downloadText(layoutToHtml(layout, doc.protocol), doc.name.replace(/\.pdf$/i, ".html"));
         }
       }
       show(`${docs.length} documento(s) baixado(s).`);

@@ -76,6 +76,24 @@ class UserRolesIntegrationTest {
     }
 
     @Test
+    void formatacaoDosModelosSoGestorAltera() throws Exception {
+        String manager = login(MANAGER);
+        String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");
+        String layout = """
+                {"header":"FUNDAÇÃO MANUEL CRUZ","title":"RECIBO","paragraphs":["Recebemos de {inquilino}."],
+                 "font":"sans","align":"left","size":"large"}
+                """;
+
+        mockMvc.perform(json(staff, put("/api/v1/records/template-settings/recibo"), layout)).andExpect(status().isForbidden());
+        mockMvc.perform(json(manager, put("/api/v1/records/template-settings/recibo"), layout)).andExpect(status().isOk());
+        mockMvc.perform(as(staff, get("/api/v1/records/template-settings")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].data.font").value("sans"));
+        mockMvc.perform(as(staff, delete("/api/v1/records/template-settings/recibo"))).andExpect(status().isForbidden());
+        mockMvc.perform(as(manager, delete("/api/v1/records/template-settings/recibo"))).andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
     void funcionarioEnviaJustificativaMasNaoAprova() throws Exception {
         login(MANAGER);
         String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");

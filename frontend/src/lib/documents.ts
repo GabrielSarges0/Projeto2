@@ -1,7 +1,7 @@
 import { newId, todayIso } from "./format";
 import { fileTooLargeMessage, readFileAsDataUrl, storeFileContent } from "./files";
 import { applyLocalUpsert, putRecord } from "./records";
-import type { DocumentCategory, DocumentItem } from "./schemas";
+import type { DocumentCategory, DocumentItem, TemplateLayout } from "./schemas";
 import { getSession } from "./session";
 
 /** Pastas fixas criadas pela migration V9; outras pastas são criadas pelos usuários. */
@@ -29,6 +29,7 @@ type CreateDocumentInput = {
   file?: File;
   template?: string;
   templateData?: Record<string, string>;
+  rendered?: TemplateLayout | null;
   clientId?: string | null;
   movementId?: number | null;
   signed?: boolean;
@@ -64,6 +65,7 @@ export async function createDocument(input: CreateDocumentInput): Promise<Docume
     description: input.description?.trim() ?? "",
     template: input.template ?? null,
     templateData: input.templateData ?? null,
+    rendered: input.rendered ?? null,
     clientId: input.clientId ?? null,
     movementId: input.movementId ?? null,
     createdBy: getSession()?.user.name ?? "",

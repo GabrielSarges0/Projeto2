@@ -152,6 +152,30 @@ export const folderSchema = z.object({
 });
 export type Folder = z.infer<typeof folderSchema>;
 
+// ---------- Formatação dos modelos (Backlog 3) ----------
+export const TEMPLATE_FONTS = ["serif", "sans"] as const;
+export const TEMPLATE_ALIGNS = ["justify", "left"] as const;
+export const TEMPLATE_SIZES = ["normal", "large"] as const;
+
+/** Texto e aparência de um documento. Nos modelos o texto tem {campos}; no documento gerado já vem preenchido. */
+export const templateLayoutSchema = z.object({
+  header: z.string(),
+  title: z.string(),
+  paragraphs: z.array(z.string()),
+  font: z.enum(TEMPLATE_FONTS).catch("serif"),
+  align: z.enum(TEMPLATE_ALIGNS).catch("justify"),
+  size: z.enum(TEMPLATE_SIZES).catch("normal"),
+});
+export type TemplateLayout = z.infer<typeof templateLayoutSchema>;
+
+/** Formatação escolhida para um modelo; o id é o id do modelo. Sem registro, vale o texto padrão. */
+export const templateSettingSchema = templateLayoutSchema.extend({
+  id: z.string(),
+  updatedBy: z.string().default(""),
+  updatedAt: z.string().default(""),
+});
+export type TemplateSetting = z.infer<typeof templateSettingSchema>;
+
 export const documentSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -166,6 +190,8 @@ export const documentSchema = z.object({
   description: z.string().default(""),
   template: z.string().nullable().default(null),
   templateData: z.record(z.string(), z.string()).nullable().default(null),
+  /** Texto como foi gerado: mudar a formatação do modelo depois não altera documentos já emitidos. */
+  rendered: templateLayoutSchema.nullable().catch(null),
   clientId: z.string().nullable().default(null),
   /** Movimentação financeira (entrada/saída) que este comprovante sustenta. */
   movementId: z.number().nullable().default(null),
