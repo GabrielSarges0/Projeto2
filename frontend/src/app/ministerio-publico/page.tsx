@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { CheckCircle2, Clock, Download, Eye, FilePlus2, FileText, MoreVertical, Plus, Search, Send, Trash2 } from "lucide-react";
+import { Archive, CheckCircle2, Clock, Copy, Download, Eye, FilePlus2, FileText, FolderInput, MoreVertical, Pencil, Plus, RotateCcw, Search, Send, Trash2, XCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { folderPathOf } from "@/components/documents/DocumentViewer";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { FOLDER_IDS, documentHref } from "@/lib/documents";
 import { downloadDataUrl, downloadText, loadFileContent } from "@/lib/files";
 import { errorMessage } from "@/lib/financial-api";
-import { MONTHS, addDaysIso, daysUntil, formatDate, formatDateTime, newId, normalizeText, todayIso } from "@/lib/format";
+import { addDaysIso, daysUntil, formatDate, formatDateTime, newId, normalizeText, todayIso } from "@/lib/format";
 import { useRecords } from "@/lib/records";
 import { MP_CATEGORIES, MP_STATUSES, documentSchema, folderSchema, mpSubmissionSchema, type DocumentItem, type Folder, type MpSubmission } from "@/lib/schemas";
 import { useCan } from "@/lib/permissions";
@@ -23,12 +23,50 @@ import { deadlineError, lengthError } from "@/lib/validation";
 const STATUS_TONE: Record<MpSubmission["status"], string> = {
   Pendente: "ui-badge-warning",
   "Em revisão": "ui-badge-info",
+  Aprovado: "ui-badge-success",
+  Rejeitado: "ui-badge-danger",
   Enviado: "ui-badge-success",
-  Confirmado: "ui-badge-success",
+  Arquivado: "ui-badge-neutral",
 };
 
-type Filters = { category: string; month: string; status: string; search: string };
-const EMPTY_FILTERS: Filters = { category: "ALL", month: "ALL", status: "ALL", search: "" };
+/** Status em que o envio ainda pode ser editado e enviado. */
+const OPEN_STATUSES: MpSubmission["status"][] = ["Pendente", "Em revisão", "Aprovado", "Rejeitado"];
+
+const PERIODS = [
+  { value: "this-month", label: "Este mês" },
+  { value: "last-month", label: "Mês passado" },
+  { value: "last-3", label: "Últimos 3 meses" },
+  { value: "last-6", label: "Últimos 6 meses" },
+  { value: "this-year", label: "Este ano" },
+  { value: "last-year", label: "Ano passado" },
+] as const;
+
+/** Período em que o documento foi lançado no sistema (createdAt). */
+function inPeriod(iso: string, period: string): boolean {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  const now = new Date();
+  const monthsAgo = (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+  switch (period) {
+    case "this-month":
+      return monthsAgo === 0;
+    case "last-month":
+      return monthsAgo === 1;
+    case "last-3":
+      return monthsAgo >= 0 && monthsAgo < 3;
+    case "last-6":
+      return monthsAgo >= 0 && monthsAgo < 6;
+    case "this-year":
+      return date.getFullYear() === now.getFullYear();
+    case "last-year":
+      return date.getFullYear() === now.getFullYear() - 1;
+    default:
+      return true;
+  }
+}
+
+type Filters = { category: string; period: string; status: string; search: string };
+const EMPTY_FILTERS: Filters = { category: "ALL", period: "ALL", status: "ALL", search: "" };
 
 function submissionYear(item: MpSubmission) {
   return (item.sentAt ?? item.dueDate).slice(0, 4);
@@ -48,34 +86,62 @@ export default function MinisterioPublicoPage() {
   const [formTarget, setFormTarget] = useState<MpSubmission | "new" | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<MpSubmission | null>(null);
+  const [quickEdit, setQuickEdit] = useState<{ item: MpSubmission; kind: "rename" | "move" } | null>(null);
+  const [showTrash, setShowTrash] = useState(false);
   const detail = store.items.find((item) => item.id === detailId) ?? null;
   const userName = session?.user.name ?? "Usuário";
 
   const years = Array.from(new Set([String(new Date().getFullYear()), ...store.items.map(submissionYear)])).sort().reverse();
-  const ofYear = store.items.filter((item) => submissionYear(item) === year);
+  const live = store.items.filter((item) => !item.trashedAt);
+  const trashed = store.items.filter((item) => item.trashedAt);
+  const ofYear = live.filter((item) => submissionYear(item) === year);
   const docsById = useMemo(() => new Map(documents.map((doc) => [doc.id, doc])), [documents]);
 
   const rows = useMemo(() => {
     const term = normalizeText(filters.search);
-    return ofYear
+    // Com um período escolhido, a busca vale para todos os anos (ex.: "Ano passado").
+    const base = showTrash ? trashed : filters.period === "ALL" ? ofYear : live;
+    return base
       .filter((item) => {
         if (filters.category !== "ALL" && item.category !== filters.category) return false;
         if (filters.status !== "ALL" && item.status !== filters.status) return false;
-        if (filters.month !== "ALL" && Number((item.sentAt ?? item.dueDate).slice(5, 7)) !== Number(filters.month)) return false;
+        if (filters.period !== "ALL" && !inPeriod(item.createdAt, filters.period)) return false;
         if (!term) return true;
         const docNames = item.documentIds.map((id) => docsById.get(id)?.name ?? "").join(" ");
         return normalizeText(`${item.title} ${item.referencePeriod} ${item.responsible} ${item.protocol ?? ""} ${docNames}`).includes(term);
       })
       .sort((a, b) => (b.sentAt ?? b.dueDate).localeCompare(a.sentAt ?? a.dueDate));
-  }, [ofYear, filters, docsById]);
+  }, [ofYear, live, trashed, showTrash, filters, docsById]);
 
-  const upcoming = store.items
+  const upcoming = live
     .filter((item) => item.status === "Pendente" || item.status === "Em revisão")
     .filter((item) => daysUntil(item.dueDate) <= 7)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
   async function update(item: MpSubmission, patch: Partial<MpSubmission>, action: string) {
     await store.save({ ...item, ...patch, history: [...item.history, { at: new Date().toISOString(), by: userName, action }] });
+  }
+
+  async function copySubmission(item: MpSubmission) {
+    const now = new Date().toISOString();
+    const copy: MpSubmission = {
+      ...item,
+      id: newId("mp"),
+      title: `Cópia de ${item.title}`.slice(0, 160),
+      status: "Pendente",
+      sentAt: null,
+      confirmedAt: null,
+      protocol: null,
+      trashedAt: null,
+      history: [{ at: now, by: userName, action: `Cópia criada a partir de "${item.title}"` }],
+      createdAt: now,
+    };
+    try {
+      await store.save(copy);
+      show("Cópia criada.");
+    } catch (err) {
+      show(errorMessage(err), "error");
+    }
   }
 
   async function downloadAll(item: MpSubmission) {
@@ -99,9 +165,9 @@ export default function MinisterioPublicoPage() {
   }
 
   const cards = [
-    { label: "Envios cadastrados", value: ofYear.length, icon: FileText, bg: "#dbeafe", color: "#1d4ed8" },
+    { label: "Documentos cadastrados", value: ofYear.length, icon: FileText, bg: "#dbeafe", color: "#1d4ed8" },
     { label: "Pendentes de revisão", value: ofYear.filter((item) => item.status === "Pendente" || item.status === "Em revisão").length, icon: Clock, bg: "#fef3c7", color: "#a16207" },
-    { label: "Confirmados pelo MP", value: ofYear.filter((item) => item.status === "Confirmado").length, icon: Send, bg: "#dcfce7", color: "#15803d" },
+    { label: "Confirmados ao MP", value: ofYear.filter((item) => item.status === "Aprovado" || item.status === "Enviado").length, icon: Send, bg: "#dcfce7", color: "#15803d" },
   ];
 
   return (
@@ -188,11 +254,11 @@ export default function MinisterioPublicoPage() {
           </div>
           <div className="ui-field">
             <label htmlFor="mp-periodo">Período</label>
-            <select id="mp-periodo" className="ui-input" value={draft.month} onChange={(e) => setDraft({ ...draft, month: e.target.value })}>
+            <select id="mp-periodo" className="ui-input" value={draft.period} onChange={(e) => setDraft({ ...draft, period: e.target.value })}>
               <option value="ALL">Todos os períodos</option>
-              {MONTHS.map((label, index) => (
-                <option key={label} value={index + 1}>
-                  {label}
+              {PERIODS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -213,6 +279,9 @@ export default function MinisterioPublicoPage() {
           <div className="ui-row-actions">
             <button type="submit" className="ui-btn ui-btn-primary">
               <Search size={16} aria-hidden="true" /> Filtrar
+            </button>
+            <button type="button" className={`ui-btn ${showTrash ? "ui-btn-primary" : "ui-btn-secondary"}`} aria-pressed={showTrash} onClick={() => setShowTrash((value) => !value)}>
+              <Trash2 size={16} aria-hidden="true" /> Lixeira ({trashed.length})
             </button>
             <button
               type="button"
@@ -287,7 +356,15 @@ export default function MinisterioPublicoPage() {
                         onOpen={() => setDetailId(item.id)}
                         onEdit={() => setFormTarget(item)}
                         onDownload={() => void downloadAll(item)}
-                        onMarkReview={() => void update(item, { status: item.status === "Em revisão" ? "Pendente" : "Em revisão" }, item.status === "Em revisão" ? "Voltou para pendente" : "Marcado para revisão").catch((err) => show(errorMessage(err), "error"))}
+                        onStatus={(status, action) => void update(item, { status }, action).catch((err) => show(errorMessage(err), "error"))}
+                        onRename={() => setQuickEdit({ item, kind: "rename" })}
+                        onMove={() => setQuickEdit({ item, kind: "move" })}
+                        onCopy={() => void copySubmission(item)}
+                        onTrash={() =>
+                          void update(item, { trashedAt: item.trashedAt ? null : new Date().toISOString() }, item.trashedAt ? "Restaurado da lixeira" : "Movido para a lixeira")
+                            .then(() => show(item.trashedAt ? "Envio restaurado." : "Envio movido para a lixeira."))
+                            .catch((err) => show(errorMessage(err), "error"))
+                        }
                         onDelete={() => setDeleting(item)}
                       />
                     </td>
@@ -327,17 +404,30 @@ export default function MinisterioPublicoPage() {
             show("Envio registrado. Aguarde a confirmação do MP.");
           }}
           onConfirm={async () => {
-            await update(detail, { status: "Confirmado" }, "Recebimento confirmado pelo Ministério Público");
+            await update(detail, { confirmedAt: new Date().toISOString() }, "Recebimento confirmado pelo Ministério Público");
             show("Recebimento confirmado.");
+          }}
+        />
+      ) : null}
+
+      {quickEdit ? (
+        <QuickEditDialog
+          item={quickEdit.item}
+          kind={quickEdit.kind}
+          onClose={() => setQuickEdit(null)}
+          onSave={async (patch, action) => {
+            await update(quickEdit.item, patch, action);
+            setQuickEdit(null);
+            show(quickEdit.kind === "rename" ? "Envio renomeado." : "Envio movido.");
           }}
         />
       ) : null}
 
       {deleting ? (
         <ConfirmDialog
-          title="Excluir envio"
+          title="Excluir definitivamente"
           danger
-          confirmLabel="Excluir"
+          confirmLabel="Excluir definitivamente"
           message={
             <>
               Excluir o envio <strong>{deleting.title}</strong> ({deleting.referencePeriod})? Os documentos anexados continuam em Documentos.
@@ -363,7 +453,11 @@ function RowMenu({
   onOpen,
   onEdit,
   onDownload,
-  onMarkReview,
+  onStatus,
+  onRename,
+  onMove,
+  onCopy,
+  onTrash,
   onDelete,
 }: {
   item: MpSubmission;
@@ -371,7 +465,11 @@ function RowMenu({
   onOpen: () => void;
   onEdit: () => void;
   onDownload: () => void;
-  onMarkReview: () => void;
+  onStatus: (status: MpSubmission["status"], action: string) => void;
+  onRename: () => void;
+  onMove: () => void;
+  onCopy: () => void;
+  onTrash: () => void;
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -379,38 +477,164 @@ function RowMenu({
     setOpen(false);
     fn();
   };
-  const editable = canEdit && (item.status === "Pendente" || item.status === "Em revisão");
+  const inTrash = Boolean(item.trashedAt);
+  const editable = canEdit && !inTrash && OPEN_STATUSES.includes(item.status);
+  const reviewable = canEdit && !inTrash && (item.status === "Pendente" || item.status === "Em revisão");
   return (
     <div style={{ position: "relative" }}>
       <button type="button" className="ui-icon-btn" aria-label={`Ações de ${item.title}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <MoreVertical size={18} aria-hidden="true" />
       </button>
       {open ? (
-        <div className="ui-menu" role="menu" onMouseLeave={() => setOpen(false)}>
-          <button type="button" role="menuitem" onClick={run(onOpen)}>
-            <Eye size={15} aria-hidden="true" /> Ver / conferir
-          </button>
-          {editable ? (
+        <div className="ui-menu" role="menu" onMouseLeave={() => setOpen(false)} onKeyDown={(event) => event.key === "Escape" && setOpen(false)}>
+          {inTrash ? (
+            canEdit ? (
+              <>
+                <button type="button" role="menuitem" onClick={run(onTrash)}>
+                  <RotateCcw size={15} aria-hidden="true" /> Restaurar
+                </button>
+                <button type="button" role="menuitem" className="ui-menu-danger" onClick={run(onDelete)}>
+                  <Trash2 size={15} aria-hidden="true" /> Excluir definitivamente
+                </button>
+              </>
+            ) : (
+              <span className="ui-field-hint" style={{ padding: "8px 12px" }}>
+                Só Gerente ou Administrador restaura.
+              </span>
+            )
+          ) : (
             <>
-              <button type="button" role="menuitem" onClick={run(onEdit)}>
-                <FileText size={15} aria-hidden="true" /> Editar / mover documentos
+              <button type="button" role="menuitem" onClick={run(onOpen)}>
+                <Eye size={15} aria-hidden="true" /> Ver / conferir
               </button>
-              <button type="button" role="menuitem" onClick={run(onMarkReview)}>
-                <Clock size={15} aria-hidden="true" /> {item.status === "Em revisão" ? "Marcar como pendente" : "Marcar para revisão"}
+              <button type="button" role="menuitem" onClick={run(onDownload)}>
+                <Download size={15} aria-hidden="true" /> Baixar
               </button>
+              {editable ? (
+                <>
+                  <button type="button" role="menuitem" onClick={run(onRename)}>
+                    <Pencil size={15} aria-hidden="true" /> Renomear
+                  </button>
+                  <button type="button" role="menuitem" onClick={run(onEdit)}>
+                    <FileText size={15} aria-hidden="true" /> Editar documentos
+                  </button>
+                </>
+              ) : null}
+              {canEdit ? (
+                <button type="button" role="menuitem" onClick={run(onCopy)}>
+                  <Copy size={15} aria-hidden="true" /> Fazer uma cópia
+                </button>
+              ) : null}
+              {editable ? (
+                <button type="button" role="menuitem" onClick={run(onMove)}>
+                  <FolderInput size={15} aria-hidden="true" /> Mover
+                </button>
+              ) : null}
+              {reviewable ? (
+                <>
+                  {item.status === "Pendente" ? (
+                    <button type="button" role="menuitem" onClick={run(() => onStatus("Em revisão", "Marcado para revisão"))}>
+                      <Clock size={15} aria-hidden="true" /> Marcar para revisão
+                    </button>
+                  ) : null}
+                  <button type="button" role="menuitem" onClick={run(() => onStatus("Aprovado", "Aprovado para envio"))}>
+                    <CheckCircle2 size={15} aria-hidden="true" /> Aprovar
+                  </button>
+                  <button type="button" role="menuitem" onClick={run(() => onStatus("Rejeitado", "Rejeitado na revisão"))}>
+                    <XCircle size={15} aria-hidden="true" /> Rejeitar
+                  </button>
+                </>
+              ) : null}
+              {canEdit && item.status === "Rejeitado" ? (
+                <button type="button" role="menuitem" onClick={run(() => onStatus("Pendente", "Voltou para pendente"))}>
+                  <RotateCcw size={15} aria-hidden="true" /> Voltar para pendente
+                </button>
+              ) : null}
+              {canEdit && item.status === "Enviado" ? (
+                <button type="button" role="menuitem" onClick={run(() => onStatus("Arquivado", "Arquivado"))}>
+                  <Archive size={15} aria-hidden="true" /> Arquivar
+                </button>
+              ) : null}
+              {canEdit ? (
+                <button type="button" role="menuitem" className="ui-menu-danger" onClick={run(onTrash)}>
+                  <Trash2 size={15} aria-hidden="true" /> Mover para a lixeira
+                </button>
+              ) : null}
             </>
-          ) : null}
-          <button type="button" role="menuitem" onClick={run(onDownload)}>
-            <Download size={15} aria-hidden="true" /> Baixar documentos
-          </button>
-          {editable ? (
-            <button type="button" role="menuitem" className="ui-menu-danger" onClick={run(onDelete)}>
-              <Trash2 size={15} aria-hidden="true" /> Excluir
-            </button>
-          ) : null}
+          )}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function QuickEditDialog({
+  item,
+  kind,
+  onClose,
+  onSave,
+}: {
+  item: MpSubmission;
+  kind: "rename" | "move";
+  onClose: () => void;
+  onSave: (patch: Partial<MpSubmission>, action: string) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(item.title);
+  const [category, setCategory] = useState<MpSubmission["category"]>(item.category);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const problem = kind === "rename" ? lengthError(title, "o nome", 3, 160) : null;
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setSaving(true);
+    try {
+      if (kind === "rename") await onSave({ title: title.trim() }, `Renomeado de "${item.title}" para "${title.trim()}"`);
+      else await onSave({ category }, `Movido de "${item.category}" para "${category}"`);
+    } catch (err) {
+      setError(errorMessage(err));
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      title={kind === "rename" ? "Renomear envio" : "Mover para outro tipo"}
+      onClose={onClose}
+      busy={saving}
+      footer={
+        <>
+          <button type="button" className="ui-btn ui-btn-secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button type="submit" form="mp-quick-edit" className="ui-btn ui-btn-primary" disabled={saving} aria-busy={saving}>
+            {saving ? "Salvando..." : kind === "rename" ? "Renomear" : "Mover"}
+          </button>
+        </>
+      }
+    >
+      <form id="mp-quick-edit" onSubmit={handleSubmit} noValidate>
+        {kind === "rename" ? (
+          <Field label="Novo nome" error={error} required>
+            {(props) => <input {...props} className="ui-input" value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} />}
+          </Field>
+        ) : (
+          <Field label="Tipo de documento" error={error}>
+            {(props) => (
+              <select {...props} className="ui-input" value={category} onChange={(e) => setCategory(MP_CATEGORIES.find((value) => value === e.target.value) ?? item.category)}>
+                {MP_CATEGORIES.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            )}
+          </Field>
+        )}
+      </form>
+    </Modal>
   );
 }
 
@@ -430,7 +654,7 @@ function SubmissionForm({
   onSave: (item: MpSubmission, created: boolean) => Promise<void>;
 }) {
   const [title, setTitle] = useState(item?.title ?? "");
-  const [category, setCategory] = useState<MpSubmission["category"]>(item?.category ?? "Prestação de Contas");
+  const [category, setCategory] = useState<MpSubmission["category"]>(item?.category ?? "Prestação de contas");
   const [referencePeriod, setReferencePeriod] = useState(item?.referencePeriod ?? "");
   const [dueDate, setDueDate] = useState(item?.dueDate ?? addDaysIso(todayIso(), 15));
   const [responsible, setResponsible] = useState(item?.responsible ?? userName);
@@ -474,8 +698,10 @@ function SubmissionForm({
           status: item?.status ?? "Pendente",
           documentIds,
           sentAt: item?.sentAt ?? null,
+          confirmedAt: item?.confirmedAt ?? null,
           protocol: item?.protocol ?? null,
           notes: notes.trim(),
+          trashedAt: item?.trashedAt ?? null,
           history: [...(item?.history ?? []), { at: now, by: userName, action: item ? "Envio editado" : "Envio criado" }],
           createdAt: item?.createdAt ?? now,
         },
@@ -588,12 +814,12 @@ function SubmissionDetail({
   onSend: (protocol: string) => Promise<void>;
   onConfirm: () => Promise<void>;
 }) {
-  const [checked, setChecked] = useState<Set<string>>(() => new Set(item.status === "Enviado" || item.status === "Confirmado" ? item.documentIds : []));
+  const [checked, setChecked] = useState<Set<string>>(() => new Set(item.status === "Enviado" ? item.documentIds : []));
   const [pendingProtocol, setPendingProtocol] = useState<string | null>(null);
   const [confirmReceipt, setConfirmReceipt] = useState(false);
   const docs = item.documentIds.map((id) => ({ id, doc: docsById.get(id) }));
   const missing = docs.filter((entry) => !entry.doc).length;
-  const editable = canEdit && (item.status === "Pendente" || item.status === "Em revisão");
+  const editable = canEdit && OPEN_STATUSES.includes(item.status);
   const allChecked = docs.length > 0 && docs.every((entry) => entry.doc && checked.has(entry.id));
   const days = daysUntil(item.dueDate);
 
@@ -648,7 +874,7 @@ function SubmissionDetail({
                 <Send size={16} aria-hidden="true" /> Enviar ao MP
               </button>
             </>
-          ) : canEdit && item.status === "Enviado" ? (
+          ) : canEdit && item.status === "Enviado" && !item.confirmedAt ? (
             <button type="button" className="ui-btn ui-btn-primary" onClick={() => setConfirmReceipt(true)}>
               <CheckCircle2 size={16} aria-hidden="true" /> Registrar confirmação do MP
             </button>
