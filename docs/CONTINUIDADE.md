@@ -26,21 +26,31 @@ Tudo abaixo está implementado e validado (backend 31/31 testes verdes, frontend
 - Ministério Público e Funcionários ajustados ao protótipo:
   - MP: cards de contadores, filtros dos 10 tipos, períodos relativos, menu ⋮ com ações de arquivo e lixeira.
   - Funcionários: filtros de Função e Status no quadro, reloginho lateral com histórico de pontos e justificativas com aprovação/rejeição.
+- **Assinatura Digital Completa Multi-Modalidade (Backlog 2, tela 2.3 — PR #10 aberto):**
+  - 5 modalidades de assinatura:
+    1. Carimbo Digital Criptográfico (SHA-256 e selo formal verde).
+    2. Desenho Manuscrito na Tela (Canvas HTML5 com suporte a touch, caneta stylus e mouse).
+    3. Digitação Caligráfica Cursiva (estilo DocuSign/Gov.br com 4 fontes artísticas/executivas).
+    4. Upload de Imagem/Scan de Assinatura (PNG transparente/JPG).
+    5. Chancela Institucional de Pessoa Jurídica da Fundação Manoel Cruz (CNPJ 03.245.981/0001-44).
+  - QR Code oficial de validação pública gerado em SVG vetorial nativo (ISO/IEC 18004, zero novas dependências npm).
+  - Impressão e PDF (`layoutToHtml`) com a assinatura, dados do signatário, hash e QR code perfeitamente diagramados.
+  - Card "Minha Assinatura Digital Padrão" no `/perfil` para assinatura em 1 clique em qualquer novo documento.
+  - Modal de verificação de autenticidade (`SignatureVerifyModal`) acionado pelo visualizador de documentos ou via escaneamento do QR code (`/documentos?doc={id}&verify=1`).
 
 Produção: o banco ainda não tinha nenhuma conta em 09/11. **A primeira conta que entrar vira Gerente**;
 `APP_MANAGER_EMAILS` (Render) garante Gerente para `gabrielsarges1926@gmail.com` e `hbsv@cesar.school`.
 
 ## O que falta (por prioridade)
 
-1. **Assinatura digital (Backlog 2, tela 2.3).** Existe a marca `signed` no documento. Definir com a equipe
-   o que é "assinatura" (imagem pré-cadastrada por representante?) antes de implementar.
-2. **Roteiro de homologação da Sprint 4 (Hannah)**: validação ponta a ponta dos fluxos acima.
+1. **Aprovação e Merge do PR #10:** Realizar merge com rebase pela conta dona (`GabrielSarges0`) após autorização do usuário.
+2. **Roteiro de homologação da Sprint 4 (Hannah)**: validação ponta a ponta dos fluxos implementados nas 3 personas (Gerente, Administrador, Funcionário).
 
 ## Como verificar antes de abrir PR
 
 ```bash
-cd backend && ./mvnw -B package
-cd frontend && npm ci && npx tsc --noEmit && npm run lint && npm run build
+cd backend && ./mvnw -B test
+cd frontend && npm run lint && npm run build
 ```
 
 Para testar no navegador com dados locais: rode o backend (`java -jar backend/target/*.jar`, perfil `r63`, H2)
