@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, FilePlus2, FileText, PenLine, Settings2, ShieldCheck, Upload } from "lucide-react";
+import { ArrowLeft, FilePlus2, FileText, Paperclip, PenLine, Settings2, ShieldCheck, Upload, X } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { createDocument } from "@/lib/documents";
 import { ACCEPTED_FILE_TYPES, fileTooLargeMessage } from "@/lib/files";
 import { errorMessage, propertiesApi, type PropertyItem } from "@/lib/financial-api";
-import { formatMoneyInput, isValidIsoDate, parseMoney, todayIso } from "@/lib/format";
+import { formatFileSize, formatMoneyInput, isValidIsoDate, parseMoney, todayIso } from "@/lib/format";
 import { DOCUMENT_CATEGORIES, type DocumentCategory, type DocumentItem, type DocumentSignature, type Folder } from "@/lib/schemas";
 import { useCan } from "@/lib/permissions";
 import { DOCUMENT_TEMPLATES, findTemplate, renderTemplate, useTemplateSettings, type DocumentTemplate } from "@/lib/templates";
@@ -405,6 +405,18 @@ function FileForm({
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [dragActive, setDragActive] = useState(false);
+
+  function handleFileDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragActive(false);
+    const dropped = e.dataTransfer.files?.[0];
+    if (dropped) {
+      setFile(dropped);
+      if (!name) setName(dropped.name);
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const found: Record<string, string> = {};
@@ -441,19 +453,71 @@ function FileForm({
     <form onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 12 }}>
       <BackButton onBack={onBack} />
       {withFile ? (
-        <Field label="Arquivo" required error={errors.file} hint="PDF, imagem, Word ou Excel — até 8 MB.">
-          {(props) => (
-            <input
-              {...props}
-              type="file"
-              className="ui-input"
-              accept={ACCEPTED_FILE_TYPES}
-              onChange={(e) => {
-                const selected = e.target.files?.[0] ?? null;
-                setFile(selected);
-                if (selected && !name) setName(selected.name);
+        <Field label="Arquivo para anexo" required error={errors.file} hint="PDF, imagem, Word ou Excel — até 8 MB.">
+          {() => (
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActive(true);
               }}
-            />
+              onDragLeave={() => setDragActive(false)}
+              onDrop={handleFileDrop}
+              style={{
+                border: dragActive ? "2px dashed #092a54" : "1.5px dashed #cbd5e1",
+                background: dragActive ? "#f0fdf4" : file ? "#f8fafc" : "#fafafa",
+                borderRadius: 8,
+                padding: "20px 16px",
+                textAlign: "center",
+                cursor: "pointer",
+                transition: "all 150ms ease",
+              }}
+              onClick={() => document.getElementById("file-upload-input")?.click()}
+            >
+              <input
+                id="file-upload-input"
+                type="file"
+                style={{ display: "none" }}
+                accept={ACCEPTED_FILE_TYPES}
+                onChange={(e) => {
+                  const selected = e.target.files?.[0] ?? null;
+                  setFile(selected);
+                  if (selected && !name) setName(selected.name);
+                }}
+              />
+              {file ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}>
+                    <span style={{ background: "#e0e7ff", color: "#092a54", padding: 8, borderRadius: 6, display: "grid", placeItems: "center" }}>
+                      <Paperclip size={18} />
+                    </span>
+                    <div>
+                      <strong style={{ fontSize: 13, color: "#0f172a", display: "block" }}>{file.name}</strong>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>{formatFileSize(file.size)}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn-secondary ui-btn-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFile(null);
+                    }}
+                  >
+                    <X size={14} aria-hidden="true" /> Trocar
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <Upload size={28} style={{ margin: "0 auto 8px", color: dragActive ? "#092a54" : "#64748b" }} />
+                  <div style={{ fontSize: 13.5, fontWeight: 500, color: "#0f172a" }}>
+                    Arraste e solte o arquivo aqui, ou <span style={{ color: "#092a54", textDecoration: "underline" }}>clique para selecionar</span>
+                  </div>
+                  <span style={{ fontSize: 11.5, color: "#64748b", marginTop: 4, display: "block" }}>
+                    Suporta PDF, JPG, PNG, DOCX, XLSX até 8 MB
+                  </span>
+                </div>
+              )}
+            </div>
           )}
         </Field>
       ) : null}

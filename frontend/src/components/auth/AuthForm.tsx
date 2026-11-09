@@ -141,9 +141,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
           )}
 
           {showHelp && !isSignup ? (
-            <p className="ui-alert ui-alert-info">
-              Neste ambiente o acesso aceita qualquer conta: entre com seu e-mail e uma senha de 6 ou mais caracteres.
-            </p>
+            <div className="ui-alert ui-alert-info" style={{ fontSize: 13, lineHeight: 1.5 }}>
+              <strong>Acesso institucional simplificado:</strong>
+              <div style={{ marginTop: 4 }}>
+                O sistema valida seu acesso pelo seu e-mail institucional com qualquer senha de 6 ou mais caracteres.
+                Seu nível de permissão (Gerente, Administrador ou Funcionário) é atribuído e gerenciado diretamente pela gestão da Fundação.
+              </div>
+            </div>
           ) : null}
 
           {formError ? (

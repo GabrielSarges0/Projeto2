@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { AlertTriangle, ExternalLink, FilePlus2, Paperclip, Pencil, Plus, RefreshCw, Trash2, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, Download, ExternalLink, FilePlus2, Paperclip, Pencil, Plus, RefreshCw, Trash2, UserCheck, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { FOLDER_IDS, createDocument, documentHref } from "@/lib/documents";
+import { exportClientsToCsv } from "@/lib/export-csv";
 import { ACCEPTED_FILE_TYPES } from "@/lib/files";
 import { errorMessage, notifyFinanceChanged, propertiesApi, type PropertyItem } from "@/lib/financial-api";
 import { daysUntil, formatCurrency, formatDate, formatMoneyInput, isValidIsoDate, newId, normalizeText, parseMoney, toCents, todayIso } from "@/lib/format";
@@ -146,11 +147,21 @@ export default function ClientesPage() {
             <h1 id="clientes-title">Clientes</h1>
             <p>Inquilinos, fiadores, imóveis alugados e contratos.</p>
           </div>
-          {canEdit ? (
-            <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget("new")}>
-              <Plus size={18} aria-hidden="true" /> Novo inquilino / contrato
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="ui-btn ui-btn-secondary"
+              onClick={() => exportClientsToCsv(clients)}
+              title="Exportar cadastro completo de clientes em planilha CSV"
+            >
+              <Download size={18} aria-hidden="true" /> Exportar CSV
             </button>
-          ) : null}
+            {canEdit ? (
+              <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget("new")}>
+                <Plus size={18} aria-hidden="true" /> Novo inquilino / contrato
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="ui-stat-grid">

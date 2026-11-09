@@ -424,11 +424,44 @@ export function layoutToHtml(
     }
   }
 
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(layout.title)}</title>
-<style>body{font-family:${LAYOUT_FONT_STACK[layout.font]};font-size:${fontSize}px;max-width:720px;margin:40px auto;padding:0 24px;color:#111;line-height:1.6}
-h1{font-size:15px;text-align:center;letter-spacing:.5px}h2{font-size:18px;text-align:center;color:#092a54}
-p{text-align:${layout.align};white-space:pre-line}footer{margin-top:40px;font-size:11.5px;color:#555;border-top:1px solid #ccc;padding-top:8px}code{font-family:monospace;font-size:10px;}</style></head>
-<body>${layout.header ? `<h1>${escapeHtml(layout.header)}</h1>` : ""}<h2>${escapeHtml(layout.title)}</h2>${layout.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("")}
-${signatureHtml}
-<footer>Protocolo ${escapeHtml(protocol)} · gerado pelo Painel de Gestão FMC</footer></body></html>`;
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(layout.title)} — Fundação Manuel Cruz</title>
+<style>
+@page { size: A4; margin: 20mm 18mm; }
+@media print {
+  .no-print { display: none !important; }
+  body { max-width: 100% !important; margin: 0 !important; padding: 0 !important; font-size: ${fontSize}px; }
+  .signature-box { page-break-inside: avoid; }
+}
+body { font-family: ${LAYOUT_FONT_STACK[layout.font]}; font-size: ${fontSize}px; max-width: 760px; margin: 30px auto; padding: 0 24px; color: #1e293b; line-height: 1.65; background: #fff; }
+.header-brand { text-align: center; border-bottom: 2px solid #092a54; padding-bottom: 12px; margin-bottom: 28px; }
+.header-brand-title { font-size: 13px; font-weight: 700; color: #092a54; letter-spacing: 1px; text-transform: uppercase; margin: 0; }
+.header-brand-sub { font-size: 10.5px; color: #64748b; margin-top: 2px; }
+h1 { font-size: 14px; text-align: center; letter-spacing: 0.5px; margin: 10px 0 6px; }
+h2 { font-size: 18px; text-align: center; color: #092a54; margin: 0 0 22px; }
+p { text-align: ${layout.align}; white-space: pre-line; margin: 0 0 14px; }
+.signature-box { margin-top: 36px; page-break-inside: avoid; }
+footer { margin-top: 36px; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; justify-content: space-between; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; }
+.action-bar { background: #092a54; color: #fff; padding: 10px 16px; border-radius: 6px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+.action-btn { background: #d4b35a; color: #092a54; border: 0; padding: 8px 16px; font-weight: 600; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.action-btn:hover { background: #e9c974; }
+</style></head>
+<body>
+<div class="no-print action-bar">
+  <span>Documento oficial — Fundação Manuel Cruz</span>
+  <button class="action-btn" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+</div>
+<div class="header-brand">
+  <div class="header-brand-title">FUNDAÇÃO MANUEL CRUZ</div>
+  <div class="header-brand-sub">CNPJ 03.245.981/0001-44 • Gestão Patrimonial e Prestação de Contas</div>
+</div>
+${layout.header ? `<h1>${escapeHtml(layout.header)}</h1>` : ""}
+<h2>${escapeHtml(layout.title)}</h2>
+${layout.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("")}
+<div class="signature-box">${signatureHtml}</div>
+<footer>
+  <span>Protocolo: <strong>${escapeHtml(protocol)}</strong></span>
+  <span>Autenticação: FMC Painel de Gestão</span>
+</footer>
+</body></html>`;
 }

@@ -2,12 +2,13 @@
 
 import { Fragment, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Check, Clock, Eye, Pencil, Plus, UserCog, X } from "lucide-react";
+import { Check, Clock, Download, Eye, Pencil, Plus, UserCog, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { FOLDER_IDS, createDocument, documentHref } from "@/lib/documents";
+import { exportAttendanceToCsv } from "@/lib/export-csv";
 import { ACCEPTED_FILE_TYPES, fileTooLargeMessage } from "@/lib/files";
 import { errorMessage } from "@/lib/financial-api";
 import { formatDate, formatDateTime, isValidIsoDate, newId, normalizeText, todayIso } from "@/lib/format";
@@ -672,9 +673,20 @@ function HistoryModal({
   const listStyle = { listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8, maxHeight: 360, overflowY: "auto" as const };
   return (
     <Modal title={`Histórico de ${employee.name}`} wide onClose={onClose}>
-      <p style={{ margin: 0, fontSize: 14 }}>
-        {history.length} registro(s) · {formatMinutes(worked)} trabalhadas · {absences} falta(s)
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", margin: "0 0 12px" }}>
+        <p style={{ margin: 0, fontSize: 14 }}>
+          {history.length} registro(s) · {formatMinutes(worked)} trabalhadas · {absences} falta(s)
+        </p>
+        <button
+          type="button"
+          className="ui-btn ui-btn-secondary"
+          style={{ padding: "4px 10px", fontSize: "13px" }}
+          onClick={() => exportAttendanceToCsv(employee, history, todayIso().slice(0, 7))}
+          title="Exportar espelho de ponto em planilha CSV"
+        >
+          <Download size={15} aria-hidden="true" /> Exportar Espelho de Ponto
+        </button>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
         <section aria-labelledby="hist-just">
           <h3 id="hist-just" style={{ margin: "0 0 8px", fontSize: 15, color: "var(--ui-primary)" }}>
