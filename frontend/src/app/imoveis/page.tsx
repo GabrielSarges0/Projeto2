@@ -22,6 +22,7 @@ import {
   type PropertyStatus,
 } from "@/lib/financial-api";
 import { formatCurrency, formatDate, formatDateTime, formatMoneyInput, normalizeText, parseMoney, toCents } from "@/lib/format";
+import { useCan } from "@/lib/permissions";
 import { useRecords } from "@/lib/records";
 import { clientSchema } from "@/lib/schemas";
 import { amountError, lengthError, personNameError } from "@/lib/validation";
@@ -50,6 +51,7 @@ export default function ImoveisPage() {
   const [editing, setEditing] = useState<PropertyItem | "new" | null>(null);
   const [details, setDetails] = useState<PropertyItem | null>(null);
   const { show, node: toast } = useToast();
+  const canEdit = useCan("edit");
 
   const load = useCallback(async () => {
     setLoadError("");
@@ -104,9 +106,11 @@ export default function ImoveisPage() {
             <h1 id="imoveis-title">Imóveis cadastrados</h1>
             <p>Situação de cada imóvel da Fundação: ocupado, disponível ou em manutenção.</p>
           </div>
-          <button type="button" className="ui-btn ui-btn-primary" onClick={() => setEditing("new")}>
-            <Plus size={18} aria-hidden="true" /> Adicionar imóvel
-          </button>
+          {canEdit ? (
+            <button type="button" className="ui-btn ui-btn-primary" onClick={() => setEditing("new")}>
+              <Plus size={18} aria-hidden="true" /> Adicionar imóvel
+            </button>
+          ) : null}
         </div>
 
         <div className="ui-stat-grid" aria-busy={loading}>
@@ -211,9 +215,11 @@ export default function ImoveisPage() {
                         <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setDetails(item)}>
                           <Eye size={14} aria-hidden="true" /> Ver
                         </button>
-                        <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setEditing(item)}>
-                          <Pencil size={14} aria-hidden="true" /> Alterar situação
-                        </button>
+                        {canEdit ? (
+                          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setEditing(item)}>
+                            <Pencil size={14} aria-hidden="true" /> Alterar situação
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -227,7 +233,9 @@ export default function ImoveisPage() {
       {editing ? (
         <PropertyFormModal property={editing === "new" ? null : editing} existing={properties} onClose={() => setEditing(null)} onSaved={handleSaved} />
       ) : null}
-      {details && !editing ? <PropertyDetailsModal property={details} onClose={() => setDetails(null)} onEdit={() => setEditing(details)} /> : null}
+      {details && !editing ? (
+        <PropertyDetailsModal property={details} onClose={() => setDetails(null)} onEdit={canEdit ? () => setEditing(details) : undefined} />
+      ) : null}
       {toast}
     </AppShell>
   );
@@ -378,7 +386,7 @@ function PropertyFormModal({
   );
 }
 
-function PropertyDetailsModal({ property, onClose, onEdit }: { property: PropertyItem; onClose: () => void; onEdit: () => void }) {
+function PropertyDetailsModal({ property, onClose, onEdit }: { property: PropertyItem; onClose: () => void; onEdit?: () => void }) {
   const [movements, setMovements] = useState<FinancialMovement[] | null>(null);
   const { items: clients } = useRecords("clients", clientSchema);
   const linkedClients = clients.filter((client) => client.propertyCode === property.registrationCode);
@@ -396,9 +404,11 @@ function PropertyDetailsModal({ property, onClose, onEdit }: { property: Propert
       wide
       onClose={onClose}
       footer={
-        <button type="button" className="ui-btn ui-btn-primary" onClick={onEdit}>
-          <Pencil size={16} aria-hidden="true" /> Alterar situação
-        </button>
+        onEdit ? (
+          <button type="button" className="ui-btn ui-btn-primary" onClick={onEdit}>
+            <Pencil size={16} aria-hidden="true" /> Alterar situação
+          </button>
+        ) : undefined
       }
     >
       <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, margin: 0 }}>

@@ -8,7 +8,12 @@ const SESSION_EVENT = "fmc-session-changed";
 const sessionSchema = z.object({
   token: z.string().min(10),
   expiresAt: z.string(),
-  user: z.object({ username: z.string(), name: z.string() }),
+  user: z.object({
+    username: z.string(),
+    name: z.string(),
+    // Sessões anteriores aos níveis de acesso não têm papel: o mais restrito até o /me responder.
+    role: z.enum(["GERENTE", "ADMINISTRADOR", "FUNCIONARIO"]).catch("FUNCIONARIO"),
+  }),
 });
 
 export type Session = z.infer<typeof sessionSchema>;

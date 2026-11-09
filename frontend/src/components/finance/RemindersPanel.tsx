@@ -19,6 +19,7 @@ import {
   type ReminderRequest,
 } from "@/lib/financial-api";
 import { addDaysIso, daysUntil, formatDate, formatDateTime, todayIso } from "@/lib/format";
+import { useCan } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 import { deadlineError, lengthError } from "@/lib/validation";
 import styles from "@/app/financeiro/financeiro.module.css";
@@ -41,6 +42,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
   const [formTarget, setFormTarget] = useState<ReminderItem | "new" | null>(null);
   const [detail, setDetail] = useState<ReminderItem | null>(null);
   const [toDelete, setToDelete] = useState<ReminderItem | null>(null);
+  const canEdit = useCan("edit");
 
   const load = useCallback(async () => {
     setLoadError("");
@@ -96,15 +98,11 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
     <div className={styles.remindersPanel}>
       <div className={styles.panelHeader}>
         <h2>LEMBRETES:</h2>
-        <button
-          type="button"
-          className={styles.iconButton}
-          aria-label="Criar lembrete"
-          title="Criar lembrete"
-          onClick={() => setFormTarget("new")}
-        >
-          <Plus aria-hidden="true" />
-        </button>
+        {canEdit ? (
+          <button type="button" className={styles.iconButton} aria-label="Criar lembrete" title="Criar lembrete" onClick={() => setFormTarget("new")}>
+            <Plus aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
 
       {loading ? (
@@ -132,6 +130,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
                     type="checkbox"
                     className={styles.reminderCheckbox}
                     checked={reminder.done}
+                    disabled={!canEdit}
                     onChange={() => void toggle(reminder)}
                     aria-label={`Marcar "${reminder.title}" como ${reminder.done ? "pendente" : "concluído"}`}
                   />
@@ -148,6 +147,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
                     {badge.text}
                   </span>
                 </div>
+                {canEdit ? (
                 <div style={{ display: "flex", gap: 2 }}>
                   <button
                     type="button"
@@ -168,6 +168,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
                     <Trash2 size={14} aria-hidden="true" />
                   </button>
                 </div>
+                ) : null}
               </li>
             );
           })}
@@ -185,6 +186,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
       {detail && !formTarget && !toDelete ? (
         <ReminderDetailModal
           reminder={detail}
+          canEdit={canEdit}
           onClose={() => setDetail(null)}
           onToggle={() => void toggle(detail)}
           onEdit={() => setFormTarget(detail)}
@@ -353,12 +355,14 @@ function ReminderFormModal({
 
 function ReminderDetailModal({
   reminder,
+  canEdit,
   onClose,
   onToggle,
   onEdit,
   onDelete,
 }: {
   reminder: ReminderItem;
+  canEdit: boolean;
   onClose: () => void;
   onToggle: () => void;
   onEdit: () => void;
@@ -370,6 +374,7 @@ function ReminderDetailModal({
       title="Detalhes do lembrete"
       onClose={onClose}
       footer={
+        canEdit ? (
         <>
           <button type="button" className="ui-btn ui-btn-secondary" onClick={onDelete} style={{ color: "var(--ui-danger)" }}>
             <Trash2 size={16} aria-hidden="true" /> Excluir
@@ -381,6 +386,7 @@ function ReminderDetailModal({
             <Pencil size={16} aria-hidden="true" /> Editar
           </button>
         </>
+        ) : undefined
       }
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

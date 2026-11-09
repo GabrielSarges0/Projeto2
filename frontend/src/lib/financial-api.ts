@@ -129,7 +129,31 @@ export type ReminderRequest = {
   description: string | null;
 };
 
-const currentUserSchema = z.object({ username: z.string(), name: z.string() });
+export const USER_ROLES = ["GERENTE", "ADMINISTRADOR", "FUNCIONARIO"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+export const USER_ROLE_LABEL: Record<UserRole, string> = {
+  GERENTE: "Gerente",
+  ADMINISTRADOR: "Administrador",
+  FUNCIONARIO: "Funcionário",
+};
+
+const currentUserSchema = z.object({
+  username: z.string(),
+  name: z.string(),
+  role: z.enum(USER_ROLES),
+  preferences: z.record(z.string(), z.unknown()).nullable().default(null),
+});
+export type CurrentUser = z.infer<typeof currentUserSchema>;
+
+const teamMemberSchema = z.object({
+  email: z.string(),
+  name: z.string(),
+  role: z.enum(USER_ROLES),
+  active: z.boolean(),
+  createdAt: z.string(),
+  lastLoginAt: z.string().nullable(),
+});
+export type TeamMember = z.infer<typeof teamMemberSchema>;
 const loginResponseSchema = z.object({
   token: z.string(),
   expiresAt: z.string(),
@@ -184,6 +208,16 @@ export const authApi = {
     }),
   me: () => apiRequest("/api/v1/auth/me", currentUserSchema),
   updateName: (name: string) => apiRequest("/api/v1/auth/me", loginResponseSchema, { method: "PUT", body: { name } }),
+  updatePreferences: (preferences: Record<string, unknown>) =>
+    apiRequest("/api/v1/auth/me/preferences", currentUserSchema, { method: "PUT", body: preferences }),
+};
+
+export const usersApi = {
+  list: () => apiRequest("/api/v1/users", z.array(teamMemberSchema)),
+  changeRole: (email: string, role: UserRole) =>
+    apiRequest(`/api/v1/users/${encodeURIComponent(email)}/role`, teamMemberSchema, { method: "PUT", body: { role } }),
+  changeActive: (email: string, active: boolean) =>
+    apiRequest(`/api/v1/users/${encodeURIComponent(email)}/active`, teamMemberSchema, { method: "PUT", body: { active } }),
 };
 
 /** Notifica telas abertas (Painel, Financeiro, Imóveis) de que dados financeiros/imóveis mudaram. */
