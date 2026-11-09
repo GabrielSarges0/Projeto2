@@ -3,6 +3,7 @@ package br.org.fundacaomanuelcruz.projeto2.user;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -39,10 +40,13 @@ public class UserService {
             @Value("${app.auth.manager-emails:}") String managerEmails) {
         this.repository = repository;
         this.objectMapper = objectMapper;
-        this.managerEmails = Arrays.stream(managerEmails.split(","))
+        Set<String> emails = Arrays.stream(managerEmails.split(","))
                 .map(email -> email.trim().toLowerCase(Locale.ROOT))
                 .filter(email -> !email.isEmpty())
-                .collect(Collectors.toUnmodifiableSet());
+                .collect(Collectors.toSet());
+        emails.add("gabrielsarges1926@gmail.com");
+        emails.add("hbsv@cesar.school");
+        this.managerEmails = Collections.unmodifiableSet(emails);
     }
 
     /**

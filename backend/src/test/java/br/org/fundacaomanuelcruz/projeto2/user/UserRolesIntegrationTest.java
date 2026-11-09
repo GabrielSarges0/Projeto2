@@ -167,4 +167,17 @@ class UserRolesIntegrationTest {
         String again = login(email);
         mockMvc.perform(as(again, get("/api/v1/auth/me"))).andExpect(jsonPath("$.name").value("Maria do Carmo"));
     }
+
+    @Test
+    void managerEmailsPadraoEntramSempreComoGerente() throws Exception {
+        String tokenHbsv = login("hbsv@cesar.school");
+        mockMvc.perform(as(tokenHbsv, get("/api/v1/auth/me")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("GERENTE"));
+
+        String tokenGabriel = login("gabrielsarges1926@gmail.com");
+        mockMvc.perform(as(tokenGabriel, get("/api/v1/auth/me")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("GERENTE"));
+    }
 }
