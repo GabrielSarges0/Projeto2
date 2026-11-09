@@ -50,7 +50,8 @@ export default function DocumentosPage() {
     const novo = params.get("novo");
     const clienteId = params.get("cliente");
     if (docId) pendingDocId.current = docId;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- parâmetros só existem no navegador
+    // Parâmetros da URL só existem no navegador (a página é pré-renderizada sem eles).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (folderId) setCurrentFolderId(folderId);
     if (novo !== null) {
       setNewDoc({ templateId: novo && novo !== "1" ? novo : null, clientId: clienteId });
@@ -64,7 +65,6 @@ export default function DocumentosPage() {
     pendingDocId.current = null;
     const found = documents.find((doc) => doc.id === id);
     if (found) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- abertura disparada pelo link
       setCurrentFolderId(found.folderId);
       setViewing(found);
     } else {
@@ -235,7 +235,7 @@ export default function DocumentosPage() {
           </p>
         ) : null}
 
-        <div style={{ display: "grid", gridTemplateColumns: searching ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: searching ? "1fr" : "repeat(auto-fit, minmax(min(300px, 100%), 1fr))", gap: 16, alignItems: "start" }}>
           {!searching ? (
             <section className="ui-card" aria-labelledby="pastas-title">
               <h2 id="pastas-title" style={{ margin: "0 0 10px", fontSize: 17, color: "var(--ui-primary)" }}>

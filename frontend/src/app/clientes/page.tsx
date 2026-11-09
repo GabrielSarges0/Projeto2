@@ -1,720 +1,714 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { AlertTriangle, ExternalLink, FilePlus2, Paperclip, Pencil, Plus, RefreshCw, Trash2, UserCheck, Users } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Field } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
+import { FOLDER_IDS, createDocument, documentHref } from "@/lib/documents";
+import { ACCEPTED_FILE_TYPES } from "@/lib/files";
+import { errorMessage, notifyFinanceChanged, propertiesApi, type PropertyItem } from "@/lib/financial-api";
+import { daysUntil, formatCurrency, formatDate, formatMoneyInput, isValidIsoDate, newId, normalizeText, parseMoney, toCents, todayIso } from "@/lib/format";
+import { useRecords } from "@/lib/records";
+import { clientSchema, documentSchema, type Client } from "@/lib/schemas";
 import {
-  AlertTriangle,
-  Building2,
-  ExternalLink,
-  FileText,
-  Home,
-  Plus,
-  Search,
-  Shield,
-  UserCheck,
-  Users,
-  Wrench,
-  X,
-} from "lucide-react";
-import {
-  FMCClient,
-  getPropertyMetricsFromStore,
-  getStoredClients,
-  saveClients,
-} from "@/lib/shared-store";
-import styles from "./clientes.module.css";
+  amountError,
+  formatCnpj,
+  formatCpf,
+  formatPhone,
+  isValidCnpj,
+  isValidCpf,
+  isValidEmail,
+  isValidPhone,
+  lengthError,
+  personNameError,
+} from "@/lib/validation";
+
+type DisplayStatus = "Ativo" | "Próximo ao Vencimento" | "Renovado" | "Em Análise" | "Encerrado";
+
+/** A situação mostrada vem das datas: um contrato não fica "Ativo" depois de vencer. */
+function displayStatus(client: Client): DisplayStatus {
+  const days = daysUntil(client.contractEndDate);
+  if (client.contractStatus === "Encerrado" || days < 0) return "Encerrado";
+  if (days <= 30) return "Próximo ao Vencimento";
+  return client.contractStatus;
+}
+
+const STATUS_BADGE: Record<DisplayStatus, string> = {
+  Ativo: "ui-badge-success",
+  Renovado: "ui-badge-success",
+  "Próximo ao Vencimento": "ui-badge-warning",
+  "Em Análise": "ui-badge-info",
+  Encerrado: "ui-badge-neutral",
+};
+
+function addMonthsIso(iso: string, months: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1 + months, d);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 export default function ClientesPage() {
-  const [clients, setClients] = useState<FMCClient[]>(() => getStoredClients());
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("TODOS");
-  const [selectedClient, setSelectedClient] = useState<FMCClient | null>(null);
-  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-
-  const [metrics, setMetrics] = useState(() => getPropertyMetricsFromStore());
-
-  // Formulário de Novo Cliente
-  const [newName, setNewName] = useState("");
-  const [newCpf, setNewCpf] = useState("");
-  const [newAge, setNewAge] = useState(35);
-  const [newResidents, setNewResidents] = useState(2);
-  const [newProfession, setNewProfession] = useState("");
-  const [newAssets, setNewAssets] = useState("");
-  const [newPropertyCode, setNewPropertyCode] = useState("IM-008");
-  const [newPropertyAddress, setNewPropertyAddress] = useState("Rua D, 95 - Centro");
-  const [newRent, setNewRent] = useState(1500);
-  const [newGuarantorName, setNewGuarantorName] = useState("");
-  const [newGuarantorCpf, setNewGuarantorCpf] = useState("");
-  const [newGuarantorRel, setNewGuarantorRel] = useState("Parente");
-  const [newGuarantorAssets, setNewGuarantorAssets] = useState("");
+  const clientsStore = useRecords("clients", clientSchema);
+  const { items: documents } = useRecords("documents", documentSchema);
+  const clients = clientsStore.items;
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<DisplayStatus | "TODOS">("TODOS");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [formTarget, setFormTarget] = useState<Client | "new" | null>(null);
+  const [renewing, setRenewing] = useState<Client | null>(null);
+  const [deleting, setDeleting] = useState<Client | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const { show, node: toast } = useToast();
+  const selected = clients.find((client) => client.id === selectedId) ?? null;
 
   useEffect(() => {
-    function handleUpdate() {
-      setClients(getStoredClients());
-      setMetrics(getPropertyMetricsFromStore());
-    }
-
-    window.addEventListener("fmc_clients_updated", handleUpdate);
-    window.addEventListener("fmc_properties_updated", handleUpdate);
-    return () => {
-      window.removeEventListener("fmc_clients_updated", handleUpdate);
-      window.removeEventListener("fmc_properties_updated", handleUpdate);
-    };
+    propertiesApi
+      .list()
+      .then(setProperties)
+      .catch(() => setProperties([]));
+    const id = new URLSearchParams(window.location.search).get("cliente");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- parâmetro só existe no navegador
+    if (id) setSelectedId(id);
   }, []);
 
-  function showToast(msg: string) {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 3500);
+  const filtered = useMemo(() => {
+    const term = normalizeText(search);
+    return clients
+      .filter((client) => {
+        if (statusFilter !== "TODOS" && displayStatus(client) !== statusFilter) return false;
+        if (!term) return true;
+        return normalizeText(`${client.name} ${client.cpf} ${client.propertyCode} ${client.propertyAddress} ${client.guarantorName}`).includes(term);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients, search, statusFilter]);
+
+  const expiring = clients
+    .filter((client) => displayStatus(client) === "Próximo ao Vencimento")
+    .sort((a, b) => a.contractEndDate.localeCompare(b.contractEndDate));
+
+  const counts = {
+    total: clients.length,
+    active: clients.filter((client) => ["Ativo", "Renovado"].includes(displayStatus(client))).length,
+    expiring: expiring.length,
+    ended: clients.filter((client) => displayStatus(client) === "Encerrado").length,
+  };
+
+  async function confirmRenew() {
+    if (!renewing) return;
+    const start = renewing.contractEndDate < todayIso() ? todayIso() : renewing.contractEndDate;
+    await clientsStore.save({ ...renewing, contractStatus: "Renovado", contractStartDate: start, contractEndDate: addMonthsIso(start, 12), updatedAt: new Date().toISOString() });
+    show(`Contrato de ${renewing.name} renovado até ${formatDate(addMonthsIso(start, 12))}.`);
+    setRenewing(null);
   }
 
-  // Filtragem
-  const filteredClients = clients.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.propertyAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.propertyCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.cpf.includes(searchTerm);
-
-    const matchesStatus =
-      statusFilter === "TODOS" || c.contractStatus === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  // Contratos próximos ao vencimento
-  const expiringContracts = clients.filter(
-    (c) => c.contractStatus === "Próximo ao Vencimento"
-  );
-
-  function handleCreateClient(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newName.trim() || !newCpf.trim()) {
-      showToast("Preencha o nome e CPF do inquilino.");
-      return;
-    }
-
-    const newClientObj: FMCClient = {
-      id: `cli-${Date.now()}`,
-      name: newName.trim(),
-      cpf: newCpf.trim(),
-      age: Number(newAge),
-      phone: "(92) 99000-0000",
-      email: `${newName.toLowerCase().replace(/\s+/g, ".")}@cliente.com`,
-      residentsCount: Number(newResidents),
-      profession: newProfession.trim() || "Profissional Autônomo",
-      assetsDeclared: newAssets.trim() || "Comprovação de renda e bens regulares",
-      propertyCode: newPropertyCode,
-      propertyAddress: newPropertyAddress,
-      monthlyRent: Number(newRent),
-      contractStatus: "Ativo",
-      contractStartDate: "02/11/2026",
-      contractEndDate: "02/11/2027",
-      guarantorName: newGuarantorName.trim() || "Sem fiador (Caução)",
-      guarantorCpf: newGuarantorCpf.trim() || "-",
-      guarantorRelationship: newGuarantorRel,
-      guarantorPhone: "(92) 99111-1111",
-      guarantorAssets: newGuarantorAssets.trim() || "Garantia locatícia padrão",
-      documents: [
-        {
-          id: `doc-${Date.now()}`,
-          name: `Contrato_Locacao_${newPropertyCode}.pdf`,
-          category: "Contratos",
-        },
-      ],
-    };
-
-    const updated = [newClientObj, ...clients];
-    saveClients(updated);
-    setClients(updated);
-    setIsNewModalOpen(false);
-    showToast("Cliente e contrato cadastrados com sucesso!");
-
-    // Limpar campos
-    setNewName("");
-    setNewCpf("");
+  async function confirmDelete() {
+    if (!deleting) return;
+    await clientsStore.remove(deleting.id);
+    show(`Cliente ${deleting.name} removido. Os documentos continuam em Documentos.`);
+    setSelectedId(null);
+    setDeleting(null);
   }
 
-  function handleRenewContract(clientId: string) {
-    const updated = clients.map((c) => {
-      if (c.id === clientId) {
-        return {
-          ...c,
-          contractStatus: "Renovado" as const,
-          contractEndDate: "15/11/2027",
-        };
-      }
-      return c;
-    });
-    saveClients(updated);
-    setClients(updated);
-    if (selectedClient && selectedClient.id === clientId) {
-      setSelectedClient({
-        ...selectedClient,
-        contractStatus: "Renovado",
-        contractEndDate: "15/11/2027",
+  async function attachDocument(client: Client, file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const doc = await createDocument({
+        name: file.name,
+        folderId: FOLDER_IDS.clientes,
+        category: "Documento Pessoal",
+        description: `Documento de ${client.name}.`,
+        file,
+        clientId: client.id,
       });
+      await clientsStore.save({ ...client, documents: [...client.documents, { id: doc.id, name: doc.name, category: doc.category }] });
+      show("Documento anexado ao cliente.");
+    } catch (error) {
+      show(errorMessage(error, "Não foi possível anexar o documento."), "error");
+    } finally {
+      setUploading(false);
     }
-    showToast("Contrato renovado por mais 12 meses com sucesso!");
   }
 
   return (
-    <div className={styles.container}>
-      {/* Cabeçalho */}
-      <div className={styles.header}>
-        <div className={styles.titleArea}>
-          <h1>Olá Administrador</h1>
-          <p className={styles.subtitle}>
-            Bem-vindo(a) ao painel de gestão de clientes, inquilinos e contratos da Fundação Manuel Cruz.
-          </p>
-        </div>
-        <button
-          className={styles.btnPrimary}
-          onClick={() => setIsNewModalOpen(true)}
-        >
-          <Plus size={18} />
-          Novo Inquilino / Contrato
-        </button>
-      </div>
-
-      {/* Cards de Topo (Métricas de Gestão do Figma) */}
-      <div className={styles.metricsGrid}>
-        <div className={styles.metricCard}>
-          <div className={styles.metricIcon} style={{ backgroundColor: "#092a54" }}>
-            <Home size={22} />
+    <AppShell>
+      <section className="ui-page" aria-labelledby="clientes-title">
+        <div className="ui-page-header">
+          <div>
+            <h1 id="clientes-title">Clientes</h1>
+            <p>Inquilinos, fiadores, imóveis alugados e contratos.</p>
           </div>
-          <div className={styles.metricInfo}>
-            <span className={styles.metricLabel}>Total de Imóveis</span>
-            <span className={styles.metricValue}>{metrics.totalProperties}</span>
-          </div>
+          <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget("new")}>
+            <Plus size={18} aria-hidden="true" /> Novo inquilino / contrato
+          </button>
         </div>
 
-        <div className={styles.metricCard}>
-          <div className={styles.metricIcon} style={{ backgroundColor: "#16a34a" }}>
-            <UserCheck size={22} />
-          </div>
-          <div className={styles.metricInfo}>
-            <span className={styles.metricLabel}>Ocupados</span>
-            <span className={styles.metricValue}>{metrics.occupied}</span>
-          </div>
-        </div>
-
-        <div className={styles.metricCard}>
-          <div className={styles.metricIcon} style={{ backgroundColor: "#3c8dbc" }}>
-            <Building2 size={22} />
-          </div>
-          <div className={styles.metricInfo}>
-            <span className={styles.metricLabel}>Disponíveis</span>
-            <span className={styles.metricValue}>{metrics.available}</span>
-          </div>
-        </div>
-
-        <div className={styles.metricCard}>
-          <div className={styles.metricIcon} style={{ backgroundColor: "#d97706" }}>
-            <Wrench size={22} />
-          </div>
-          <div className={styles.metricInfo}>
-            <span className={styles.metricLabel}>Desocupados / Manutenção</span>
-            <span className={styles.metricValue}>{metrics.underMaintenance}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Card: Contratos próximos ao vencimento (Figma / Print) */}
-      <div className={styles.expiryCard}>
-        <div className={styles.expiryHeader}>
-          <div className={styles.expiryTitle}>
-            <AlertTriangle size={18} />
-            Contratos próximos ao vencimento
-          </div>
-          <span style={{ fontSize: 13, color: "#64748b" }}>
-            {expiringContracts.length} contratos requerem renovação
-          </span>
-        </div>
-        <div className={styles.expiryList}>
-          {expiringContracts.map((client) => (
-            <div key={client.id} className={styles.expiryItem}>
-              <div className={styles.expiryItemLeft}>
-                <span className={styles.expiryName}>{client.name}</span>
-                <span className={styles.expiryDetails}>
-                  {client.propertyCode} ({client.propertyAddress}) — Vence em{" "}
-                  {client.contractEndDate} (R${" "}
-                  {client.monthlyRent.toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
-                  )
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  className={styles.btnDetails}
-                  onClick={() => setSelectedClient(client)}
-                >
-                  Ver Perfil
-                </button>
-                <button
-                  className={styles.btnRenew}
-                  onClick={() => handleRenewContract(client.id)}
-                >
-                  Renovar
-                </button>
+        <div className="ui-stat-grid">
+          {[
+            { label: "Clientes cadastrados", value: counts.total, icon: Users, bg: "#e0e7ff", color: "#092a54" },
+            { label: "Contratos em vigor", value: counts.active, icon: UserCheck, bg: "#dcfce7", color: "#15803d" },
+            { label: "Vencendo em 30 dias", value: counts.expiring, icon: AlertTriangle, bg: "#fef3c7", color: "#a16207" },
+            { label: "Contratos encerrados", value: counts.ended, icon: RefreshCw, bg: "#f1f5f9", color: "#475569" },
+          ].map(({ label, value, icon: Icon, bg, color }) => (
+            <div key={label} className="ui-card ui-stat">
+              <span className="ui-stat-icon" style={{ background: bg, color }} aria-hidden="true">
+                <Icon size={22} />
+              </span>
+              <div>
+                <div className="ui-stat-label">{label}</div>
+                <div className="ui-stat-value">{clientsStore.loading ? "…" : value}</div>
               </div>
             </div>
           ))}
-          {expiringContracts.length === 0 && (
-            <p style={{ margin: 0, fontSize: 14, color: "#16a34a" }}>
-              Nenhum contrato vencendo nos próximos 30 dias.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Barra de Ferramentas / Busca */}
-      <div className={styles.toolbar}>
-        <div className={styles.searchBox}>
-          <Search size={18} color="#64748b" />
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="Buscar por inquilino, imóvel, CPF..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
         </div>
 
-        <select
-          className={styles.filterSelect}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="TODOS">Todos os Contratos</option>
-          <option value="Ativo">Ativos</option>
-          <option value="Próximo ao Vencimento">Próximo ao Vencimento</option>
-          <option value="Renovado">Renovados</option>
-        </select>
-      </div>
-
-      {/* Tabela de Inquilinos e Fiadores (Tela 11.1 do Backlog) */}
-      <div className={styles.tableCard}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Inquilino</th>
-              <th>Imóvel Vinculado</th>
-              <th>Fiador</th>
-              <th>Aluguel Mensal</th>
-              <th>Situação do Contrato</th>
-              <th>Vencimento</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredClients.map((client) => {
-              const isWarning = client.contractStatus === "Próximo ao Vencimento";
-              const isRenewed = client.contractStatus === "Renovado";
-
-              return (
-                <tr key={client.id}>
-                  <td>
-                    <div className={styles.clientNameCell}>
-                      <strong>{client.name}</strong>
-                      <span className={styles.clientCpf}>{client.cpf}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      <strong>{client.propertyCode}</strong>
-                      <div style={{ fontSize: 12, color: "#64748b" }}>
-                        {client.propertyAddress}
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span>{client.guarantorName}</span>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>
-                      {client.guarantorRelationship}
-                    </div>
-                  </td>
-                  <td>
-                    <strong>
-                      R${" "}
-                      {client.monthlyRent.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </strong>
-                  </td>
-                  <td>
-                    <span
-                      className={`${styles.badge} ${
-                        isWarning
-                          ? styles.badgeWarning
-                          : isRenewed || client.contractStatus === "Ativo"
-                          ? styles.badgeActive
-                          : styles.badgePending
-                      }`}
-                    >
-                      {client.contractStatus}
-                    </span>
-                  </td>
-                  <td>{client.contractEndDate}</td>
-                  <td>
-                    <button
-                      className={styles.btnDetails}
-                      onClick={() => setSelectedClient(client)}
-                    >
-                      Ver Detalhes
+        {expiring.length > 0 ? (
+          <div className="ui-card" style={{ borderColor: "#fcd34d", background: "#fffbeb" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: 16, color: "#92400e", display: "flex", alignItems: "center", gap: 8 }}>
+              <AlertTriangle size={18} aria-hidden="true" /> Contratos próximos ao vencimento
+            </h2>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+              {expiring.map((client) => (
+                <li key={client.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontSize: 14 }}>
+                    <strong>{client.name}</strong> — {client.propertyCode}, vence em {formatDate(client.contractEndDate)} ({daysUntil(client.contractEndDate)} dia(s))
+                  </span>
+                  <span className="ui-row-actions">
+                    <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setSelectedId(client.id)}>
+                      Ver detalhes
                     </button>
+                    <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => setRenewing(client)}>
+                      Renovar
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="ui-toolbar">
+          <div className="ui-field" style={{ flex: "3 1 240px" }}>
+            <label htmlFor="cli-busca">Buscar</label>
+            <input id="cli-busca" className="ui-input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Inquilino, CPF/CNPJ, imóvel ou fiador" />
+          </div>
+          <div className="ui-field">
+            <label htmlFor="cli-status">Situação do contrato</label>
+            <select id="cli-status" className="ui-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as DisplayStatus | "TODOS")}>
+              <option value="TODOS">Todos</option>
+              {(["Ativo", "Renovado", "Próximo ao Vencimento", "Em Análise", "Encerrado"] as const).map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {clientsStore.error ? (
+          <p className="ui-alert ui-alert-error" role="alert">
+            {clientsStore.error}{" "}
+            <button type="button" className="ui-link" onClick={() => void clientsStore.reload()}>
+              Tentar de novo
+            </button>
+          </p>
+        ) : null}
+
+        <div className="ui-table-wrap">
+          <table className="ui-table">
+            <caption className="sr-only">Clientes e contratos</caption>
+            <thead>
+              <tr>
+                <th scope="col">Inquilino</th>
+                <th scope="col">Imóvel</th>
+                <th scope="col">Fiador</th>
+                <th scope="col">Aluguel</th>
+                <th scope="col">Situação</th>
+                <th scope="col">Vencimento</th>
+                <th scope="col">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clientsStore.loading ? (
+                <tr>
+                  <td colSpan={7}>
+                    <div className="ui-skeleton" style={{ height: 24 }} />
                   </td>
                 </tr>
-              );
-            })}
-            {filteredClients.length === 0 && (
-              <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: 32, color: "#64748b" }}>
-                  Nenhum cliente ou inquilino encontrado com os filtros selecionados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Modal de Detalhes do Cliente Selecionado (Tela 11.2 do Backlog) */}
-      {selectedClient && (
-        <div className={styles.modalOverlay} onClick={() => setSelectedClient(null)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>Detalhes do Inquilino & Contrato (BP11)</h2>
-              <button
-                className={styles.btnClose}
-                onClick={() => setSelectedClient(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className={styles.modalBody}>
-              {/* Seção 1: Dados do Inquilino */}
-              <div className={styles.detailSection}>
-                <h3>
-                  <Users size={16} />
-                  Informações do Inquilino
-                </h3>
-                <div className={styles.detailGrid}>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Nome Completo</span>
-                    <span className={styles.detailValue}>{selectedClient.name}</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>CPF</span>
-                    <span className={styles.detailValue}>{selectedClient.cpf}</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Idade</span>
-                    <span className={styles.detailValue}>{selectedClient.age} anos</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Pessoas na Residência</span>
-                    <span className={styles.detailValue}>
-                      {selectedClient.residentsCount} pessoa(s)
-                    </span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Profissão</span>
-                    <span className={styles.detailValue}>{selectedClient.profession}</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Contato / E-mail</span>
-                    <span className={styles.detailValue}>{selectedClient.phone}</span>
-                  </div>
-                  <div className={styles.detailItem} style={{ gridColumn: "1 / -1" }}>
-                    <span className={styles.detailLabel}>Bens Declarados para Aluguel</span>
-                    <span className={styles.detailValue}>{selectedClient.assetsDeclared}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Seção 2: Imóvel e Contrato */}
-              <div className={styles.detailSection}>
-                <h3>
-                  <Home size={16} />
-                  Imóvel Alugado e Termos Contratuais
-                </h3>
-                <div className={styles.detailGrid}>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Código do Imóvel</span>
-                    <span className={styles.detailValue}>{selectedClient.propertyCode}</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Valor Mensal</span>
-                    <span className={styles.detailValue}>
-                      R${" "}
-                      {selectedClient.monthlyRent.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-                  <div className={styles.detailItem} style={{ gridColumn: "1 / -1" }}>
-                    <span className={styles.detailLabel}>Endereço do Imóvel</span>
-                    <span className={styles.detailValue}>{selectedClient.propertyAddress}</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Início do Contrato</span>
-                    <span className={styles.detailValue}>{selectedClient.contractStartDate}</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Vencimento do Contrato</span>
-                    <span className={styles.detailValue}>{selectedClient.contractEndDate}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Seção 3: Dados do Fiador */}
-              <div className={styles.detailSection}>
-                <h3>
-                  <Shield size={16} />
-                  Dados do Fiador
-                </h3>
-                <div className={styles.detailGrid}>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Nome do Fiador</span>
-                    <span className={styles.detailValue}>{selectedClient.guarantorName}</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>CPF do Fiador</span>
-                    <span className={styles.detailValue}>{selectedClient.guarantorCpf}</span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Parentesco / Vínculo</span>
-                    <span className={styles.detailValue}>
-                      {selectedClient.guarantorRelationship}
-                    </span>
-                  </div>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Contato Fiador</span>
-                    <span className={styles.detailValue}>{selectedClient.guarantorPhone}</span>
-                  </div>
-                  <div className={styles.detailItem} style={{ gridColumn: "1 / -1" }}>
-                    <span className={styles.detailLabel}>Bens e Garantias do Fiador</span>
-                    <span className={styles.detailValue}>{selectedClient.guarantorAssets}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Seção 4: Documentos Anexados */}
-              <div className={styles.detailSection}>
-                <h3>
-                  <FileText size={16} />
-                  Documentos Pessoais & Contrato Anexados
-                </h3>
-                <div className={styles.docList}>
-                  {selectedClient.documents.map((doc) => (
-                    <div key={doc.id} className={styles.docItem}>
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>
-                        {doc.name} ({doc.category})
-                      </span>
-                      <Link
-                        href="/documentos"
-                        className={styles.docLink}
-                        target="_blank"
-                      >
-                        <ExternalLink size={14} />
-                        Abrir em Documentos
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.modalFooter}>
-              <Link href="/formulario" className={styles.btnSecondary}>
-                Emitir Recibo / Termo
-              </Link>
-              {selectedClient.contractStatus === "Próximo ao Vencimento" && (
-                <button
-                  className={styles.btnRenew}
-                  onClick={() => handleRenewContract(selectedClient.id)}
-                >
-                  Renovar por 12 Meses
-                </button>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="ui-empty">
+                    {clients.length === 0 ? "Nenhum cliente cadastrado ainda." : "Nenhum cliente encontrado com esses filtros."}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((client) => {
+                  const status = displayStatus(client);
+                  return (
+                    <tr key={client.id}>
+                      <td>
+                        <strong>{client.name}</strong>
+                        <div className="ui-field-hint">{client.cpf}</div>
+                      </td>
+                      <td>
+                        <strong>{client.propertyCode}</strong>
+                        <div className="ui-field-hint">{client.propertyAddress}</div>
+                      </td>
+                      <td>
+                        {client.guarantorName}
+                        <div className="ui-field-hint">{client.guarantorRelationship}</div>
+                      </td>
+                      <td>{formatCurrency(client.monthlyRent)}</td>
+                      <td>
+                        <span className={`ui-badge ${STATUS_BADGE[status]}`}>{status}</span>
+                      </td>
+                      <td>{formatDate(client.contractEndDate)}</td>
+                      <td>
+                        <div className="ui-row-actions">
+                          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setSelectedId(client.id)}>
+                            Ver detalhes
+                          </button>
+                          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setFormTarget(client)} aria-label={`Editar ${client.name}`}>
+                            <Pencil size={14} aria-hidden="true" /> Editar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
-              <button
-                className={styles.btnPrimary}
-                onClick={() => setSelectedClient(null)}
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
-      )}
+      </section>
 
-      {/* Modal de Cadastro de Novo Cliente */}
-      {isNewModalOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsNewModalOpen(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>Cadastrar Novo Inquilino e Contrato</h2>
-              <button
-                className={styles.btnClose}
-                onClick={() => setIsNewModalOpen(false)}
-              >
-                <X size={20} />
+      {selected && !formTarget && !renewing && !deleting ? (
+        <Modal
+          title={selected.name}
+          wide
+          onClose={() => setSelectedId(null)}
+          busy={uploading}
+          footer={
+            <>
+              <button type="button" className="ui-btn ui-btn-secondary" style={{ color: "var(--ui-danger)" }} onClick={() => setDeleting(selected)}>
+                <Trash2 size={16} aria-hidden="true" /> Excluir cliente
               </button>
-            </div>
-
-            <form onSubmit={handleCreateClient}>
-              <div className={styles.modalBody}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Nome do Inquilino *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: João da Silva"
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>CPF do Inquilino *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="000.000.000-00"
-                      value={newCpf}
-                      onChange={(e) => setNewCpf(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Idade</label>
-                    <input
-                      type="number"
-                      value={newAge}
-                      onChange={(e) => setNewAge(Number(e.target.value))}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Pessoas na Casa</label>
-                    <input
-                      type="number"
-                      value={newResidents}
-                      onChange={(e) => setNewResidents(Number(e.target.value))}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Profissão</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Contador"
-                      value={newProfession}
-                      onChange={(e) => setNewProfession(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Valor Aluguel (R$)</label>
-                    <input
-                      type="number"
-                      value={newRent}
-                      onChange={(e) => setNewRent(Number(e.target.value))}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Código do Imóvel</label>
-                    <input
-                      type="text"
-                      value={newPropertyCode}
-                      onChange={(e) => setNewPropertyCode(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Endereço do Imóvel</label>
-                    <input
-                      type="text"
-                      value={newPropertyAddress}
-                      onChange={(e) => setNewPropertyAddress(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem} style={{ gridColumn: "1 / -1" }}>
-                    <label className={styles.detailLabel}>Bens Declarados do Inquilino</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Carro quitado, contracheque servidor"
-                      value={newAssets}
-                      onChange={(e) => setNewAssets(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Nome do Fiador</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Carlos da Silva"
-                      value={newGuarantorName}
-                      onChange={(e) => setNewGuarantorName(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>CPF do Fiador</label>
-                    <input
-                      type="text"
-                      placeholder="111.222.333-44"
-                      value={newGuarantorCpf}
-                      onChange={(e) => setNewGuarantorCpf(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem}>
-                    <label className={styles.detailLabel}>Parentesco / Vínculo</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Irmão, Pai, Amigo"
-                      value={newGuarantorRel}
-                      onChange={(e) => setNewGuarantorRel(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                  <div className={styles.detailItem} style={{ gridColumn: "1 / -1" }}>
-                    <label className={styles.detailLabel}>Bens do Fiador</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Imóvel quitado em Manaus"
-                      value={newGuarantorAssets}
-                      onChange={(e) => setNewGuarantorAssets(e.target.value)}
-                      style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.modalFooter}>
-                <button
-                  type="button"
-                  className={styles.btnSecondary}
-                  onClick={() => setIsNewModalOpen(false)}
-                >
-                  Cancelar
+              <Link href={`/documentos?novo=recibo&cliente=${selected.id}`} className="ui-btn ui-btn-secondary">
+                <FilePlus2 size={16} aria-hidden="true" /> Emitir recibo
+              </Link>
+              <Link href={`/documentos?novo=contrato&cliente=${selected.id}`} className="ui-btn ui-btn-secondary">
+                <FilePlus2 size={16} aria-hidden="true" /> Gerar contrato
+              </Link>
+              {displayStatus(selected) !== "Ativo" && displayStatus(selected) !== "Renovado" ? (
+                <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setRenewing(selected)}>
+                  <RefreshCw size={16} aria-hidden="true" /> Renovar 12 meses
                 </button>
-                <button type="submit" className={styles.btnPrimary}>
-                  Salvar Cliente
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              ) : null}
+              <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget(selected)}>
+                <Pencil size={16} aria-hidden="true" /> Editar dados
+              </button>
+            </>
+          }
+        >
+          <ClientDetails client={selected} />
+          <section>
+            <h3 style={{ fontSize: 15, margin: "4px 0 8px", color: "var(--ui-primary)" }}>Documentos anexados</h3>
+            {selected.documents.length === 0 ? (
+              <p className="ui-field-hint">Nenhum documento anexado.</p>
+            ) : (
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+                {selected.documents.map((ref) => {
+                  const exists = documents.some((doc) => doc.id === ref.id);
+                  return (
+                    <li key={ref.id} style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8, fontSize: 14 }}>
+                      <span>
+                        {ref.name} <span className="ui-field-hint">({ref.category})</span>
+                      </span>
+                      {exists ? (
+                        <Link href={documentHref(ref.id)} className="ui-link">
+                          <ExternalLink size={13} aria-hidden="true" /> Abrir em Documentos
+                        </Link>
+                      ) : (
+                        <span className="ui-field-hint">Documento excluído de Documentos</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <label className="ui-btn ui-btn-secondary ui-btn-sm" style={{ marginTop: 10, cursor: "pointer" }}>
+              <Paperclip size={14} aria-hidden="true" /> {uploading ? "Enviando..." : "Anexar documento"}
+              <input type="file" className="sr-only" accept={ACCEPTED_FILE_TYPES} disabled={uploading} onChange={(e) => void attachDocument(selected, e.target.files?.[0])} />
+            </label>
+          </section>
+        </Modal>
+      ) : null}
 
-      {toastMessage && <div className={styles.toast}>{toastMessage}</div>}
-    </div>
+      {formTarget ? (
+        <ClientFormModal
+          client={formTarget === "new" ? null : formTarget}
+          properties={properties}
+          clients={clients}
+          onClose={() => setFormTarget(null)}
+          onSave={async (client, occupyProperty) => {
+            await clientsStore.save(client);
+            let warning = "";
+            if (occupyProperty) {
+              const property = properties.find((item) => item.registrationCode === client.propertyCode);
+              if (property) {
+                try {
+                  const updated = await propertiesApi.update(property.id, {
+                    address: property.address,
+                    currentTenant: client.name,
+                    monthlyRent: client.monthlyRent,
+                    status: "OCUPADO",
+                    notes: property.notes,
+                  });
+                  setProperties((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+                  notifyFinanceChanged();
+                } catch (error) {
+                  warning = ` (imóvel não atualizado: ${errorMessage(error)})`;
+                }
+              }
+            }
+            setFormTarget(null);
+            show((formTarget === "new" ? "Cliente cadastrado." : "Dados do cliente atualizados.") + warning, warning ? "error" : "success");
+          }}
+        />
+      ) : null}
+
+      {renewing ? (
+        <ConfirmDialog
+          title="Renovar contrato"
+          confirmLabel="Renovar por 12 meses"
+          message={
+            <>
+              Renovar o contrato de <strong>{renewing.name}</strong> ({renewing.propertyCode}) por mais 12 meses a partir de{" "}
+              {formatDate(renewing.contractEndDate < todayIso() ? todayIso() : renewing.contractEndDate)}?
+            </>
+          }
+          onConfirm={confirmRenew}
+          onCancel={() => setRenewing(null)}
+        />
+      ) : null}
+
+      {deleting ? (
+        <ConfirmDialog
+          title="Excluir cliente"
+          danger
+          confirmLabel="Excluir"
+          message={
+            <>
+              Excluir <strong>{deleting.name}</strong> da lista de clientes? Os documentos dele continuam em Documentos.
+            </>
+          }
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
+      ) : null}
+      {toast}
+    </AppShell>
   );
 }
+
+function ClientDetails({ client }: { client: Client }) {
+  const sections: { title: string; rows: [string, string][] }[] = [
+    {
+      title: "Inquilino",
+      rows: [
+        ["CPF/CNPJ", client.cpf],
+        ["Nascimento", client.birthDate ? formatDate(client.birthDate) : "—"],
+        ["Telefone", client.phone],
+        ["E-mail", client.email],
+        ["Pessoas no imóvel", String(client.residentsCount)],
+        ["Profissão / atividade", client.profession],
+        ["Bens / garantia de renda", client.assetsDeclared],
+      ],
+    },
+    {
+      title: "Imóvel e contrato",
+      rows: [
+        ["Imóvel", `${client.propertyCode} — ${client.propertyAddress}`],
+        ["Aluguel", formatCurrency(client.monthlyRent)],
+        ["Início", formatDate(client.contractStartDate)],
+        ["Vencimento", formatDate(client.contractEndDate)],
+        ["Situação", displayStatus(client)],
+      ],
+    },
+    {
+      title: "Fiador",
+      rows: [
+        ["Nome", client.guarantorName],
+        ["CPF", client.guarantorCpf],
+        ["Vínculo", client.guarantorRelationship],
+        ["Telefone", client.guarantorPhone],
+        ["Bens", client.guarantorAssets],
+      ],
+    },
+  ];
+  return (
+    <>
+      {sections.map((section) => (
+        <section key={section.title}>
+          <h3 style={{ fontSize: 15, margin: "4px 0 8px", color: "var(--ui-primary)" }}>{section.title}</h3>
+          <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8, margin: 0 }}>
+            {section.rows.map(([label, value]) => (
+              <div key={label} style={{ background: "var(--ui-surface-muted)", padding: "6px 10px", borderRadius: 8 }}>
+                <dt style={{ fontSize: 12, color: "var(--ui-text-muted)" }}>{label}</dt>
+                <dd style={{ margin: 0, fontSize: 14, fontWeight: 600, wordBreak: "break-word" }}>{value || "—"}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ))}
+    </>
+  );
+}
+
+type FormState = {
+  name: string;
+  cpf: string;
+  birthDate: string;
+  phone: string;
+  email: string;
+  residentsCount: string;
+  profession: string;
+  assetsDeclared: string;
+  propertyCode: string;
+  monthlyRent: string;
+  contractStartDate: string;
+  contractEndDate: string;
+  inAnalysis: boolean;
+  guarantorName: string;
+  guarantorCpf: string;
+  guarantorRelationship: string;
+  guarantorPhone: string;
+  guarantorAssets: string;
+};
+
+function toForm(client: Client | null): FormState {
+  const start = todayIso();
+  return {
+    name: client?.name ?? "",
+    cpf: client?.cpf ?? "",
+    birthDate: client?.birthDate ?? "",
+    phone: client?.phone ?? "",
+    email: client?.email ?? "",
+    residentsCount: client ? String(client.residentsCount) : "1",
+    profession: client?.profession ?? "",
+    assetsDeclared: client?.assetsDeclared ?? "",
+    propertyCode: client?.propertyCode ?? "",
+    monthlyRent: client ? formatMoneyInput(String(toCents(client.monthlyRent))) : "",
+    contractStartDate: client?.contractStartDate ?? start,
+    contractEndDate: client?.contractEndDate ?? addMonthsIso(start, 12),
+    inAnalysis: client?.contractStatus === "Em Análise",
+    guarantorName: client?.guarantorName ?? "",
+    guarantorCpf: client?.guarantorCpf ?? "",
+    guarantorRelationship: client?.guarantorRelationship ?? "",
+    guarantorPhone: client?.guarantorPhone ?? "",
+    guarantorAssets: client?.guarantorAssets ?? "",
+  };
+}
+
+function ClientFormModal({
+  client,
+  properties,
+  clients,
+  onClose,
+  onSave,
+}: {
+  client: Client | null;
+  properties: PropertyItem[];
+  clients: Client[];
+  onClose: () => void;
+  onSave: (client: Client, occupyProperty: boolean) => Promise<void>;
+}) {
+  const [form, setForm] = useState<FormState>(() => toForm(client));
+  const [occupy, setOccupy] = useState(client === null);
+  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const digits = form.cpf.replace(/\D/g, "");
+  const isCompany = digits.length > 11;
+
+  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function selectProperty(code: string) {
+    const property = properties.find((item) => item.registrationCode === code);
+    setForm((current) => ({
+      ...current,
+      propertyCode: code,
+      monthlyRent: property && !current.monthlyRent ? formatMoneyInput(String(toCents(property.monthlyRent))) : current.monthlyRent,
+    }));
+  }
+
+  function validate() {
+    const found: Partial<Record<keyof FormState, string>> = {};
+    found.name = personNameError(form.name, "Nome") ?? undefined;
+    if (!(digits.length === 11 ? isValidCpf(digits) : digits.length === 14 ? isValidCnpj(digits) : false)) found.cpf = "CPF ou CNPJ inválido.";
+    else if (clients.some((other) => other.id !== client?.id && other.cpf.replace(/\D/g, "") === digits && other.propertyCode === form.propertyCode)) {
+      found.cpf = "Este CPF/CNPJ já tem contrato neste imóvel.";
+    }
+    if (form.birthDate) {
+      if (!isValidIsoDate(form.birthDate) || form.birthDate > todayIso()) found.birthDate = "Data de nascimento inválida.";
+      else if (!isCompany && form.birthDate > addMonthsIso(todayIso(), -12 * 18)) found.birthDate = "O inquilino precisa ter 18 anos ou mais.";
+      else if (form.birthDate < "1900-01-01") found.birthDate = "Data de nascimento inválida.";
+    }
+    if (!isValidPhone(form.phone)) found.phone = "Telefone com DDD (10 ou 11 dígitos).";
+    if (!isValidEmail(form.email)) found.email = "E-mail inválido.";
+    const residents = Number(form.residentsCount);
+    if (!/^\d{1,2}$/.test(form.residentsCount) || residents > 30) found.residentsCount = "Informe de 0 a 30.";
+    found.profession = lengthError(form.profession, "a profissão / atividade", 2, 120) ?? undefined;
+    found.assetsDeclared = lengthError(form.assetsDeclared, "os bens / garantia de renda", 3, 300) ?? undefined;
+    if (!properties.some((item) => item.registrationCode === form.propertyCode)) found.propertyCode = "Selecione um imóvel cadastrado.";
+    found.monthlyRent = amountError(parseMoney(form.monthlyRent), { label: "Aluguel" }) ?? undefined;
+    if (!isValidIsoDate(form.contractStartDate)) found.contractStartDate = "Data inválida.";
+    if (!isValidIsoDate(form.contractEndDate)) found.contractEndDate = "Data inválida.";
+    else if (form.contractEndDate <= form.contractStartDate) found.contractEndDate = "O vencimento deve ser depois do início.";
+    else if (form.contractEndDate > addMonthsIso(form.contractStartDate, 120)) found.contractEndDate = "Prazo máximo de 10 anos.";
+    found.guarantorName = lengthError(form.guarantorName, "o fiador (ou “Seguro fiança” / “Caução”)", 3, 160) ?? undefined;
+    const gDigits = form.guarantorCpf.replace(/\D/g, "");
+    if (gDigits && !isValidCpf(gDigits) && !isValidCnpj(gDigits)) found.guarantorCpf = "CPF/CNPJ do fiador inválido.";
+    else if (gDigits && gDigits === digits) found.guarantorCpf = "O fiador não pode ser o próprio inquilino.";
+    if (form.guarantorPhone && !isValidPhone(form.guarantorPhone)) found.guarantorPhone = "Telefone com DDD.";
+    return found;
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const found = validate();
+    setErrors(found);
+    if (Object.values(found).some(Boolean)) {
+      setFormError("Corrija os campos destacados.");
+      return;
+    }
+    const property = properties.find((item) => item.registrationCode === form.propertyCode);
+    const saved: Client = {
+      id: client?.id ?? newId("cli"),
+      name: form.name.trim().replace(/\s+/g, " "),
+      cpf: isCompany ? formatCnpj(digits) : formatCpf(digits),
+      birthDate: form.birthDate || null,
+      phone: formatPhone(form.phone),
+      email: form.email.trim().toLowerCase(),
+      residentsCount: Number(form.residentsCount),
+      profession: form.profession.trim(),
+      assetsDeclared: form.assetsDeclared.trim(),
+      propertyCode: form.propertyCode,
+      propertyAddress: property?.address ?? client?.propertyAddress ?? "",
+      monthlyRent: toCents(parseMoney(form.monthlyRent)) / 100,
+      contractStatus: form.inAnalysis ? "Em Análise" : client?.contractStatus === "Renovado" ? "Renovado" : "Ativo",
+      contractStartDate: form.contractStartDate,
+      contractEndDate: form.contractEndDate,
+      guarantorName: form.guarantorName.trim(),
+      guarantorCpf: form.guarantorCpf.replace(/\D/g, "") ? (form.guarantorCpf.replace(/\D/g, "").length > 11 ? formatCnpj(form.guarantorCpf) : formatCpf(form.guarantorCpf)) : "-",
+      guarantorRelationship: form.guarantorRelationship.trim() || "—",
+      guarantorPhone: form.guarantorPhone ? formatPhone(form.guarantorPhone) : "—",
+      guarantorAssets: form.guarantorAssets.trim() || "—",
+      documents: client?.documents ?? [],
+      updatedAt: new Date().toISOString(),
+    };
+    setSaving(true);
+    setFormError("");
+    try {
+      await onSave(saved, occupy);
+    } catch (error) {
+      setFormError(errorMessage(error));
+      setSaving(false);
+    }
+  }
+
+  const text = (key: keyof FormState, label: string, props: { required?: boolean; max?: number; format?: (v: string) => string; hint?: string; type?: string; inputMode?: "numeric" | "email" | "tel" } = {}) => (
+    <Field label={label} error={errors[key]} required={props.required} hint={props.hint}>
+      {(fieldProps) => (
+        <input
+          {...fieldProps}
+          className="ui-input"
+          type={props.type ?? "text"}
+          inputMode={props.inputMode}
+          value={String(form[key])}
+          maxLength={props.max}
+          onChange={(e) => set(key, (props.format ? props.format(e.target.value) : e.target.value) as never)}
+        />
+      )}
+    </Field>
+  );
+
+  return (
+    <Modal
+      title={client ? `Editar ${client.name}` : "Novo inquilino / contrato"}
+      wide
+      onClose={onClose}
+      busy={saving}
+      footer={
+        <>
+          <button type="button" className="ui-btn ui-btn-secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button type="submit" form="client-form" className="ui-btn ui-btn-primary" disabled={saving} aria-busy={saving}>
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+        </>
+      }
+    >
+      <form id="client-form" onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 14 }}>
+        <h3 style={{ margin: 0, fontSize: 15, color: "var(--ui-primary)" }}>Inquilino</h3>
+        <div className="ui-form-grid">
+          {text("name", "Nome completo / razão social", { required: true, max: 160 })}
+          {text("cpf", "CPF ou CNPJ", { required: true, inputMode: "numeric", format: (v) => (v.replace(/\D/g, "").length > 11 ? formatCnpj(v) : formatCpf(v)) })}
+          {text("birthDate", "Data de nascimento", { type: "date", hint: "Opcional; obrigatório ter 18+ se informado." })}
+          {text("phone", "Telefone", { required: true, inputMode: "tel", format: formatPhone })}
+          {text("email", "E-mail", { required: true, inputMode: "email", max: 160 })}
+          {text("residentsCount", "Pessoas no imóvel", { required: true, inputMode: "numeric", format: (v) => v.replace(/\D/g, "").slice(0, 2) })}
+          {text("profession", "Profissão / atividade", { required: true, max: 120 })}
+          {text("assetsDeclared", "Bens / garantia de renda", { required: true, max: 300 })}
+        </div>
+
+        <h3 style={{ margin: "6px 0 0", fontSize: 15, color: "var(--ui-primary)" }}>Imóvel e contrato</h3>
+        <div className="ui-form-grid">
+          <Field label="Imóvel" error={errors.propertyCode} required>
+            {(props) => (
+              <select {...props} className="ui-input" value={form.propertyCode} onChange={(e) => selectProperty(e.target.value)}>
+                <option value="">Selecione</option>
+                {properties.map((item) => (
+                  <option key={item.id} value={item.registrationCode}>
+                    {item.registrationCode} — {item.address} ({item.status === "DISPONIVEL" ? "disponível" : item.status === "OCUPADO" ? "ocupado" : "manutenção"})
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          {text("monthlyRent", "Aluguel mensal", { required: true, inputMode: "numeric", format: formatMoneyInput })}
+          {text("contractStartDate", "Início do contrato", { required: true, type: "date" })}
+          {text("contractEndDate", "Vencimento do contrato", { required: true, type: "date" })}
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, minHeight: 24 }}>
+          <input type="checkbox" checked={form.inAnalysis} onChange={(e) => set("inAnalysis", e.target.checked)} /> Contrato em análise (ainda não assinado)
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, minHeight: 24 }}>
+          <input type="checkbox" checked={occupy} onChange={(e) => setOccupy(e.target.checked)} /> Marcar o imóvel como ocupado por este inquilino
+        </label>
+
+        <h3 style={{ margin: "6px 0 0", fontSize: 15, color: "var(--ui-primary)" }}>Fiador</h3>
+        <div className="ui-form-grid">
+          {text("guarantorName", "Nome do fiador (ou Seguro fiança / Caução)", { required: true, max: 160 })}
+          {text("guarantorCpf", "CPF/CNPJ do fiador", { inputMode: "numeric", format: (v) => (v.replace(/\D/g, "").length > 11 ? formatCnpj(v) : formatCpf(v)) })}
+          {text("guarantorRelationship", "Vínculo", { max: 60 })}
+          {text("guarantorPhone", "Telefone do fiador", { inputMode: "tel", format: formatPhone })}
+        </div>
+        {text("guarantorAssets", "Bens do fiador", { max: 300 })}
+
+        {formError ? (
+          <p className="ui-alert ui-alert-error" role="alert">
+            {formError}
+          </p>
+        ) : null}
+      </form>
+    </Modal>
+  );
+}
+

@@ -50,7 +50,7 @@ export function NewDocumentModal({ folders, defaultFolderId, initialTemplateId, 
             </button>
           </div>
           <h3 style={{ margin: "6px 0 0", fontSize: 15, color: "var(--ui-primary)" }}>Criar a partir de um formulário</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))", gap: 10 }}>
             {DOCUMENT_TEMPLATES.map((template) => (
               <button key={template.id} type="button" className="ui-card" style={choiceStyle} onClick={() => setStep({ kind: "template", template })}>
                 <FileText size={20} aria-hidden="true" />
@@ -229,7 +229,7 @@ function TemplateForm({
   return (
     <form onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 14 }}>
       <BackButton onBack={onBack} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
         <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
           {template.fields.map((field) => (
             <Field key={field.key} label={field.label} required={field.required} error={errors[field.key]}>

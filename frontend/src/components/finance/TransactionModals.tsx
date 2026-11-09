@@ -318,7 +318,7 @@ export function EntryModal({ properties, documents, onClose, onSaved }: CommonPr
                 />
               )}
             </Field>
-            <Field label={documentType} error={errors.document} required>
+            <Field label={`Número do ${documentType}`} error={errors.document} required>
               {(props) => (
                 <input
                   {...props}

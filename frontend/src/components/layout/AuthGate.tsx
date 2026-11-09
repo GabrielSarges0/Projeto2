@@ -6,6 +6,12 @@ import { useSession } from "@/lib/session";
 
 const PUBLIC_PATHS = new Set(["/login", "/cadastro"]);
 
+/** Destino após o login: só caminhos internos, para não virar redirecionamento aberto. */
+function nextPath(): string {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : "/";
+}
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const session = useSession();
   const pathname = usePathname();
@@ -17,7 +23,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (!session && !isPublic) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     } else if (session && isPublic) {
-      router.replace("/");
+      router.replace(nextPath());
     }
   }, [session, isPublic, pathname, router]);
 

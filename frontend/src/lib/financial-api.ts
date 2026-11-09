@@ -183,6 +183,7 @@ export const authApi = {
       anonymous: true,
     }),
   me: () => apiRequest("/api/v1/auth/me", currentUserSchema),
+  updateName: (name: string) => apiRequest("/api/v1/auth/me", loginResponseSchema, { method: "PUT", body: { name } }),
 };
 
 /** Notifica telas abertas (Painel, Financeiro, Imóveis) de que dados financeiros/imóveis mudaram. */

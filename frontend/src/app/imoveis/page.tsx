@@ -81,6 +81,7 @@ export default function ImoveisPage() {
   }, [properties, search, status, price]);
 
   function handleSaved(property: PropertyItem, created: boolean) {
+    setProperties((current) => (created ? [...current, property] : current.map((item) => (item.id === property.id ? property : item))));
     setEditing(null);
     setDetails((current) => (current?.id === property.id ? property : current));
     show(created ? `Imóvel ${property.registrationCode} cadastrado.` : `Imóvel ${property.registrationCode} atualizado.`);

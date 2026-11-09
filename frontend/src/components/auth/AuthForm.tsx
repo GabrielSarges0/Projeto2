@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Landmark } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { authApi, errorMessage } from "@/lib/financial-api";
@@ -13,14 +12,7 @@ import styles from "@/app/login/login.module.css";
 type Mode = "login" | "signup";
 type Errors = Partial<Record<"name" | "email" | "password" | "confirm", string>>;
 
-function safeNextPath(): string {
-  const next = new URLSearchParams(window.location.search).get("next");
-  // Só caminhos internos: evita redirecionamento aberto para outro site.
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-}
-
 export function AuthForm({ mode }: { mode: Mode }) {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,8 +42,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setSubmitting(true);
     try {
       const response = await authApi.login(email.trim(), password, isSignup ? name.trim() : undefined);
+      // O AuthGate percebe a nova sessão e leva para a página pedida (?next=).
       saveSession({ token: response.token, expiresAt: response.expiresAt, user: response.user });
-      router.replace(safeNextPath());
     } catch (error) {
       setFormError(errorMessage(error, "Não foi possível entrar."));
       setSubmitting(false);
