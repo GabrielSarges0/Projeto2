@@ -112,9 +112,13 @@ export const attendanceSchema = z.object({
   date: isoDate,
   status: z.enum(ATTENDANCE_STATUSES),
   entryTime: time.nullable().default(null),
+  entryLocation: z.string().nullable().optional().default(null),
   breakStart: time.nullable().default(null),
+  breakStartLocation: z.string().nullable().optional().default(null),
   breakEnd: time.nullable().default(null),
+  breakEndLocation: z.string().nullable().optional().default(null),
   exitTime: time.nullable().default(null),
+  exitLocation: z.string().nullable().optional().default(null),
   registeredBy: z.string().default(""),
 });
 export type Attendance = z.infer<typeof attendanceSchema>;

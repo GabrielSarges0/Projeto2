@@ -62,6 +62,7 @@ export function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showTable, setShowTable] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<number | "ALL">("ALL");
   const { items: clients, loading: clientsLoading } = useRecords("clients", clientSchema);
   const { items: submissions, loading: submissionsLoading } = useRecords("mp-submissions", mpSubmissionSchema);
   const skeleton = <div className="ui-skeleton" style={{ height: 48 }} aria-busy="true" />;
@@ -94,6 +95,12 @@ export function DashboardHome() {
   }, [load]);
 
   const chart = useMemo(() => cumulativeByDay(movements, month, year), [movements, month, year]);
+  const dayMovements = useMemo(() => {
+    if (selectedDay === "ALL") return [];
+    const dayStr = String(selectedDay).padStart(2, "0");
+    const prefix = `${year}-${String(month).padStart(2, "0")}-${dayStr}`;
+    return movements.filter((m) => m.date === prefix);
+  }, [movements, selectedDay, month, year]);
   const expiring = clients
     .filter((client) => {
       const days = daysUntil(client.contractEndDate);
@@ -120,7 +127,7 @@ export function DashboardHome() {
             <label className="sr-only" htmlFor="painel-mes">
               Mês
             </label>
-            <select id="painel-mes" className="ui-input" style={{ width: "auto" }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+            <select id="painel-mes" className="ui-input" style={{ width: "auto" }} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setSelectedDay("ALL"); }}>
               {MONTHS.map((label, index) => (
                 <option key={label} value={index + 1}>
                   {label}
@@ -130,7 +137,7 @@ export function DashboardHome() {
             <label className="sr-only" htmlFor="painel-ano">
               Ano
             </label>
-            <select id="painel-ano" className="ui-input" style={{ width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+            <select id="painel-ano" className="ui-input" style={{ width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setSelectedDay("ALL"); }}>
               {Array.from({ length: 6 }, (_, index) => now.getFullYear() - 4 + index).map((value) => (
                 <option key={value}>{value}</option>
               ))}
@@ -176,9 +183,30 @@ export function DashboardHome() {
                   Acumulado de {MONTHS[month - 1]}/{year}, dia a dia, conforme os lançamentos
                 </p>
               </div>
-              <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setShowTable((v) => !v)} aria-pressed={showTable}>
-                {showTable ? "Ver gráfico" : "Ver como tabela"}
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                  <label htmlFor="grafico-dia" style={{ color: "var(--ui-text-muted)" }}>
+                    Dia:
+                  </label>
+                  <select
+                    id="grafico-dia"
+                    className="ui-input"
+                    style={{ width: "auto", padding: "4px 8px", fontSize: 13, height: 32 }}
+                    value={selectedDay}
+                    onChange={(e) => setSelectedDay(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+                  >
+                    <option value="ALL">Mês inteiro</option>
+                    {chart.map((point) => (
+                      <option key={point.day} value={point.day}>
+                        Dia {point.day}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setShowTable((v) => !v)} aria-pressed={showTable}>
+                  {showTable ? "Ver gráfico" : "Ver como tabela"}
+                </button>
+              </div>
             </div>
             <p style={{ margin: "10px 0", fontSize: 14 }}>
               Receitas <strong>{formatCurrency(summary?.income ?? 0)}</strong> · Despesas <strong>{formatCurrency(summary?.expense ?? 0)}</strong>
@@ -233,6 +261,38 @@ export function DashboardHome() {
                 </ResponsiveContainer>
               </div>
             )}
+
+            {selectedDay !== "ALL" ? (
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--ui-surface-muted)", borderRadius: 8, fontSize: 13.5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <strong>
+                    Lançamentos do dia {selectedDay}/{String(month).padStart(2, "0")}/{year} ({dayMovements.length})
+                  </strong>
+                  <button type="button" className="ui-link" style={{ fontSize: 12.5 }} onClick={() => setSelectedDay("ALL")}>
+                    Ver mês inteiro
+                  </button>
+                </div>
+                {dayMovements.length === 0 ? (
+                  <p className="ui-field-hint" style={{ margin: "4px 0 0" }}>
+                    Nenhuma entrada ou saída registrada exatamente neste dia (valores acumulados dos dias anteriores).
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", margin: "6px 0 0", padding: 0, display: "grid", gap: 4 }}>
+                    {dayMovements.map((item) => (
+                      <li key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                        <span>
+                          <span className={`ui-badge ${item.type === "INCOME" ? "ui-badge-success" : "ui-badge-danger"}`} style={{ marginRight: 6, fontSize: 11 }}>
+                            {item.type === "INCOME" ? "Entrada" : "Saída"}
+                          </span>
+                          {item.tenantName ? `${item.tenantName} (${item.propertyRegistration})` : item.propertyRegistration || "Lançamento"}
+                        </span>
+                        <strong>{formatCurrency(item.amount)}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
           </section>
 
           <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
