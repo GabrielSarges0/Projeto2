@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Link2, Paperclip, Printer, Trash2 } from "lucide-react";
+import { Download, Link2, Paperclip, PenLine, Printer, ShieldCheck, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { updateDocument } from "@/lib/documents";
 import { ACCEPTED_FILE_TYPES, downloadDataUrl, downloadText, fileTooLargeMessage, loadFileContent, readFileAsDataUrl, storeFileContent } from "@/lib/files";
-import { errorMessage } from "@/lib/financial-api";
+import { authApi, errorMessage } from "@/lib/financial-api";
 import { formatDate, formatFileSize } from "@/lib/format";
-import type { DocumentItem, Folder } from "@/lib/schemas";
+import type { DocumentItem, DocumentSignature, Folder } from "@/lib/schemas";
 import { documentLayout, findTemplate, layoutToHtml, useTemplateSettings } from "@/lib/templates";
+import { useSession } from "@/lib/session";
 import { DocumentPreview } from "./DocumentPreview";
+import { SignDocumentModal } from "./SignDocumentModal";
+import { SignatureVerifyModal } from "./SignatureVerifyModal";
 
 type Props = {
   document: DocumentItem;
@@ -33,10 +36,14 @@ export function folderPathOf(folderId: string | null, folders: Folder[]): string
 }
 
 export function DocumentViewer({ document, folderPath, onClose, onDelete, canAttach, notify }: Props) {
+  const session = useSession();
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(document.fileParts > 0);
   const [loadError, setLoadError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [showSignModal, setShowSignModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+
   const { layoutFor, loading: settingsLoading } = useTemplateSettings();
   // Documento antigo (sem cópia do texto) usa a formatação atual do modelo: espera ela carregar.
   const waitingForLayout = !document.rendered && settingsLoading && Boolean(findTemplate(document.template) && document.templateData);
@@ -58,7 +65,7 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
     if (content) {
       downloadDataUrl(content, document.name);
     } else if (layout) {
-      downloadText(layoutToHtml(layout, document.protocol), document.name.replace(/\.pdf$/i, ".html"));
+      downloadText(layoutToHtml(layout, document.protocol, document.signature, document.id), document.name.replace(/\.pdf$/i, ".html"));
     }
   }
 
@@ -69,7 +76,7 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
       notify("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.", "error");
       return;
     }
-    win.document.write(layoutToHtml(layout, document.protocol));
+    win.document.write(layoutToHtml(layout, document.protocol, document.signature, document.id));
     win.document.close();
     win.focus();
     win.print();
@@ -106,88 +113,165 @@ export function DocumentViewer({ document, folderPath, onClose, onDelete, canAtt
     }
   }
 
+  async function handleSign(signature: DocumentSignature, saveAsDefault: boolean) {
+    try {
+      await updateDocument({
+        ...document,
+        signed: true,
+        signature,
+      });
+
+      if (saveAsDefault && session) {
+        const currentPrefs = (session.user.preferences as Record<string, unknown> | null) ?? {};
+        await authApi.updatePreferences({
+          ...currentPrefs,
+          signature: {
+            defaultType: signature.type,
+            defaultRole: signature.signerRole,
+            signatureImage: signature.signatureImage,
+            cursiveName: signature.signedBy,
+            cursiveStyle: signature.cursiveStyle ?? "classic",
+          },
+        });
+      }
+
+      notify("Documento assinado digitalmente com sucesso.", "success");
+    } catch (err: unknown) {
+      notify(errorMessage(err, "Não foi possível registrar a assinatura."), "error");
+    }
+  }
+
   const canDownload = Boolean(content) || Boolean(layout);
 
   return (
-    <Modal
-      title={document.name}
-      wide
-      onClose={onClose}
-      busy={uploading}
-      footer={
-        <>
-          {onDelete ? (
-            <button type="button" className="ui-btn ui-btn-secondary" onClick={onDelete} style={{ color: "var(--ui-danger)" }}>
-              <Trash2 size={16} aria-hidden="true" /> Excluir
-            </button>
-          ) : null}
-          <button type="button" className="ui-btn ui-btn-secondary" onClick={() => void copyLink()}>
-            <Link2 size={16} aria-hidden="true" /> Copiar link
-          </button>
-          {layout && !content ? (
-            <button type="button" className="ui-btn ui-btn-secondary" onClick={print}>
-              <Printer size={16} aria-hidden="true" /> Imprimir / PDF
-            </button>
-          ) : null}
-          <button type="button" className="ui-btn ui-btn-primary" onClick={download} disabled={!canDownload}>
-            <Download size={16} aria-hidden="true" /> Baixar
-          </button>
-        </>
-      }
-    >
-      <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, margin: 0 }}>
-        {[
-          ["Pasta", folderPath],
-          ["Categoria", document.category],
-          ["Protocolo", document.protocol],
-          ["Criado em", formatDate(document.createdAt)],
-          ["Tamanho", document.sizeBytes ? formatFileSize(document.sizeBytes) : "—"],
-          ["Autor", document.createdBy || "—"],
-        ].map(([label, value]) => (
-          <div key={label} style={{ background: "var(--ui-surface-muted)", padding: "6px 10px", borderRadius: 8 }}>
-            <dt style={{ fontSize: 12, color: "var(--ui-text-muted)" }}>{label}</dt>
-            <dd style={{ margin: 0, fontSize: 13.5, fontWeight: 600, wordBreak: "break-word" }}>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      {document.description ? <p style={{ margin: 0, fontSize: 14 }}>{document.description}</p> : null}
+    <>
+      <Modal
+        title={document.name}
+        wide
+        onClose={onClose}
+        busy={uploading}
+        footer={
+          <>
+            {onDelete ? (
+              <button type="button" className="ui-btn ui-btn-secondary" onClick={onDelete} style={{ color: "var(--ui-danger)" }}>
+                <Trash2 size={16} aria-hidden="true" /> Excluir
+              </button>
+            ) : null}
 
-      <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 16, minHeight: 200, background: "#fff" }}>
-        {loading || (waitingForLayout && !content) ? (
-          <div className="ui-skeleton" style={{ height: 180 }} aria-busy="true" />
-        ) : loadError ? (
-          <p className="ui-alert ui-alert-error" role="alert">
-            {loadError}
-          </p>
-        ) : content?.startsWith("data:image/") ? (
-          // eslint-disable-next-line @next/next/no-img-element -- data URL local, sem otimização do next/image
-          <img src={content} alt={`Pré-visualização de ${document.name}`} style={{ maxWidth: "100%", maxHeight: 520, display: "block", margin: "0 auto" }} />
-        ) : content?.startsWith("data:application/pdf") ? (
-          <iframe src={content} title={`PDF ${document.name}`} style={{ width: "100%", height: 520, border: 0 }} />
-        ) : content ? (
-          <p style={{ margin: 0, fontSize: 14 }}>Pré-visualização indisponível para este tipo de arquivo. Use “Baixar”.</p>
-        ) : layout ? (
-          <DocumentPreview layout={layout} />
-        ) : (
-          <div className="ui-empty" style={{ display: "grid", gap: 12, justifyItems: "center" }}>
-            <p style={{ margin: 0 }}>Este registro ainda não tem arquivo digitalizado.</p>
-            {canAttach ? (
-            <label className="ui-btn ui-btn-primary" style={{ cursor: "pointer" }}>
-              <Paperclip size={16} aria-hidden="true" /> {uploading ? "Enviando..." : "Anexar arquivo"}
-              <input
-                type="file"
-                className="sr-only"
-                accept={ACCEPTED_FILE_TYPES}
-                disabled={uploading}
-                onChange={(e) => void attachFile(e.target.files?.[0])}
-              />
-            </label>
-            ) : (
-              <p className="ui-field-hint" style={{ margin: 0 }}>Peça a um Administrador para anexar o arquivo.</p>
-            )}
-          </div>
-        )}
-      </div>
-    </Modal>
+            {document.signature ? (
+              <button
+                type="button"
+                className="ui-btn ui-btn-secondary"
+                onClick={() => setShowVerifyModal(true)}
+                style={{ color: "#065f46", border: "1px solid #10b981" }}
+              >
+                <ShieldCheck size={16} aria-hidden="true" /> Verificar assinatura
+              </button>
+            ) : canAttach ? (
+              <button
+                type="button"
+                className="ui-btn ui-btn-secondary"
+                onClick={() => setShowSignModal(true)}
+              >
+                <PenLine size={16} aria-hidden="true" /> Assinar documento
+              </button>
+            ) : null}
+
+            <button type="button" className="ui-btn ui-btn-secondary" onClick={() => void copyLink()}>
+              <Link2 size={16} aria-hidden="true" /> Copiar link
+            </button>
+            {layout && !content ? (
+              <button type="button" className="ui-btn ui-btn-secondary" onClick={print}>
+                <Printer size={16} aria-hidden="true" /> Imprimir / PDF
+              </button>
+            ) : null}
+            <button type="submit" className="ui-btn ui-btn-primary" onClick={download} disabled={!canDownload}>
+              <Download size={16} aria-hidden="true" /> Baixar
+            </button>
+          </>
+        }
+      >
+        <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, margin: 0 }}>
+          {[
+            ["Pasta", folderPath],
+            ["Categoria", document.category],
+            ["Protocolo", document.protocol],
+            ["Criado em", formatDate(document.createdAt)],
+            ["Tamanho", document.sizeBytes ? formatFileSize(document.sizeBytes) : "—"],
+            ["Autor", document.createdBy || "—"],
+            [
+              "Autenticidade",
+              document.signature
+                ? `✓ Assinado por ${document.signature.signedBy}`
+                : document.signed
+                ? "Marcado como assinado"
+                : "Pendente de assinatura",
+            ],
+          ].map(([label, value]) => (
+            <div key={label} style={{ background: "var(--ui-surface-muted)", padding: "6px 10px", borderRadius: 8 }}>
+              <dt style={{ fontSize: 12, color: "var(--ui-text-muted)" }}>{label}</dt>
+              <dd style={{ margin: 0, fontSize: 13.5, fontWeight: 600, wordBreak: "break-word" }}>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        {document.description ? <p style={{ margin: 0, fontSize: 14 }}>{document.description}</p> : null}
+
+        <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 16, minHeight: 200, background: "#fff" }}>
+          {loading || (waitingForLayout && !content) ? (
+            <div className="ui-skeleton" style={{ height: 180 }} aria-busy="true" />
+          ) : loadError ? (
+            <p className="ui-alert ui-alert-error" role="alert">
+              {loadError}
+            </p>
+          ) : content?.startsWith("data:image/") ? (
+            // eslint-disable-next-line @next/next/no-img-element -- data URL local, sem otimização do next/image
+            <img src={content} alt={`Pré-visualização de ${document.name}`} style={{ maxWidth: "100%", maxHeight: 520, display: "block", margin: "0 auto" }} />
+          ) : content?.startsWith("data:application/pdf") ? (
+            <iframe src={content} title={`PDF ${document.name}`} style={{ width: "100%", height: 520, border: 0 }} />
+          ) : content ? (
+            <p style={{ margin: 0, fontSize: 14 }}>Pré-visualização indisponível para este tipo de arquivo. Use “Baixar”.</p>
+          ) : layout ? (
+            <DocumentPreview layout={layout} signature={document.signature} documentId={document.id} />
+          ) : (
+            <div className="ui-empty" style={{ display: "grid", gap: 12, justifyItems: "center" }}>
+              <p style={{ margin: 0 }}>Este registro ainda não tem arquivo digitalizado.</p>
+              {canAttach ? (
+              <label className="ui-btn ui-btn-primary" style={{ cursor: "pointer" }}>
+                <Paperclip size={16} aria-hidden="true" /> {uploading ? "Enviando..." : "Anexar arquivo"}
+                <input
+                  type="file"
+                  className="sr-only"
+                  accept={ACCEPTED_FILE_TYPES}
+                  disabled={uploading}
+                  onChange={(e) => void attachFile(e.target.files?.[0])}
+                />
+              </label>
+              ) : (
+                <p className="ui-field-hint" style={{ margin: 0 }}>Peça a um Administrador para anexar o arquivo.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {showSignModal ? (
+        <SignDocumentModal
+          documentTitle={document.name}
+          protocol={document.protocol}
+          paragraphs={layout?.paragraphs ?? []}
+          initialSignature={document.signature}
+          onClose={() => setShowSignModal(false)}
+          onSign={handleSign}
+        />
+      ) : null}
+
+      {showVerifyModal && document.signature ? (
+        <SignatureVerifyModal
+          document={document}
+          signature={document.signature}
+          onClose={() => setShowVerifyModal(false)}
+        />
+      ) : null}
+    </>
   );
 }

@@ -46,6 +46,7 @@ export default function DocumentosPage() {
   const [deletingFolder, setDeletingFolder] = useState<Folder | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
   const pendingDocId = useRef<string | null>(null);
+  const pendingVerify = useRef(false);
 
   // Links vindos de outras telas: ?doc=<id>, ?pasta=<id>, ?novo=<modelo>&cliente=<id>
   useEffect(() => {
@@ -72,6 +73,10 @@ export default function DocumentosPage() {
     if (found) {
       setCurrentFolderId(found.folderId);
       setViewing(found);
+      if (pendingVerify.current) {
+        pendingVerify.current = false;
+        show("Documento com autenticidade e assinatura verificadas.", "success");
+      }
     } else {
       show("Documento não encontrado. Ele pode ter sido excluído ou movido.", "error");
     }
@@ -461,7 +466,14 @@ function DocumentRow({
       >
         <FileText size={20} aria-hidden="true" color="#092a54" style={{ flexShrink: 0 }} />
         <span style={{ minWidth: 0 }}>
-          <strong style={{ display: "block", fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</strong>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</strong>
+            {doc.signature || doc.signed ? (
+              <span className="ui-badge ui-badge-success" style={{ fontSize: 10.5, padding: "1px 6px" }}>
+                ✓ Assinado
+              </span>
+            ) : null}
+          </span>
           <span className="ui-field-hint">
             {doc.category} · {doc.protocol} · {formatDate(doc.createdAt)}
             {path ? ` · ${path}` : ""}

@@ -193,6 +193,31 @@ export const templateSettingSchema = templateLayoutSchema.extend({
 });
 export type TemplateSetting = z.infer<typeof templateSettingSchema>;
 
+export const SIGNATURE_TYPES = ["hash", "draw", "cursive", "upload", "institutional"] as const;
+export type SignatureType = (typeof SIGNATURE_TYPES)[number];
+
+export const documentSignatureSchema = z.object({
+  type: z.enum(SIGNATURE_TYPES).catch("hash"),
+  signedBy: z.string(),
+  signerRole: z.string().default("Representante Legal / FMC"),
+  signerEmail: z.string().default(""),
+  signedAt: z.string(),
+  sha256: z.string(),
+  signatureImage: z.string().nullable().default(null),
+  cursiveStyle: z.string().nullable().default(null),
+  includeQrCode: z.boolean().default(true),
+});
+export type DocumentSignature = z.infer<typeof documentSignatureSchema>;
+
+export const userSignaturePrefsSchema = z.object({
+  defaultType: z.enum(SIGNATURE_TYPES).default("hash"),
+  defaultRole: z.string().default("Representante Legal"),
+  signatureImage: z.string().nullable().default(null),
+  cursiveName: z.string().default(""),
+  cursiveStyle: z.string().default("classic"),
+});
+export type UserSignaturePrefs = z.infer<typeof userSignaturePrefsSchema>;
+
 export const documentSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -204,6 +229,7 @@ export const documentSchema = z.object({
   fileParts: z.number().int().default(0),
   protocol: z.string(),
   signed: z.boolean().default(false),
+  signature: documentSignatureSchema.nullable().optional().default(null),
   description: z.string().default(""),
   template: z.string().nullable().default(null),
   templateData: z.record(z.string(), z.string()).nullable().default(null),

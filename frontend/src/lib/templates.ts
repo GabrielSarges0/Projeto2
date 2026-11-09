@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 import { FOLDER_IDS } from "./documents";
-import { formatCurrency, formatDate, parseMoney } from "./format";
+import { formatCurrency, formatDate, formatDateTime, parseMoney } from "./format";
 import { useRecords } from "./records";
-import { templateSettingSchema, type DocumentCategory, type DocumentItem, type TemplateLayout, type TemplateSetting } from "./schemas";
+import { templateSettingSchema, type DocumentCategory, type DocumentItem, type DocumentSignature, type TemplateLayout, type TemplateSetting } from "./schemas";
+import { CURSIVE_STYLES, FMC_INSTITUTIONAL, documentVerificationUrl, formatSha256, generateQrCodeSvg, qrCodeToDataUrl } from "./signatures";
 
 export type TemplateField = {
   key: string;
@@ -367,12 +368,67 @@ function escapeHtml(value: string) {
 }
 
 /** HTML pronto para imprimir/salvar como PDF pelo navegador. */
-export function layoutToHtml(layout: TemplateLayout, protocol: string): string {
+export function layoutToHtml(
+  layout: TemplateLayout,
+  protocol: string,
+  signature?: DocumentSignature | null,
+  documentId?: string
+): string {
   const fontSize = LAYOUT_FONT_SIZE[layout.size] + 1;
+  const qrUrl = signature ? documentVerificationUrl(documentId ?? "doc-preview", signature.sha256) : null;
+  const qrDataUrl = signature && signature.includeQrCode && qrUrl ? qrCodeToDataUrl(generateQrCodeSvg(qrUrl, 2)) : null;
+
+  let signatureHtml = "";
+  if (signature) {
+    if (signature.type === "institutional") {
+      signatureHtml = `
+      <div style="margin-top:40px;padding:14px;border:1.5px solid #092a54;border-radius:6px;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="color:#092a54;font-weight:bold;font-size:13px;letter-spacing:0.5px;">${escapeHtml(FMC_INSTITUTIONAL.sealText.toUpperCase())}</div>
+          <div style="font-weight:bold;font-size:13px;margin-top:2px;">${escapeHtml(FMC_INSTITUTIONAL.name)}</div>
+          <div style="font-size:11px;color:#475569;">CNPJ: ${escapeHtml(FMC_INSTITUTIONAL.cnpj)}</div>
+          <div style="font-size:12px;margin-top:4px;">Representante: <strong>${escapeHtml(signature.signedBy)}</strong> (${escapeHtml(signature.signerRole)})</div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px;">Emitido em ${escapeHtml(formatDateTime(signature.signedAt))} · SHA-256: <code>${escapeHtml(formatSha256(signature.sha256))}</code></div>
+        </div>
+        ${qrDataUrl ? `<div style="text-align:center;"><img src="${qrDataUrl}" style="width:68px;height:68px;display:block;"/><span style="font-size:9px;color:#64748b;">Validação</span></div>` : ""}
+      </div>`;
+    } else if (signature.type === "hash") {
+      signatureHtml = `
+      <div style="margin-top:40px;padding:12px 14px;border:1px solid #10b981;border-radius:6px;background:#ecfdf5;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="color:#065f46;font-weight:bold;font-size:12px;letter-spacing:0.5px;">✓ DOCUMENTO ASSINADO DIGITALMENTE</div>
+          <div style="font-weight:bold;font-size:13px;color:#064e3b;margin-top:2px;">${escapeHtml(signature.signedBy)} · <span style="font-weight:normal;">${escapeHtml(signature.signerRole)}</span></div>
+          ${signature.signerEmail ? `<div style="font-size:11px;color:#047857;">${escapeHtml(signature.signerEmail)}</div>` : ""}
+          <div style="font-size:10.5px;color:#065f46;margin-top:3px;">Assinado em ${escapeHtml(formatDateTime(signature.signedAt))} · SHA-256: <code>${escapeHtml(formatSha256(signature.sha256))}</code></div>
+        </div>
+        ${qrDataUrl ? `<div style="text-align:center;"><img src="${qrDataUrl}" style="width:64px;height:64px;display:block;"/><span style="font-size:9px;color:#065f46;">Validação</span></div>` : ""}
+      </div>`;
+    } else {
+      const cursive = CURSIVE_STYLES[signature.cursiveStyle ?? "classic"] ?? CURSIVE_STYLES.classic;
+      signatureHtml = `
+      <div style="margin-top:40px;padding-top:16px;border-top:1px solid #cbd5e1;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="max-width:380px;">
+          ${signature.signatureImage ? `<img src="${signature.signatureImage}" style="max-height:55px;max-width:260px;display:block;margin-bottom:4px;"/>` : signature.type === "cursive" ? `<div style="font-size:26px;color:#092a54;font-style:italic;margin-bottom:4px;font-family:${cursive.fontFamily};">${escapeHtml(signature.signedBy)}</div>` : ""}
+          <div style="border-top:1.5px solid #334155;padding-top:4px;">
+            <div style="font-weight:bold;font-size:13px;color:#0f172a;">${escapeHtml(signature.signedBy)}</div>
+            <div style="font-size:11.5px;color:#475569;">${escapeHtml(signature.signerRole)}</div>
+            ${signature.signerEmail ? `<div style="font-size:11px;color:#64748b;">${escapeHtml(signature.signerEmail)}</div>` : ""}
+            <div style="font-size:10px;color:#64748b;margin-top:4px;">
+              Assinado eletronicamente em ${escapeHtml(formatDateTime(signature.signedAt))}<br/>
+              SHA-256: <code>${escapeHtml(formatSha256(signature.sha256))}</code>
+            </div>
+          </div>
+        </div>
+        ${qrDataUrl ? `<div style="text-align:center;"><img src="${qrDataUrl}" style="width:64px;height:64px;display:block;"/><span style="font-size:9px;color:#64748b;">Validar</span></div>` : ""}
+      </div>`;
+    }
+  }
+
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(layout.title)}</title>
 <style>body{font-family:${LAYOUT_FONT_STACK[layout.font]};font-size:${fontSize}px;max-width:720px;margin:40px auto;padding:0 24px;color:#111;line-height:1.6}
 h1{font-size:15px;text-align:center;letter-spacing:.5px}h2{font-size:18px;text-align:center;color:#092a54}
-p{text-align:${layout.align};white-space:pre-line}footer{margin-top:48px;font-size:12px;color:#555;border-top:1px solid #ccc;padding-top:8px}</style></head>
+p{text-align:${layout.align};white-space:pre-line}footer{margin-top:40px;font-size:11.5px;color:#555;border-top:1px solid #ccc;padding-top:8px}code{font-family:monospace;font-size:10px;}</style></head>
 <body>${layout.header ? `<h1>${escapeHtml(layout.header)}</h1>` : ""}<h2>${escapeHtml(layout.title)}</h2>${layout.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("")}
+${signatureHtml}
 <footer>Protocolo ${escapeHtml(protocol)} · gerado pelo Painel de Gestão FMC</footer></body></html>`;
 }

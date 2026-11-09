@@ -13,6 +13,7 @@ const sessionSchema = z.object({
     name: z.string(),
     // Sessões anteriores aos níveis de acesso não têm papel: o mais restrito até o /me responder.
     role: z.enum(["GERENTE", "ADMINISTRADOR", "FUNCIONARIO"]).catch("FUNCIONARIO"),
+    preferences: z.record(z.string(), z.unknown()).nullable().optional(),
   }),
 });
 
