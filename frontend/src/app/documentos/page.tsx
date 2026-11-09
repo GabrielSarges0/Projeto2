@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ChevronRight, Download, Eye, FileText, Folder as FolderIcon, FolderPlus, MoreVertical, Pencil, Plus, ScanLine, Search, Trash2, Upload } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Download, Eye, FileText, Folder as FolderIcon, FolderPlus, MoreVertical, Pencil, Plus, ScanLine, Search, Settings2, Trash2, Upload } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { DocumentViewer, folderPathOf } from "@/components/documents/DocumentViewer";
 import { NewDocumentModal } from "@/components/documents/NewDocumentModal";
@@ -16,7 +17,7 @@ import { formatDate, newId, normalizeText, todayIso } from "@/lib/format";
 import { useCan } from "@/lib/permissions";
 import { useRecords } from "@/lib/records";
 import { DOCUMENT_CATEGORIES, clientSchema, documentSchema, folderSchema, type DocumentCategory, type DocumentItem, type Folder } from "@/lib/schemas";
-import { findTemplate, renderTemplateHtml } from "@/lib/templates";
+import { documentLayout, layoutToHtml, useTemplateSettings } from "@/lib/templates";
 
 // Pastas usadas por outras telas (anexos, MP, clientes): podem receber arquivos, mas não ser renomeadas/excluídas.
 const PROTECTED_FOLDERS = new Set<string>([...Object.values(FOLDER_IDS), "fld-mp-anos", "fld-mp-2026", "fld-mp-2026-atas", "fld-mp-2026-relatorios"]);
@@ -27,6 +28,7 @@ export default function DocumentosPage() {
   const docsStore = useRecords("documents", documentSchema);
   const foldersStore = useRecords("folders", folderSchema);
   const clientsStore = useRecords("clients", clientSchema);
+  const { layoutFor } = useTemplateSettings();
   const documents = docsStore.items;
   const folders = foldersStore.items;
   const { show, node: toast } = useToast();
@@ -133,9 +135,9 @@ export default function DocumentosPage() {
         downloadDataUrl(await loadFileContent(doc.id, doc.fileParts), doc.name);
         return;
       }
-      const template = findTemplate(doc.template);
-      if (template && doc.templateData) {
-        downloadText(renderTemplateHtml(template, doc.templateData, doc.protocol), doc.name.replace(/\.pdf$/i, ".html"));
+      const layout = documentLayout(doc, layoutFor);
+      if (layout) {
+        downloadText(layoutToHtml(layout, doc.protocol), doc.name.replace(/\.pdf$/i, ".html"));
         return;
       }
       show("Este documento ainda não tem arquivo. Abra-o e use “Anexar arquivo”.", "error");
@@ -179,6 +181,11 @@ export default function DocumentosPage() {
             <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setScanOpen(true)}>
               <ScanLine size={18} aria-hidden="true" /> Digitalizar
             </button>
+            {canEdit ? (
+              <Link href="/documentos/modelos" className="ui-btn ui-btn-secondary">
+                <Settings2 size={18} aria-hidden="true" /> Formatação dos modelos
+              </Link>
+            ) : null}
             {canEdit ? (
               <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setFolderForm("new")}>
                 <FolderPlus size={18} aria-hidden="true" /> Nova pasta

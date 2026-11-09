@@ -683,9 +683,14 @@ button {
   cursor: pointer;
 }
 
-.ui-icon-btn:hover {
+.ui-icon-btn:hover:not(:disabled) {
   background: #f1f5f9;
   color: var(--ui-text);
+}
+
+.ui-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .ui-btn {

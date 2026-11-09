@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowLeft, FilePlus2, FileText, Upload } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, FilePlus2, FileText, Settings2, Upload } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { createDocument } from "@/lib/documents";
@@ -9,7 +10,9 @@ import { ACCEPTED_FILE_TYPES, fileTooLargeMessage } from "@/lib/files";
 import { errorMessage, propertiesApi, type PropertyItem } from "@/lib/financial-api";
 import { formatMoneyInput, isValidIsoDate, parseMoney, todayIso } from "@/lib/format";
 import { DOCUMENT_CATEGORIES, type DocumentCategory, type DocumentItem, type Folder } from "@/lib/schemas";
-import { DOCUMENT_TEMPLATES, findTemplate, type DocumentTemplate } from "@/lib/templates";
+import { useCan } from "@/lib/permissions";
+import { DOCUMENT_TEMPLATES, findTemplate, renderTemplate, useTemplateSettings, type DocumentTemplate } from "@/lib/templates";
+import { DocumentPreview } from "./DocumentPreview";
 import { folderPathOf } from "./DocumentViewer";
 
 type Step = { kind: "choose" } | { kind: "template"; template: DocumentTemplate } | { kind: "upload" } | { kind: "blank" };
@@ -29,6 +32,7 @@ export function NewDocumentModal({ folders, defaultFolderId, initialTemplateId, 
   const initialTemplate = findTemplate(initialTemplateId);
   const [step, setStep] = useState<Step>(initialTemplate ? { kind: "template", template: initialTemplate } : { kind: "choose" });
   const [saving, setSaving] = useState(false);
+  const canEdit = useCan("edit");
 
   const title =
     step.kind === "template" ? step.template.label : step.kind === "upload" ? "Enviar arquivo" : step.kind === "blank" ? "Registro sem arquivo" : "Novo documento";
@@ -49,7 +53,14 @@ export function NewDocumentModal({ folders, defaultFolderId, initialTemplateId, 
               <span className="ui-field-hint">Cadastra o documento agora e anexa o arquivo depois.</span>
             </button>
           </div>
-          <h3 style={{ margin: "6px 0 0", fontSize: 15, color: "var(--ui-primary)" }}>Criar a partir de um formulário</h3>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <h3 style={{ margin: 0, fontSize: 15, color: "var(--ui-primary)" }}>Criar a partir de um formulário</h3>
+            {canEdit ? (
+              <Link href="/documentos/modelos" className="ui-link" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+                <Settings2 size={16} aria-hidden="true" /> Formatação dos modelos
+              </Link>
+            ) : null}
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))", gap: 10 }}>
             {DOCUMENT_TEMPLATES.map((template) => (
               <button key={template.id} type="button" className="ui-card" style={choiceStyle} onClick={() => setStep({ kind: "template", template })}>
@@ -157,6 +168,8 @@ function TemplateForm({
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const settings = useTemplateSettings();
+  const layout = settings.layoutFor(template.id);
   const needsProperties = template.fields.some((field) => field.type === "property");
 
   useEffect(() => {
@@ -213,6 +226,7 @@ function TemplateForm({
         description: template.description,
         template: template.id,
         templateData: trimmed,
+        rendered: renderTemplate(template, trimmed, layout),
         clientId,
         signed: true,
       });
@@ -224,7 +238,8 @@ function TemplateForm({
     }
   }
 
-  const preview = template.render(Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v || `[${k}]`])));
+  const preview = renderTemplate(template, data, layout, { showMissingRequired: true });
+  const settingsBlocked = settings.loading || Boolean(settings.error);
 
   return (
     <form onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 14 }}>
@@ -274,23 +289,25 @@ function TemplateForm({
           ))}
           <FolderSelect folders={folders} value={folderId} onChange={setFolderId} />
         </div>
-        <aside aria-label="Pré-visualização" className="ui-card" style={{ fontFamily: "Georgia, serif", fontSize: 13.5, lineHeight: 1.55, alignSelf: "start" }}>
-          <p style={{ textAlign: "center", fontWeight: 700, margin: 0, fontSize: 12 }}>FUNDAÇÃO MANUEL CRUZ</p>
-          <h3 style={{ textAlign: "center", color: "var(--ui-primary)", fontSize: 14 }}>{preview.title}</h3>
-          {preview.paragraphs.map((paragraph) => (
-            <p key={paragraph} style={{ textAlign: "justify" }}>
-              {paragraph}
-            </p>
-          ))}
+        <aside aria-label="Pré-visualização" className="ui-card" style={{ alignSelf: "start", background: "#fff" }}>
+          {settings.loading ? <div className="ui-skeleton" style={{ height: 220 }} aria-busy="true" /> : <DocumentPreview layout={preview} compact />}
         </aside>
       </div>
+      {settings.error ? (
+        <div className="ui-alert ui-alert-error" role="alert" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+          <span>Não foi possível carregar a formatação deste modelo. O documento só é gerado com a formatação certa.</span>
+          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => void settings.reload()}>
+            Tentar de novo
+          </button>
+        </div>
+      ) : null}
       {formError ? (
         <p className="ui-alert ui-alert-error" role="alert">
           {formError}
         </p>
       ) : null}
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button type="submit" className="ui-btn ui-btn-primary" disabled={saving} aria-busy={saving}>
+        <button type="submit" className="ui-btn ui-btn-primary" disabled={saving || settingsBlocked} aria-busy={saving}>
           {saving ? "Gerando..." : "Gerar e salvar documento"}
         </button>
       </div>
