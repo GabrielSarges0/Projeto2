@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import br.org.fundacaomanuelcruz.projeto2.auth.LoginRateLimiter;
+import br.org.fundacaomanuelcruz.projeto2.user.ForbiddenException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -27,6 +28,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     ResponseEntity<ApiErrorResponse> notFound(NotFoundException exception) {
         return response(HttpStatus.NOT_FOUND, exception.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    ResponseEntity<ApiErrorResponse> forbidden(ForbiddenException exception) {
+        return response(HttpStatus.FORBIDDEN, exception.getMessage(), Map.of());
     }
 
     @ExceptionHandler(LoginRateLimiter.TooManyRequestsException.class)

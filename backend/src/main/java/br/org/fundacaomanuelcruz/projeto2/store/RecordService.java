@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.org.fundacaomanuelcruz.projeto2.api.NotFoundException;
 import br.org.fundacaomanuelcruz.projeto2.auth.CurrentUser;
+import br.org.fundacaomanuelcruz.projeto2.user.ForbiddenException;
+import br.org.fundacaomanuelcruz.projeto2.user.UserRole;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -60,6 +62,9 @@ public class RecordService {
 
         AppRecordId id = new AppRecordId(collection.slug(), recordId);
         AppRecord record = repository.findById(id).orElse(null);
+        if (CurrentUser.role() == UserRole.FUNCIONARIO) {
+            checkStaffWrite(collection, record, data);
+        }
         if (record == null) {
             if (repository.countByIdCollection(collection.slug()) >= collection.maxRecords()) {
                 throw new IllegalArgumentException("Limite de registros atingido para " + collection.slug() + ".");
@@ -78,6 +83,48 @@ public class RecordService {
             throw new NotFoundException("Registro não encontrado: " + recordId);
         }
         repository.deleteById(id);
+    }
+
+    /**
+     * Funcionário grava só o dia a dia: ponto, justificativa nova (pendente), documento novo, retirada/descarte
+     * do estoque (baixando a quantidade). Aprovar, editar cadastros e excluir fica com Gerente/Administrador.
+     */
+    private void checkStaffWrite(RecordCollection collection, AppRecord existing, ObjectNode data) {
+        switch (collection) {
+            case ATTENDANCE, DOCUMENT_FILES -> {
+                return;
+            }
+            case JUSTIFICATIONS -> {
+                boolean pending = "Pendente".equals(data.path("status").asString(""))
+                        && data.path("reviewedBy").isNull();
+                if (existing == null && pending) return;
+                throw new ForbiddenException("Funcionário só envia justificativas novas; a análise é do gestor.");
+            }
+            case DOCUMENTS -> {
+                if (existing == null) return;
+                throw new ForbiddenException("Funcionário pode enviar documentos, mas não alterar os existentes.");
+            }
+            case INVENTORY_MOVEMENTS -> {
+                String type = data.path("type").asString("");
+                if (existing == null && ("RETIRADA".equals(type) || "DESCARTE".equals(type))) return;
+                throw new ForbiddenException("Funcionário só registra retiradas e descartes.");
+            }
+            case INVENTORY -> {
+                if (existing != null && onlyQuantityDecreased(objectMapper.readTree(existing.getPayload()), data)) return;
+                throw new ForbiddenException("Funcionário só pode baixar a quantidade de um item.");
+            }
+            default -> throw new ForbiddenException("Seu perfil não tem permissão para esta ação. Fale com o gerente.");
+        }
+    }
+
+    private static boolean onlyQuantityDecreased(JsonNode before, ObjectNode after) {
+        ObjectNode beforeCopy = ((ObjectNode) before).deepCopy();
+        ObjectNode afterCopy = after.deepCopy();
+        long oldQty = beforeCopy.path("quantity").asLong(-1);
+        long newQty = afterCopy.path("quantity").asLong(-1);
+        beforeCopy.remove("quantity");
+        afterCopy.remove("quantity");
+        return beforeCopy.equals(afterCopy) && newQty >= 0 && newQty <= oldQty;
     }
 
     private RecordResponse toResponse(AppRecord record) {
