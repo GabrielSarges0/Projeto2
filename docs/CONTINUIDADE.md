@@ -43,8 +43,8 @@ Produção: o banco ainda não tinha nenhuma conta em 09/11. **A primeira conta 
 
 ## O que falta (por prioridade)
 
-1. **Aprovação e Merge do PR #10:** Realizar merge com rebase pela conta dona (`GabrielSarges0`) após autorização do usuário.
-2. **Roteiro de homologação da Sprint 4 (Hannah)**: validação ponta a ponta dos fluxos implementados nas 3 personas (Gerente, Administrador, Funcionário).
+1. **Roteiro de homologação da Sprint 4 (Hannah)**: validação ponta a ponta dos fluxos implementados nas 3 personas (Gerente, Administrador, Funcionário).
+2. **Validação da experiência de impressão/PDF de contratos e termos com QR Code de autenticidade.**
 
 ## Como verificar antes de abrir PR
 
