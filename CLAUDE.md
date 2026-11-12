@@ -23,3 +23,7 @@ cd frontend && npm ci && npm run build
 ## Banco de dados
 - Produção: Supabase, projeto `xgqjihgzhpmcpukmjmbv` (Projeto2-FMC), schema `projeto2`. Mudanças de schema só por nova migration Flyway em `backend/src/main/resources/db/migration/` (compatível com PostgreSQL e H2).
 - **Qualquer escrita no banco de produção exige confirmação do usuário.**
+
+## Design e front-end
+- Todo trabalho de UI segue a skill `web-design` (`.claude/skills/web-design/` no Claude Code, `.agents/skills/web-design/` no Antigravity) e o `DESIGN.md` da raiz.
+- Este site precisa ter visual único: antes de qualquer decisão visual, leia o `DESIGN.md` e o `references/signatures.md` da skill.
