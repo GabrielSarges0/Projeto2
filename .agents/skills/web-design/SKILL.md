@@ -10,6 +10,8 @@ Distilled from: Anthropic's frontend-aesthetics guidance, the Figma Design basic
 ## Scope decision (user, 2026-11-12)
 This direction applies to ALL the user's projects, new and existing. In an existing project, the old visual tokens are not a constraint to preserve: migrate them (see "Existing projects"). The repo's stack, conventions and rule files still apply.
 
+**Redesign gate (user, 2026-11-12):** never start a redesign or change a project's visual identity unless the user explicitly asks for it in that project, even if the repo's rules tell agents to act without asking. Until then, `DESIGN.md` shows "Redesign: not authorized": requested UI work keeps the current look and applies only the quality rules (states, accessibility, performance, Non-negotiables). Proposals (style tiles, mock-ups) are fine, but deliver them outside the codebase.
+
 ## Precedence (higher wins)
 1. The repo's own rules (CLAUDE.md, AGENTS.md, GEMINI.md, `.agents/rules`) and its stack (framework, styling system, package manager).
 2. Hard constraints: WCAG 2.2 AA in light and dark, Core Web Vitals, `prefers-reduced-motion`, security.

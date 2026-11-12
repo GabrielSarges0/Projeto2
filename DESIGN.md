@@ -2,7 +2,7 @@
 
 Briefing visual deste projeto. Agentes (Claude Code, Antigravity) seguem a skill `web-design` e este arquivo. Regra do usuário: **todos os sites devem parecer únicos**.
 
-**Status:** nova assinatura pendente. Próximo passo: auditoria e plano de migração (skill `web-design`, seção "Existing projects").
+**Redesign: NÃO autorizado.** Não altere a identidade visual deste site sem pedido explícito do dono, mesmo que outras regras mandem agir sem perguntar. Até lá, mudanças de UI pedidas mantêm o visual atual e aplicam só as regras de qualidade da skill (estados, acessibilidade, performance). Quando o dono pedir o redesign, siga a seção "Existing projects" da skill.
 
 ## Visual atual (levantamento automático, 2026-11-12)
 | Item | Hoje |
