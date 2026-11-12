@@ -7,61 +7,41 @@ description: Design and front-end rules for building websites and web apps: conc
 
 Distilled from: Anthropic's frontend-aesthetics guidance, the Figma Design basics library (129 articles in 7 sections), Figma's design-system examples, the mcpservers.org catalog, and the user's creative-development directives. Load reference files only when the task needs them (index at the end).
 
-## Scope decision (user, 2026-11-12)
-This direction applies to ALL the user's projects, new and existing. In an existing project, the old visual tokens are not a constraint to preserve: migrate them (see "Existing projects"). The repo's stack, conventions and rule files still apply.
-
-**Redesign gate (user, 2026-11-12):** never start a redesign or change a project's visual identity unless the user explicitly asks for it in that project, even if the repo's rules tell agents to act without asking. Until then, `DESIGN.md` shows "Redesign: not authorized": requested UI work keeps the current look and applies only the quality rules (states, accessibility, performance, Non-negotiables). Proposals (style tiles, mock-ups) are fine, but deliver them outside the codebase.
+## Scope decision (user, 2026-11-12): evolve, don't replace
+Applies to ALL the user's sites, existing and new.
+- **Improve each site's current design.** Keep its palette (color values), its fonts and its structure (sections, order, navigation, copy). Never introduce a new color, swap a typeface or reorder or remove sections unless the user asks.
+- **What "improve" covers:** finish (weight, width, tracking and size within the current families), depth (layered surfaces, light and shadow using the existing colors), complete interaction states, motion, 3D and tech options (`references/creative-dev.md`), accessibility and performance.
+- **Gate:** enhancements ship only when the user asks for them on that site. The site's `DESIGN.md` says what is authorized. Without an authorization line, requested UI work keeps the current look and applies only the Non-negotiables, even if the repo's rules tell agents to act without asking. Proposals (mock-ups on a canvas) are fine, outside the codebase.
 
 ## Precedence (higher wins)
-1. The repo's own rules (CLAUDE.md, AGENTS.md, GEMINI.md, `.agents/rules`) and its stack (framework, styling system, package manager).
+1. The repo's own rules (CLAUDE.md, AGENTS.md, GEMINI.md, `.agents/rules`), its `DESIGN.md`, and its stack (framework, styling system, package manager).
 2. Hard constraints: WCAG 2.2 AA in light and dark, Core Web Vitals, `prefers-reduced-motion`, security.
-3. The user's art direction (`references/creative-dev.md`).
-4. Anti-generic aesthetics (`references/aesthetics.md`).
-5. Design-basics guidance (`references/ui-ux.md`, `web.md`, `typography.md`, `color.md`, `process.md`, `brand.md`).
+3. The scope decision above: current palette, fonts and structure stay.
+4. The user's art direction (`references/creative-dev.md`) as enhancements on top of the current design.
+5. Anti-generic guidance (`references/aesthetics.md`) and the design-basics references (`ui-ux.md`, `web.md`, `typography.md`, `color.md`, `process.md`, `brand.md`).
 When two rules conflict, follow the higher one and say so in one line.
 
 ## Uniqueness (user decision, 2026-11-12): every site must look unique
-Projects share quality, never the look.
-
-**Floor (every project):** custom easing/spring motion tokens, one orchestrated entrance, depth (layers, texture or light), strong type hierarchy, full interaction states, pointer micro-interactions on fine pointers only, light and dark themes both shipped and tested, and the performance budgets.
-
-**Signature: define all 10 axes in each project's brief.**
-| # | Axis | Examples |
-|---|---|---|
-| 1 | Concept (named aesthetic) | warm editorial, Swiss grid, brutalist lab, organic spa, retro-futurist, industrial catalogue |
-| 2 | Display typeface | Syne, Fraunces, Instrument Serif, Bricolage Grotesque, a mono… |
-| 3 | Text typeface | Plus Jakarta Sans, Source Serif 4, IBM Plex Sans… |
-| 4 | Dominant hue family + neutral temperature | terracotta + warm greys; cobalt + cool greys; neutral-dominant |
-| 5 | Lead theme | dark-first or light-first |
-| 6 | Layout archetype | asymmetric editorial, bento, split-screen, full-bleed scroll story, single-column manifesto, catalogue grid |
-| 7 | Signature technique(s) | 1–2 from the menu in `creative-dev.md` |
-| 8 | Shape language | radius scale (0 / 4px / 24px / pill); borders vs shadows |
-| 9 | Motion personality | snappy expo-out ~180ms; soft springs; slow cinematic scrub |
-| 10 | Imagery & texture | duotone photography, 3D renders, grain, line illustration, macro product shots |
-
-**Rules**
-- Read `references/signatures.md` before choosing. A project may share at most 2 of the 10 axes with any approved signature, and never axis 1, 2 or 4. Hue families differ when dominant hues are ≥ 40° apart on the HSL wheel, or when exactly one of the two projects is neutral-dominant.
-- No technique (glass, bento, mesh, glow, 3D hero, dark-first…) may be the primary signature of more than 2 approved projects.
-- Derive the signature from the brand's audience, sector and story (`brand.md`), not from trends: a spa and a chemical-supplies store must not share a mood.
-- Record it: write `DESIGN.md` at the repo root (the 10 axes plus token file paths), add a row to `references/signatures.md` in the kit source, and reinstall the kit so every project sees the updated registry.
-- Uniqueness never overrides the hard constraints (precedence 1–2).
+- Each site already has its own palette, fonts and structure; keeping them keeps the sites distinct. `references/signatures.md` records each site's current look and its enhancements.
+- **Distinct centerpieces:** no two sites use the same signature tech element (e.g. one site's 3D flask, another's particle field). Check `signatures.md` before choosing, and add the site's row after shipping.
+- Pick enhancements from the site's own subject (a chemistry store gets glassware and molecules, a spa gets water and light) and never copy another site's effect.
+- **Floor every site gets once authorized:** complete interaction states, one orchestrated entrance, depth with the existing colors, custom easing (no `linear` UI motion), reduced-motion fallbacks, the performance budgets.
 
 ## Workflow
-1. **Explore.** Read the repo rules, package manager and scripts, styling system (Tailwind v3/v4, CSS modules, plain CSS), existing tokens and components. Given a Figma file, read its variables and map them to existing tokens.
-2. **Brief (before code).** Audience and the page's one primary action, then the 10 signature axes chosen against `references/signatures.md` (see Uniqueness) and the single hero motion moment. If the repo has a `DESIGN.md`, it is the brief: follow it.
-3. **Tokens first.** Primitives → semantic (`surface`, `text-muted`, `border-strong`, `action-primary`), with component tokens only when justified. Define light and dark values; components never use raw hex or px.
-4. **Structure.** Information architecture and section order from the site-type checklist in `web.md` (landing, pricing, portfolio, business).
-5. **Build.** Primitives first, then compositions. Every interactive element has default, hover, focus-visible, active, disabled and loading states (plus success/error/selected where relevant). Every data view has loading (sized skeleton), empty and error states.
-6. **Motion and 3D last**, behind the guards in `creative-dev.md`.
-7. **Verify.** Typecheck → lint → tests → build; 375px and 1280px; light and dark; keyboard only; contrast; reduced motion; Lighthouse/Core Web Vitals. Report what you could not verify.
+1. **Explore.** Read the repo rules and `DESIGN.md`, package manager and scripts, styling system (Tailwind v3/v4, CSS modules, plain CSS), existing tokens and components. Given a Figma file, read its variables and map them to existing tokens.
+2. **Brief (before code).** The page's one primary action, the current palette, fonts and section order (all kept), and the authorized enhancements from `DESIGN.md`.
+3. **Tokens.** Name the existing colors as tokens (no new values) where the code uses raw hex; define light and dark values only from the existing palette.
+4. **Build.** Every interactive element has default, hover, focus-visible, active, disabled and loading states (plus success/error/selected where relevant). Every data view has loading (sized skeleton), empty and error states.
+5. **Motion and 3D last**, behind the guards in `creative-dev.md`.
+6. **Verify.** Typecheck → lint → tests → build; 375px and 1280px; light and dark; keyboard only; contrast; reduced motion; Lighthouse/Core Web Vitals against the baseline. Report what you could not verify.
 
-## Existing projects: migration, not big-bang
-1. **Audit:** current tokens and hard-coded values, fonts, motion, CWV and accessibility baseline (Lighthouse plus a keyboard pass). Record the numbers.
-2. **Plan:** a short plan for the user's approval covering the 10-axis signature (checked against the registry), token map (old → new), dependencies to add with size and justification, the files touched, and the risks. Get approval before refactors touching ~5+ files or adding dependencies.
-3. **Token layer first:** introduce the semantic tokens and dark/light values, then repoint existing components to them. Most of the visual change lands here, with little churn.
-4. **Highest-impact surfaces next:** hero/landing, navigation, primary buttons and cards. Then the remaining components. 3D only where it serves the concept.
-5. **Re-measure** against the baseline. No regression in CWV or contrast is acceptable; report the deltas.
-6. **Record and install:** write the repo's `DESIGN.md`, add its row to `references/signatures.md`, install the skill in the repo (`node install.mjs --project <repo>`) and add one line to its CLAUDE.md/AGENTS.md: "UI work follows the `web-design` skill and `DESIGN.md`."
+## Enhancing an existing site
+1. **Baseline:** Lighthouse (mobile and desktop) and a keyboard pass. Record the numbers.
+2. **Proposal:** a canvas mock-up of the current page with the enhancements, for the user to see before code.
+3. **Authorization:** the user names the enhancements; write them in `DESIGN.md` under "Melhorias autorizadas".
+4. **Implement** on a branch with a PR and preview; new dependencies only when an authorized enhancement needs them, loaded lazily.
+5. **Re-measure:** no regression in Core Web Vitals or contrast; report the deltas.
+6. **Record:** update the site's row in `references/signatures.md` in the kit and reinstall.
 
 ## Non-negotiables
 | Area | Rule |
@@ -77,7 +57,7 @@ Projects share quality, never the look.
 | Navigation | Visible primary nav on desktop; hamburger only on small screens or for secondary items. |
 | Semantics | Semantic HTML before ARIA; real `<table>`, `<button>`, `<a>`, `<nav>`, landmarks, one `<h1>`, ordered headings. |
 | Content | Plain, specific copy. Primary CTA states the outcome. Error messages give cause and fix. |
-| Generic look | No default Inter-on-white, purple gradient, or hero + 3 cards on greenfield work; no "all trends at once" (glass + bento + mesh + glow). |
+| Generic look | On new sites: no default Inter-on-white, purple gradient, or hero + 3 cards; no "all trends at once" (glass + bento + mesh + glow). |
 
 ## Reference index (load on demand)
 | File | Load when |
@@ -92,6 +72,6 @@ Projects share quality, never the look.
 | `references/process.md` | Wireframes, prototypes, user flows, MVP scope, validation and testing, tool choice |
 | `references/brand.md` | Style guides, logo use on the web, storytelling for landing and About pages, lessons from print and media |
 | `references/mcp-servers.md` | Choosing or registering MCP servers (browser testing, DB, payments, errors, CMS, SEO, research) |
-| `references/signatures.md` | ALWAYS before choosing a project's look: the registry of every project's signature |
+| `references/signatures.md` | ALWAYS before adding an enhancement: each site's current look and its centerpiece |
 
 Claims flagged ⚠ in the reference files conflict with WCAG or current practice. Follow the note, not the original claim. When a reference gives a different number than the Non-negotiables table (e.g. body line-height), the table wins. Fonts marked "GF?" in `typography.md`: confirm they are on Google Fonts before using `next/font/google`.
