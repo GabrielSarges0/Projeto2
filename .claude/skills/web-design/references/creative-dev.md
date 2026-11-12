@@ -1,5 +1,7 @@
 # Creative development: 3D, motion, premium aesthetics
 
+> Under the user's "evolve, don't replace" rule (SKILL.md), use everything here as enhancements on top of each site's existing palette, fonts and structure. The art-direction items about new palettes, dark-first themes or new typefaces apply to new sites only.
+
 Source: the user's "Creative Developer / Awwwards" directives (2026-11-12), with engineering guardrails. Every rule here sits under the hard constraints in SKILL.md: WCAG 2.2 AA in both themes, Core Web Vitals, reduced motion, and the repo's own stack.
 
 ## Stack
