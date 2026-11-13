@@ -27,3 +27,10 @@ cd frontend && npm ci && npm run build
 ## Design e front-end
 - Todo trabalho de UI segue a skill `web-design` (`.claude/skills/web-design/` no Claude Code, `.agents/skills/web-design/` no Antigravity) e o `DESIGN.md` da raiz.
 - Este site precisa ter visual único: antes de qualquer decisão visual, leia o `DESIGN.md` e o `references/signatures.md` da skill.
+
+## Agentes e economia de tokens
+- Busca/leitura de arquivos e logs: delegue ao `ajudante-haiku`. Fluxos em vários arquivos e revisão de diff: `ajudante-sonnet`. Decisão difícil: `ajudante-opus`. `ajudante-fable` só se o usuário pedir.
+- Antes de push/PR e após deploy: rode o agente `testador-site` (`.claude/agents/testador-site.md`) e leia só o resumo dele.
+- Leia só os trechos necessários (offset/limit); use Grep/Glob antes de abrir arquivos. Não releia o que já foi lido.
+- Comandos: detecte o gerenciador pelo lockfile e use os scripts do `package.json`; se um script não existir, diga e não invente.
+- Fonte única das skills de design: repositório `web-design-kit` (`install.mjs`).
