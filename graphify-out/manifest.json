@@ -1,0 +1,1196 @@
+{
+  ".devcontainer/devcontainer.json": {
+    "mtime": 1794576512.4023993,
+    "seen": 1794577243.2161274,
+    "ast_hash": "2aad3b7831c4f1e0b67e21ca5c8d396f",
+    "semantic_hash": "2aad3b7831c4f1e0b67e21ca5c8d396f"
+  },
+  ".devcontainer/setup.sh": {
+    "mtime": 1794576512.4032738,
+    "seen": 1794577243.2161355,
+    "ast_hash": "e1529a0ba933bb6e22be4bfaddc2a149",
+    "semantic_hash": "e1529a0ba933bb6e22be4bfaddc2a149"
+  },
+  ".devcontainer/start.sh": {
+    "mtime": 1794576512.4032738,
+    "seen": 1794577243.2161381,
+    "ast_hash": "16bd373fe68b053eb252aaf889270f15",
+    "semantic_hash": "16bd373fe68b053eb252aaf889270f15"
+  },
+  "INICIAR_R6_3.ps1": {
+    "mtime": 1794576512.4032738,
+    "seen": 1794577243.2161398,
+    "ast_hash": "6aba224e8b2ebe7edd62cefeb4030d5e",
+    "semantic_hash": "6aba224e8b2ebe7edd62cefeb4030d5e"
+  },
+  "backend/mvnw": {
+    "mtime": 1794576512.403712,
+    "seen": 1794577243.2161415,
+    "ast_hash": "ab50dd89da7da2346b28003352eeeeeb",
+    "semantic_hash": "ab50dd89da7da2346b28003352eeeeeb"
+  },
+  "backend/pom.xml": {
+    "mtime": 1794576512.403712,
+    "seen": 1794577243.2161434,
+    "ast_hash": "95f7cf690cb59d990602b93e91d16e89",
+    "semantic_hash": "95f7cf690cb59d990602b93e91d16e89"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/Projeto2BackendApplication.java": {
+    "mtime": 1794576512.4040008,
+    "seen": 1794577243.2161448,
+    "ast_hash": "df271be52f8052e7ffd5f2b7657adad6",
+    "semantic_hash": "df271be52f8052e7ffd5f2b7657adad6"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/alert/AlertController.java": {
+    "mtime": 1794576512.4040563,
+    "seen": 1794577243.216146,
+    "ast_hash": "19783fe0f74cde0db51a103dc049b0ae",
+    "semantic_hash": "19783fe0f74cde0db51a103dc049b0ae"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/alert/AlertDigestService.java": {
+    "mtime": 1794576512.4040883,
+    "seen": 1794577243.2161472,
+    "ast_hash": "e31a1dbdf47b118c2d16a6d88daa1d1c",
+    "semantic_hash": "e31a1dbdf47b118c2d16a6d88daa1d1c"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/alert/AlertEmailSender.java": {
+    "mtime": 1794576512.4040883,
+    "seen": 1794577243.2161484,
+    "ast_hash": "23a95b1cf629f4c16833889db6999f57",
+    "semantic_hash": "23a95b1cf629f4c16833889db6999f57"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/alert/AlertScheduler.java": {
+    "mtime": 1794576512.4040883,
+    "seen": 1794577243.2161498,
+    "ast_hash": "37339f9ce37fc72fdfb08e6b22d28da5",
+    "semantic_hash": "37339f9ce37fc72fdfb08e6b22d28da5"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/alert/HttpOrLogAlertEmailSender.java": {
+    "mtime": 1794576512.4040883,
+    "seen": 1794577243.2161582,
+    "ast_hash": "94b8152483448666c277d537e9d65a03",
+    "semantic_hash": "94b8152483448666c277d537e9d65a03"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/api/ApiErrorResponse.java": {
+    "mtime": 1794576512.4040883,
+    "seen": 1794577243.2161593,
+    "ast_hash": "db41134d28799376b145becba1efd9cf",
+    "semantic_hash": "db41134d28799376b145becba1efd9cf"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/api/ApiExceptionHandler.java": {
+    "mtime": 1794576512.4042711,
+    "seen": 1794577243.2161608,
+    "ast_hash": "b1e50eaa8feef12aa72ad7ded5d1b22c",
+    "semantic_hash": "b1e50eaa8feef12aa72ad7ded5d1b22c"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/api/NotFoundException.java": {
+    "mtime": 1794576512.4042711,
+    "seen": 1794577243.2161622,
+    "ast_hash": "197c7fe7a73c556670fdda7704d44669",
+    "semantic_hash": "197c7fe7a73c556670fdda7704d44669"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/auth/AuthController.java": {
+    "mtime": 1794576512.4042711,
+    "seen": 1794577243.2161636,
+    "ast_hash": "d6529b54cc97d3794bd8d96a02fc8e2b",
+    "semantic_hash": "d6529b54cc97d3794bd8d96a02fc8e2b"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/auth/AuthenticatedUser.java": {
+    "mtime": 1794576512.4043653,
+    "seen": 1794577243.2161648,
+    "ast_hash": "8ab1c31a7024c944998ce2bf107a0683",
+    "semantic_hash": "8ab1c31a7024c944998ce2bf107a0683"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/auth/BearerTokenAuthenticationFilter.java": {
+    "mtime": 1794576512.4043653,
+    "seen": 1794577243.2161663,
+    "ast_hash": "9d3ce552c134cde613d2b26bb52a0c70",
+    "semantic_hash": "9d3ce552c134cde613d2b26bb52a0c70"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/auth/CurrentUser.java": {
+    "mtime": 1794576512.4043653,
+    "seen": 1794577243.2161674,
+    "ast_hash": "445468dd00eb4ea9b16f225b555ad7e4",
+    "semantic_hash": "445468dd00eb4ea9b16f225b555ad7e4"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/auth/LoginRateLimiter.java": {
+    "mtime": 1794576512.4043653,
+    "seen": 1794577243.2161689,
+    "ast_hash": "21cde3e5ec82d83908597569c4e72c65",
+    "semantic_hash": "21cde3e5ec82d83908597569c4e72c65"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/auth/SessionTokenService.java": {
+    "mtime": 1794576512.4043653,
+    "seen": 1794577243.2161703,
+    "ast_hash": "d104f58957e512ff2ed394b76c0e4ab9",
+    "semantic_hash": "d104f58957e512ff2ed394b76c0e4ab9"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/config/SecurityConfig.java": {
+    "mtime": 1794576512.4043653,
+    "seen": 1794577243.216172,
+    "ast_hash": "664f9740ac8f3ba435af9227d8864aeb",
+    "semantic_hash": "664f9740ac8f3ba435af9227d8864aeb"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/config/WebConfig.java": {
+    "mtime": 1794576512.4045706,
+    "seen": 1794577243.216174,
+    "ast_hash": "d01b273b58cf7e5e3b63a01ba35e94e1",
+    "semantic_hash": "d01b273b58cf7e5e3b63a01ba35e94e1"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/BrazilianDocumentType.java": {
+    "mtime": 1794576512.4045706,
+    "seen": 1794577243.2161753,
+    "ast_hash": "907c6ed2a51da3989549cb73481798ca",
+    "semantic_hash": "907c6ed2a51da3989549cb73481798ca"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/BrazilianDocumentValidator.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161767,
+    "ast_hash": "eafd28e548a771a82fd8fab5d2420bfd",
+    "semantic_hash": "eafd28e548a771a82fd8fab5d2420bfd"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/CreateExpenseRequest.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161782,
+    "ast_hash": "db9d3312342b881e0004bca6cd6d0125",
+    "semantic_hash": "db9d3312342b881e0004bca6cd6d0125"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/CreateIncomeRequest.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161791,
+    "ast_hash": "191b5514aae60c5834b1dae464d3bb61",
+    "semantic_hash": "191b5514aae60c5834b1dae464d3bb61"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/FinancialController.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161806,
+    "ast_hash": "e50ea549c040da6395d29c92e08cc210",
+    "semantic_hash": "e50ea549c040da6395d29c92e08cc210"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/FinancialMovementResponse.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.216182,
+    "ast_hash": "abc5964413b3b362ef3d84317ccf19ad",
+    "semantic_hash": "abc5964413b3b362ef3d84317ccf19ad"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/FinancialService.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161837,
+    "ast_hash": "73cb6873ab01228b6c4f419af30b49f0",
+    "semantic_hash": "73cb6873ab01228b6c4f419af30b49f0"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/FinancialSummaryResponse.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.216185,
+    "ast_hash": "6c715973691c7fd0c7c50df98fdaba65",
+    "semantic_hash": "6c715973691c7fd0c7c50df98fdaba65"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/FinancialTransaction.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161865,
+    "ast_hash": "36e02da8d738e59204107361b6713626",
+    "semantic_hash": "36e02da8d738e59204107361b6713626"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/FinancialTransactionRepository.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161877,
+    "ast_hash": "4991dcba84867023a7a9db53c2bcd502",
+    "semantic_hash": "4991dcba84867023a7a9db53c2bcd502"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/finance/FinancialTransactionType.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161891,
+    "ast_hash": "db7d8f1b553674c5c45473320d1b0afe",
+    "semantic_hash": "db7d8f1b553674c5c45473320d1b0afe"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/LeaseContract.java": {
+    "mtime": 1794576512.4046254,
+    "seen": 1794577243.2161908,
+    "ast_hash": "9c5b1c6b17e0d9a25972c488152c24c9",
+    "semantic_hash": "9c5b1c6b17e0d9a25972c488152c24c9"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/LeaseContractRepository.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.2161918,
+    "ast_hash": "8e401d595bd06442316190f74ce28101",
+    "semantic_hash": "8e401d595bd06442316190f74ce28101"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/LeaseContractResponse.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.2161934,
+    "ast_hash": "612f5c1407212ad3eeb3c750921a6fe0",
+    "semantic_hash": "612f5c1407212ad3eeb3c750921a6fe0"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/Property.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.216195,
+    "ast_hash": "58621449399c73bce6e422ee97a62656",
+    "semantic_hash": "58621449399c73bce6e422ee97a62656"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/PropertyController.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.216196,
+    "ast_hash": "7dda47ba98991cc6acc03ed9854c986e",
+    "semantic_hash": "7dda47ba98991cc6acc03ed9854c986e"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/PropertyMetricsResponse.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.2161975,
+    "ast_hash": "16b7e63e83ea83134f5eef12dce965cc",
+    "semantic_hash": "16b7e63e83ea83134f5eef12dce965cc"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/PropertyRepository.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.2161987,
+    "ast_hash": "2cf4b6e5491d52b67eb65e607710daf9",
+    "semantic_hash": "2cf4b6e5491d52b67eb65e607710daf9"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/PropertyRequest.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.2161996,
+    "ast_hash": "da0ac6908ff29545b446c98e040d0333",
+    "semantic_hash": "da0ac6908ff29545b446c98e040d0333"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/PropertyResponse.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.216201,
+    "ast_hash": "d5e2e0954dfbf6333df190d3bebec616",
+    "semantic_hash": "d5e2e0954dfbf6333df190d3bebec616"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/PropertyService.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.2162044,
+    "ast_hash": "174ae8029335e144309fcbc0844f4e09",
+    "semantic_hash": "174ae8029335e144309fcbc0844f4e09"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/property/PropertyStatus.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.2162056,
+    "ast_hash": "a19426ff4cc0707a5507cda9a83d080f",
+    "semantic_hash": "a19426ff4cc0707a5507cda9a83d080f"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/reminder/CreateReminderRequest.java": {
+    "mtime": 1794576512.4049351,
+    "seen": 1794577243.2162066,
+    "ast_hash": "3e1e6a636973fe159d505e1bccb5e471",
+    "semantic_hash": "3e1e6a636973fe159d505e1bccb5e471"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/reminder/Reminder.java": {
+    "mtime": 1794576512.4051752,
+    "seen": 1794577243.2162082,
+    "ast_hash": "3cc28701b0ad80b1a638a90045f003e1",
+    "semantic_hash": "3cc28701b0ad80b1a638a90045f003e1"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/reminder/ReminderCategory.java": {
+    "mtime": 1794576512.4051752,
+    "seen": 1794577243.216209,
+    "ast_hash": "65ace408af0be33fbe681c4e3905ad4f",
+    "semantic_hash": "65ace408af0be33fbe681c4e3905ad4f"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/reminder/ReminderController.java": {
+    "mtime": 1794576512.4051752,
+    "seen": 1794577243.21621,
+    "ast_hash": "1fa2d6970dce8fbc4a85837a33d5a17c",
+    "semantic_hash": "1fa2d6970dce8fbc4a85837a33d5a17c"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/reminder/ReminderPriority.java": {
+    "mtime": 1794576512.4051752,
+    "seen": 1794577243.2162113,
+    "ast_hash": "1de32aa149943d542435e80b1643a71b",
+    "semantic_hash": "1de32aa149943d542435e80b1643a71b"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/reminder/ReminderRepository.java": {
+    "mtime": 1794576512.4051752,
+    "seen": 1794577243.2162127,
+    "ast_hash": "1ecd3e7bff2b77f75bb8f202d25687d8",
+    "semantic_hash": "1ecd3e7bff2b77f75bb8f202d25687d8"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/reminder/ReminderResponse.java": {
+    "mtime": 1794576512.4051752,
+    "seen": 1794577243.2162137,
+    "ast_hash": "856a93a3fa82db24c4001b21e10dcf4d",
+    "semantic_hash": "856a93a3fa82db24c4001b21e10dcf4d"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/reminder/ReminderService.java": {
+    "mtime": 1794576512.4051752,
+    "seen": 1794577243.2162151,
+    "ast_hash": "af2ad82fb6922c302b79305b2c9150d2",
+    "semantic_hash": "af2ad82fb6922c302b79305b2c9150d2"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/store/AppRecord.java": {
+    "mtime": 1794576512.4051752,
+    "seen": 1794577243.216216,
+    "ast_hash": "a2fa9aef8438929c3244d6eeb6072a70",
+    "semantic_hash": "a2fa9aef8438929c3244d6eeb6072a70"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/store/AppRecordId.java": {
+    "mtime": 1794576512.4053671,
+    "seen": 1794577243.216217,
+    "ast_hash": "3559018bafb0c78b29deb86fba54806c",
+    "semantic_hash": "3559018bafb0c78b29deb86fba54806c"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/store/AppRecordRepository.java": {
+    "mtime": 1794576512.4053671,
+    "seen": 1794577243.2162185,
+    "ast_hash": "dc0418307cb741fb6e3dfe42a887cf2f",
+    "semantic_hash": "dc0418307cb741fb6e3dfe42a887cf2f"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/store/RecordCollection.java": {
+    "mtime": 1794576512.4053671,
+    "seen": 1794577243.2162192,
+    "ast_hash": "bdcd1d9e4840851c625c5bef91fdaed8",
+    "semantic_hash": "bdcd1d9e4840851c625c5bef91fdaed8"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/store/RecordController.java": {
+    "mtime": 1794576512.4053671,
+    "seen": 1794577243.2162204,
+    "ast_hash": "5ffe893460aea88e49a19acdc016c470",
+    "semantic_hash": "5ffe893460aea88e49a19acdc016c470"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/store/RecordResponse.java": {
+    "mtime": 1794576512.4053671,
+    "seen": 1794577243.2162213,
+    "ast_hash": "9df51a5cb513a5cbf336c8534a01dca7",
+    "semantic_hash": "9df51a5cb513a5cbf336c8534a01dca7"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/store/RecordService.java": {
+    "mtime": 1794576512.4053671,
+    "seen": 1794577243.216223,
+    "ast_hash": "a1ad47ad1fed69b6d4bb920aabe4e663",
+    "semantic_hash": "a1ad47ad1fed69b6d4bb920aabe4e663"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/user/AppUser.java": {
+    "mtime": 1794576512.4053671,
+    "seen": 1794577243.2162244,
+    "ast_hash": "22c2e43f6ee503521e798c6d48ce719e",
+    "semantic_hash": "22c2e43f6ee503521e798c6d48ce719e"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/user/AppUserRepository.java": {
+    "mtime": 1794576512.4055471,
+    "seen": 1794577243.216226,
+    "ast_hash": "81955280b17ba7d43cccb5c97e5fa578",
+    "semantic_hash": "81955280b17ba7d43cccb5c97e5fa578"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/user/ForbiddenException.java": {
+    "mtime": 1794576512.4055471,
+    "seen": 1794577243.216227,
+    "ast_hash": "4dd0336c15963cacd8e0cd487e51d7eb",
+    "semantic_hash": "4dd0336c15963cacd8e0cd487e51d7eb"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/user/UserController.java": {
+    "mtime": 1794576512.4055471,
+    "seen": 1794577243.216228,
+    "ast_hash": "11931d0da1a4c2a5203e1c0239fa4c0a",
+    "semantic_hash": "11931d0da1a4c2a5203e1c0239fa4c0a"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/user/UserRole.java": {
+    "mtime": 1794576512.4055471,
+    "seen": 1794577243.2162297,
+    "ast_hash": "b0297ba39a24977a02fe6c5bf59df847",
+    "semantic_hash": "b0297ba39a24977a02fe6c5bf59df847"
+  },
+  "backend/src/main/java/br/org/fundacaomanuelcruz/projeto2/user/UserService.java": {
+    "mtime": 1794576512.4055471,
+    "seen": 1794577243.2162309,
+    "ast_hash": "90a101b9b84fd3c27aa098402911a965",
+    "semantic_hash": "90a101b9b84fd3c27aa098402911a965"
+  },
+  "backend/src/main/resources/db/migration/V10__app_user.sql": {
+    "mtime": 1794576512.4058146,
+    "seen": 1794577243.2162325,
+    "ast_hash": "84e66cef98b37f4c309b40cec0350a58",
+    "semantic_hash": "84e66cef98b37f4c309b40cec0350a58"
+  },
+  "backend/src/main/resources/db/migration/V3__financial_transactions.sql": {
+    "mtime": 1794576512.4058485,
+    "seen": 1794577243.2162335,
+    "ast_hash": "de4d0d9ef679a13f2d3195e40c64f933",
+    "semantic_hash": "de4d0d9ef679a13f2d3195e40c64f933"
+  },
+  "backend/src/main/resources/db/migration/V4__reminders_and_properties.sql": {
+    "mtime": 1794576512.4058485,
+    "seen": 1794577243.2162344,
+    "ast_hash": "70438ed1b53bcd7f33b74eeb73fd31fa",
+    "semantic_hash": "70438ed1b53bcd7f33b74eeb73fd31fa"
+  },
+  "backend/src/main/resources/db/migration/V5__initial_seed_data.sql": {
+    "mtime": 1794576512.4058485,
+    "seen": 1794577243.2162359,
+    "ast_hash": "9cebba171cecaa2bc438a5a80431e7fd",
+    "semantic_hash": "9cebba171cecaa2bc438a5a80431e7fd"
+  },
+  "backend/src/main/resources/db/migration/V6__reminder_details.sql": {
+    "mtime": 1794576512.4058485,
+    "seen": 1794577243.216237,
+    "ast_hash": "f2b45baa6bb2629cfd122c641ecea56f",
+    "semantic_hash": "f2b45baa6bb2629cfd122c641ecea56f"
+  },
+  "backend/src/main/resources/db/migration/V7__property_status.sql": {
+    "mtime": 1794576512.4058485,
+    "seen": 1794577243.216238,
+    "ast_hash": "b33dde296bac8f39ed6f358d375f2bf9",
+    "semantic_hash": "b33dde296bac8f39ed6f358d375f2bf9"
+  },
+  "backend/src/main/resources/db/migration/V8__app_record.sql": {
+    "mtime": 1794576512.4058485,
+    "seen": 1794577243.2162387,
+    "ast_hash": "f1ba219911c0614f09891ce6b451af76",
+    "semantic_hash": "f1ba219911c0614f09891ce6b451af76"
+  },
+  "backend/src/main/resources/db/migration/V9__seed_shared_records.sql": {
+    "mtime": 1794576512.4058485,
+    "seen": 1794577243.21624,
+    "ast_hash": "4df7bcdde6fe2cb1b111021b96846af8",
+    "semantic_hash": "4df7bcdde6fe2cb1b111021b96846af8"
+  },
+  "backend/src/test/java/br/org/fundacaomanuelcruz/projeto2/ApiFlowsIntegrationTest.java": {
+    "mtime": 1794576512.406142,
+    "seen": 1794577243.216241,
+    "ast_hash": "21254af915c251b80197999f9f38d3ec",
+    "semantic_hash": "21254af915c251b80197999f9f38d3ec"
+  },
+  "backend/src/test/java/br/org/fundacaomanuelcruz/projeto2/Projeto2BackendApplicationTests.java": {
+    "mtime": 1794576512.4062157,
+    "seen": 1794577243.2162416,
+    "ast_hash": "37fc5a8a4fcd90e8b627719e4f1d70c7",
+    "semantic_hash": "37fc5a8a4fcd90e8b627719e4f1d70c7"
+  },
+  "backend/src/test/java/br/org/fundacaomanuelcruz/projeto2/alert/AlertDigestIntegrationTest.java": {
+    "mtime": 1794576512.4062157,
+    "seen": 1794577243.2162433,
+    "ast_hash": "e91e6bbd8b8b424ef7a43bde2afffed9",
+    "semantic_hash": "e91e6bbd8b8b424ef7a43bde2afffed9"
+  },
+  "backend/src/test/java/br/org/fundacaomanuelcruz/projeto2/auth/AuthSecurityTest.java": {
+    "mtime": 1794576512.4062157,
+    "seen": 1794577243.2162442,
+    "ast_hash": "44554aa00fecab1e93e4d07cb9cf5551",
+    "semantic_hash": "44554aa00fecab1e93e4d07cb9cf5551"
+  },
+  "backend/src/test/java/br/org/fundacaomanuelcruz/projeto2/finance/BrazilianDocumentValidatorTest.java": {
+    "mtime": 1794576512.4062157,
+    "seen": 1794577243.2162454,
+    "ast_hash": "dd617a59da0d657c0d6a553c5ef8c83a",
+    "semantic_hash": "dd617a59da0d657c0d6a553c5ef8c83a"
+  },
+  "backend/src/test/java/br/org/fundacaomanuelcruz/projeto2/finance/FinancialServiceTest.java": {
+    "mtime": 1794576512.4064589,
+    "seen": 1794577243.2162468,
+    "ast_hash": "7ac663e10c61af33d3f0fe973fbae5a5",
+    "semantic_hash": "7ac663e10c61af33d3f0fe973fbae5a5"
+  },
+  "backend/src/test/java/br/org/fundacaomanuelcruz/projeto2/user/UserRolesIntegrationTest.java": {
+    "mtime": 1794576512.4064589,
+    "seen": 1794577243.216248,
+    "ast_hash": "ced6078c6e00f8b19f578f088eb47cd8",
+    "semantic_hash": "ced6078c6e00f8b19f578f088eb47cd8"
+  },
+  "frontend/eslint.config.mjs": {
+    "mtime": 1794576512.4066749,
+    "seen": 1794577243.2162488,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "frontend/next.config.ts": {
+    "mtime": 1794576512.4066749,
+    "seen": 1794577243.2162497,
+    "ast_hash": "9b77af189a21a7a64e4bd7a426f64176",
+    "semantic_hash": "9b77af189a21a7a64e4bd7a426f64176"
+  },
+  "frontend/package.json": {
+    "mtime": 1794576512.4066749,
+    "seen": 1794577243.2162507,
+    "ast_hash": "a13189351bccebd21cf6fa6754bfa096",
+    "semantic_hash": "a13189351bccebd21cf6fa6754bfa096"
+  },
+  "frontend/postcss.config.mjs": {
+    "mtime": 1794576512.4066749,
+    "seen": 1794577243.2162516,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "frontend/src/app/alertas/page.tsx": {
+    "mtime": 1794576512.4093077,
+    "seen": 1794577243.2162526,
+    "ast_hash": "bfc285ce578fc829cdca852ac1abc3db",
+    "semantic_hash": "bfc285ce578fc829cdca852ac1abc3db"
+  },
+  "frontend/src/app/cadastro/page.tsx": {
+    "mtime": 1794576512.4093077,
+    "seen": 1794577243.2162547,
+    "ast_hash": "d95e32cb89de484484dcf9940a5096b6",
+    "semantic_hash": "d95e32cb89de484484dcf9940a5096b6"
+  },
+  "frontend/src/app/clientes/page.tsx": {
+    "mtime": 1794576512.4093077,
+    "seen": 1794577243.2162557,
+    "ast_hash": "a0e5fa1aeaacc7035625cdd2b928dd67",
+    "semantic_hash": "a0e5fa1aeaacc7035625cdd2b928dd67"
+  },
+  "frontend/src/app/documentos/modelos/page.tsx": {
+    "mtime": 1794576512.4096029,
+    "seen": 1794577243.2162566,
+    "ast_hash": "eea8db0fe58d17f8d953e3e9bae4ca13",
+    "semantic_hash": "eea8db0fe58d17f8d953e3e9bae4ca13"
+  },
+  "frontend/src/app/documentos/page.tsx": {
+    "mtime": 1794576512.4096029,
+    "seen": 1794577243.2162573,
+    "ast_hash": "dd434742fa379e4efe888fb2ff4a40e6",
+    "semantic_hash": "dd434742fa379e4efe888fb2ff4a40e6"
+  },
+  "frontend/src/app/equipe/page.tsx": {
+    "mtime": 1794576512.4096029,
+    "seen": 1794577243.2162585,
+    "ast_hash": "1c080365b3b7f673093869451c978c8c",
+    "semantic_hash": "1c080365b3b7f673093869451c978c8c"
+  },
+  "frontend/src/app/estoque/page.tsx": {
+    "mtime": 1794576512.4096029,
+    "seen": 1794577243.2162592,
+    "ast_hash": "59dec17ef19900473b365e8525a313c5",
+    "semantic_hash": "59dec17ef19900473b365e8525a313c5"
+  },
+  "frontend/src/app/financeiro/page.tsx": {
+    "mtime": 1794576512.410352,
+    "seen": 1794577243.2162604,
+    "ast_hash": "9d7338f8b2feb2d5e9aeef3cf37bd461",
+    "semantic_hash": "9d7338f8b2feb2d5e9aeef3cf37bd461"
+  },
+  "frontend/src/app/formulario/page.tsx": {
+    "mtime": 1794576512.410352,
+    "seen": 1794577243.2162611,
+    "ast_hash": "ad750ef197921bbc0c6eb7b675ca835e",
+    "semantic_hash": "ad750ef197921bbc0c6eb7b675ca835e"
+  },
+  "frontend/src/app/funcionarios/page.tsx": {
+    "mtime": 1794576512.410352,
+    "seen": 1794577243.2162623,
+    "ast_hash": "70f80384b3eb18f1223dc92d0fe3956a",
+    "semantic_hash": "70f80384b3eb18f1223dc92d0fe3956a"
+  },
+  "frontend/src/app/imoveis/page.tsx": {
+    "mtime": 1794576512.410352,
+    "seen": 1794577243.2162635,
+    "ast_hash": "d08943b449fc247b4e9c0e8d103bf60f",
+    "semantic_hash": "d08943b449fc247b4e9c0e8d103bf60f"
+  },
+  "frontend/src/app/layout.tsx": {
+    "mtime": 1794576512.410352,
+    "seen": 1794577243.2162642,
+    "ast_hash": "631dd7a0a94f9c69751b37d5d4150026",
+    "semantic_hash": "631dd7a0a94f9c69751b37d5d4150026"
+  },
+  "frontend/src/app/login/page.tsx": {
+    "mtime": 1794576512.4109123,
+    "seen": 1794577243.216265,
+    "ast_hash": "232b3202ec697a96fb16f4d29ccbdf23",
+    "semantic_hash": "232b3202ec697a96fb16f4d29ccbdf23"
+  },
+  "frontend/src/app/ministerio-publico/page.tsx": {
+    "mtime": 1794576512.4109123,
+    "seen": 1794577243.216266,
+    "ast_hash": "2bfcbc72f2cb2b5d75d89cd3a42d0fbd",
+    "semantic_hash": "2bfcbc72f2cb2b5d75d89cd3a42d0fbd"
+  },
+  "frontend/src/app/page.tsx": {
+    "mtime": 1794576512.4109123,
+    "seen": 1794577243.2162669,
+    "ast_hash": "3d8c172fb5de8ad746f1df3d378edbaf",
+    "semantic_hash": "3d8c172fb5de8ad746f1df3d378edbaf"
+  },
+  "frontend/src/app/perfil/page.tsx": {
+    "mtime": 1794576512.4109123,
+    "seen": 1794577243.216268,
+    "ast_hash": "207fc2cbde1214049b422a734ad8505f",
+    "semantic_hash": "207fc2cbde1214049b422a734ad8505f"
+  },
+  "frontend/src/components/auth/AuthForm.tsx": {
+    "mtime": 1794576512.4112709,
+    "seen": 1794577243.2162688,
+    "ast_hash": "1143a2baec972e0170eeb19c651cbc38",
+    "semantic_hash": "1143a2baec972e0170eeb19c651cbc38"
+  },
+  "frontend/src/components/dashboard/DashboardHome.tsx": {
+    "mtime": 1794576512.4112709,
+    "seen": 1794577243.2162695,
+    "ast_hash": "4b82d0b64a9a060ab6611e3c92405753",
+    "semantic_hash": "4b82d0b64a9a060ab6611e3c92405753"
+  },
+  "frontend/src/components/documents/DocumentPreview.tsx": {
+    "mtime": 1794576512.4112709,
+    "seen": 1794577243.2162704,
+    "ast_hash": "e3910b346b424c5c8b72f74054356fd7",
+    "semantic_hash": "e3910b346b424c5c8b72f74054356fd7"
+  },
+  "frontend/src/components/documents/DocumentViewer.tsx": {
+    "mtime": 1794576512.4114728,
+    "seen": 1794577243.2162712,
+    "ast_hash": "f58e5f566626ca90a1ba0212f01e2d8d",
+    "semantic_hash": "f58e5f566626ca90a1ba0212f01e2d8d"
+  },
+  "frontend/src/components/documents/NewDocumentModal.tsx": {
+    "mtime": 1794576512.4114728,
+    "seen": 1794577243.2162719,
+    "ast_hash": "4fcfe0394876085a3ab2844a75a3b929",
+    "semantic_hash": "4fcfe0394876085a3ab2844a75a3b929"
+  },
+  "frontend/src/components/documents/SignDocumentModal.tsx": {
+    "mtime": 1794576512.4114728,
+    "seen": 1794577243.2162726,
+    "ast_hash": "e88ecaccfe6a22b9b3a1ec5696e22d1d",
+    "semantic_hash": "e88ecaccfe6a22b9b3a1ec5696e22d1d"
+  },
+  "frontend/src/components/documents/SignatureBlock.tsx": {
+    "mtime": 1794576512.4114728,
+    "seen": 1794577243.2162733,
+    "ast_hash": "741618b6b2df3d00ef64b1b695ef0e69",
+    "semantic_hash": "741618b6b2df3d00ef64b1b695ef0e69"
+  },
+  "frontend/src/components/documents/SignatureCanvas.tsx": {
+    "mtime": 1794576512.4114728,
+    "seen": 1794577243.2162743,
+    "ast_hash": "7c5509373c070d7c67863e952e9c2e32",
+    "semantic_hash": "7c5509373c070d7c67863e952e9c2e32"
+  },
+  "frontend/src/components/documents/SignatureVerifyModal.tsx": {
+    "mtime": 1794576512.4114728,
+    "seen": 1794577243.2162752,
+    "ast_hash": "821c4d337acd82ecde1116ba1178507f",
+    "semantic_hash": "821c4d337acd82ecde1116ba1178507f"
+  },
+  "frontend/src/components/finance/FinancialDashboard.tsx": {
+    "mtime": 1794576512.4114728,
+    "seen": 1794577243.216276,
+    "ast_hash": "1e382492b048bfb090830c624b3f4bff",
+    "semantic_hash": "1e382492b048bfb090830c624b3f4bff"
+  },
+  "frontend/src/components/finance/HistoryView.tsx": {
+    "mtime": 1794576512.4119086,
+    "seen": 1794577243.2162766,
+    "ast_hash": "2b1584694b74a4513e9fd5dcb9af8d42",
+    "semantic_hash": "2b1584694b74a4513e9fd5dcb9af8d42"
+  },
+  "frontend/src/components/finance/RemindersPanel.tsx": {
+    "mtime": 1794576512.4119086,
+    "seen": 1794577243.2162778,
+    "ast_hash": "2aad9df8e692d906875e7bebbfeaa7d9",
+    "semantic_hash": "2aad9df8e692d906875e7bebbfeaa7d9"
+  },
+  "frontend/src/components/finance/TransactionModals.tsx": {
+    "mtime": 1794576512.4119086,
+    "seen": 1794577243.2162788,
+    "ast_hash": "8f81820ca268e3f9d7c2a12629e1f4e9",
+    "semantic_hash": "8f81820ca268e3f9d7c2a12629e1f4e9"
+  },
+  "frontend/src/components/layout/AppShell.tsx": {
+    "mtime": 1794576512.4119086,
+    "seen": 1794577243.2162795,
+    "ast_hash": "f125a3013da53914299cfe93f79bc509",
+    "semantic_hash": "f125a3013da53914299cfe93f79bc509"
+  },
+  "frontend/src/components/layout/AuthGate.tsx": {
+    "mtime": 1794576512.4121675,
+    "seen": 1794577243.2162802,
+    "ast_hash": "79f008194df595b999cbe77c90bb2550",
+    "semantic_hash": "79f008194df595b999cbe77c90bb2550"
+  },
+  "frontend/src/components/layout/Sidebar.tsx": {
+    "mtime": 1794576512.4121675,
+    "seen": 1794577243.2162814,
+    "ast_hash": "eca333d08eaaa691e784b9126d2418a6",
+    "semantic_hash": "eca333d08eaaa691e784b9126d2418a6"
+  },
+  "frontend/src/components/layout/Topbar.tsx": {
+    "mtime": 1794576512.4121675,
+    "seen": 1794577243.2162821,
+    "ast_hash": "76fde9cf5ea9de056c5d57a1538905bc",
+    "semantic_hash": "76fde9cf5ea9de056c5d57a1538905bc"
+  },
+  "frontend/src/components/ui/ConfirmDialog.tsx": {
+    "mtime": 1794576512.4121675,
+    "seen": 1794577243.2162828,
+    "ast_hash": "2fb5384fbb1d62a39abcca815a7a5e7d",
+    "semantic_hash": "2fb5384fbb1d62a39abcca815a7a5e7d"
+  },
+  "frontend/src/components/ui/Field.tsx": {
+    "mtime": 1794576512.4122946,
+    "seen": 1794577243.2162836,
+    "ast_hash": "3fb26189014af4a1a6502d929600a335",
+    "semantic_hash": "3fb26189014af4a1a6502d929600a335"
+  },
+  "frontend/src/components/ui/Modal.tsx": {
+    "mtime": 1794576512.4122946,
+    "seen": 1794577243.2162845,
+    "ast_hash": "b1c767eff3bac281aab755cdbe14fb20",
+    "semantic_hash": "b1c767eff3bac281aab755cdbe14fb20"
+  },
+  "frontend/src/components/ui/Toast.tsx": {
+    "mtime": 1794576512.4122946,
+    "seen": 1794577243.2162855,
+    "ast_hash": "9a7fe2b2a4722ee5bd2bbf92b27c130d",
+    "semantic_hash": "9a7fe2b2a4722ee5bd2bbf92b27c130d"
+  },
+  "frontend/src/lib/alerts.ts": {
+    "mtime": 1794576512.4122946,
+    "seen": 1794577243.2162862,
+    "ast_hash": "e0cdea614ce38717e99c8893da8bdfd8",
+    "semantic_hash": "e0cdea614ce38717e99c8893da8bdfd8"
+  },
+  "frontend/src/lib/api-client.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.216287,
+    "ast_hash": "5fce64d82aae80d20e1a15b8073bc06e",
+    "semantic_hash": "5fce64d82aae80d20e1a15b8073bc06e"
+  },
+  "frontend/src/lib/documents.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.216288,
+    "ast_hash": "ee7663d35466f0caf05487c77efaa683",
+    "semantic_hash": "ee7663d35466f0caf05487c77efaa683"
+  },
+  "frontend/src/lib/export-csv.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162888,
+    "ast_hash": "66808fac9b8cbad792d555bd050ea512",
+    "semantic_hash": "66808fac9b8cbad792d555bd050ea512"
+  },
+  "frontend/src/lib/files.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162895,
+    "ast_hash": "67da9aaaa23750c683f3e42c402d0185",
+    "semantic_hash": "67da9aaaa23750c683f3e42c402d0185"
+  },
+  "frontend/src/lib/financial-api.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162902,
+    "ast_hash": "4b51fc623660fe617a2de78340d41ed2",
+    "semantic_hash": "4b51fc623660fe617a2de78340d41ed2"
+  },
+  "frontend/src/lib/format.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162912,
+    "ast_hash": "b33b7d75dc93015712657cc2b53b63b2",
+    "semantic_hash": "b33b7d75dc93015712657cc2b53b63b2"
+  },
+  "frontend/src/lib/logout.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.216292,
+    "ast_hash": "57ad81545c8dd5cd1961a7579f53ec5c",
+    "semantic_hash": "57ad81545c8dd5cd1961a7579f53ec5c"
+  },
+  "frontend/src/lib/permissions.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162926,
+    "ast_hash": "1eecfb539f80a15ab6568d0f93c78b69",
+    "semantic_hash": "1eecfb539f80a15ab6568d0f93c78b69"
+  },
+  "frontend/src/lib/qrcodegen.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162933,
+    "ast_hash": "bed6e796e0d3cfc4b104538e7dd9c497",
+    "semantic_hash": "bed6e796e0d3cfc4b104538e7dd9c497"
+  },
+  "frontend/src/lib/records.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162943,
+    "ast_hash": "e86de18240a6f0000f6d59786cbac13c",
+    "semantic_hash": "e86de18240a6f0000f6d59786cbac13c"
+  },
+  "frontend/src/lib/schemas.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162952,
+    "ast_hash": "595ba1e42bf549b708d487b017482be5",
+    "semantic_hash": "595ba1e42bf549b708d487b017482be5"
+  },
+  "frontend/src/lib/session.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.216296,
+    "ast_hash": "9d28fa1e5b20dba6f06e7e69266ba2a2",
+    "semantic_hash": "9d28fa1e5b20dba6f06e7e69266ba2a2"
+  },
+  "frontend/src/lib/signatures.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.216297,
+    "ast_hash": "614271e34a5a7947307e2fef1961ae77",
+    "semantic_hash": "614271e34a5a7947307e2fef1961ae77"
+  },
+  "frontend/src/lib/templates.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162976,
+    "ast_hash": "77bc8befefabf30f5bc384a0e4f5f0f2",
+    "semantic_hash": "77bc8befefabf30f5bc384a0e4f5f0f2"
+  },
+  "frontend/src/lib/validation.ts": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162986,
+    "ast_hash": "74065fa31eb17775bf291d57a1472e31",
+    "semantic_hash": "74065fa31eb17775bf291d57a1472e31"
+  },
+  "frontend/tsconfig.json": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2162993,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": "ee17fd1c97c735e9f3564e3f5251f125"
+  },
+  "iniciar.ps1": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2163,
+    "ast_hash": "1d4c606930eca34cd3c39bca3c00babe",
+    "semantic_hash": "1d4c606930eca34cd3c39bca3c00babe"
+  },
+  "render.yaml": {
+    "mtime": 1794576512.4124374,
+    "seen": 1794577243.2163007,
+    "ast_hash": "136e5a02fb66e3591a470cf9101f416e",
+    "semantic_hash": "136e5a02fb66e3591a470cf9101f416e"
+  },
+  ".agents/skills/bibliotecas-de-design/SKILL.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.216302,
+    "ast_hash": "9410d067f8fe3468c1f035287a1b354b",
+    "semantic_hash": "9410d067f8fe3468c1f035287a1b354b"
+  },
+  ".agents/skills/web-design/SKILL.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163026,
+    "ast_hash": "da3efe6d8b523e7daeadf9a9c4632057",
+    "semantic_hash": "da3efe6d8b523e7daeadf9a9c4632057"
+  },
+  ".agents/skills/web-design/references/aesthetics.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.216303,
+    "ast_hash": "5248a26b7dbdc2ac312cf684419ce5f9",
+    "semantic_hash": "5248a26b7dbdc2ac312cf684419ce5f9"
+  },
+  ".agents/skills/web-design/references/brand.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163038,
+    "ast_hash": "d117d9913fb814c9252e1dec433c8cf7",
+    "semantic_hash": "d117d9913fb814c9252e1dec433c8cf7"
+  },
+  ".agents/skills/web-design/references/color.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163048,
+    "ast_hash": "7e03ba51942089b1d71e7323ace4ec8f",
+    "semantic_hash": "7e03ba51942089b1d71e7323ace4ec8f"
+  },
+  ".agents/skills/web-design/references/creative-dev.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163057,
+    "ast_hash": "09254dcae92bd8c9804648e309822a84",
+    "semantic_hash": "09254dcae92bd8c9804648e309822a84"
+  },
+  ".agents/skills/web-design/references/design-systems.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163064,
+    "ast_hash": "86727ab5b395beedd10721ebdd8f883e",
+    "semantic_hash": "86727ab5b395beedd10721ebdd8f883e"
+  },
+  ".agents/skills/web-design/references/mcp-servers.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163074,
+    "ast_hash": "57cc11a74118d8056d2179dac4169928",
+    "semantic_hash": "57cc11a74118d8056d2179dac4169928"
+  },
+  ".agents/skills/web-design/references/process.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163086,
+    "ast_hash": "8f72d90d3431562d988867f547b96940",
+    "semantic_hash": "8f72d90d3431562d988867f547b96940"
+  },
+  ".agents/skills/web-design/references/signatures.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163093,
+    "ast_hash": "0466d801c55f229264fca4f6bdbba277",
+    "semantic_hash": "0466d801c55f229264fca4f6bdbba277"
+  },
+  ".agents/skills/web-design/references/typography.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.21631,
+    "ast_hash": "988b23eee5c870c03b8e893ceedc9c5e",
+    "semantic_hash": "988b23eee5c870c03b8e893ceedc9c5e"
+  },
+  ".agents/skills/web-design/references/ui-ux.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163107,
+    "ast_hash": "0c56a8572768a30dc69b2bfe23eafd67",
+    "semantic_hash": "0c56a8572768a30dc69b2bfe23eafd67"
+  },
+  ".agents/skills/web-design/references/web.md": {
+    "mtime": 1794576586.5888786,
+    "seen": 1794577243.2163117,
+    "ast_hash": "3655c387cf7bdf6e7b353683072f4b83",
+    "semantic_hash": "3655c387cf7bdf6e7b353683072f4b83"
+  },
+  ".agents/workflows/ajudante-haiku.md": {
+    "mtime": 1794576586.592181,
+    "seen": 1794577243.2163126,
+    "ast_hash": "2c2f20231b1186e913352cef31b0a3ed",
+    "semantic_hash": "2c2f20231b1186e913352cef31b0a3ed"
+  },
+  ".agents/workflows/auditor-acessibilidade.md": {
+    "mtime": 1794576586.592355,
+    "seen": 1794577243.2163134,
+    "ast_hash": "b6fdb4b2c6707570b7c258597c1d0bae",
+    "semantic_hash": "b6fdb4b2c6707570b7c258597c1d0bae"
+  },
+  ".agents/workflows/auditor-desempenho.md": {
+    "mtime": 1794576586.592478,
+    "seen": 1794577243.216314,
+    "ast_hash": "e3c7ff323e3be45fdb5462fc43d4a934",
+    "semantic_hash": "e3c7ff323e3be45fdb5462fc43d4a934"
+  },
+  ".agents/workflows/cliente-desastrado.md": {
+    "mtime": 1794576586.5925791,
+    "seen": 1794577243.2163148,
+    "ast_hash": "7a851d89f03c45c17158f2acba549862",
+    "semantic_hash": "7a851d89f03c45c17158f2acba549862"
+  },
+  ".agents/workflows/hacker-etico.md": {
+    "mtime": 1794576586.5927305,
+    "seen": 1794577243.216316,
+    "ast_hash": "8043c944d2691ad1ee5d33c19f96bd2e",
+    "semantic_hash": "8043c944d2691ad1ee5d33c19f96bd2e"
+  },
+  ".agents/workflows/revisor-textos.md": {
+    "mtime": 1794576586.5929046,
+    "seen": 1794577243.2163167,
+    "ast_hash": "ec2fdbee8a82cd79f64df1dba16da566",
+    "semantic_hash": "ec2fdbee8a82cd79f64df1dba16da566"
+  },
+  ".claude/agents/ajudante-fable.md": {
+    "mtime": 1794576586.589666,
+    "seen": 1794577243.2163174,
+    "ast_hash": "39e3e78adfcd9dcfab5902423f75602f",
+    "semantic_hash": "39e3e78adfcd9dcfab5902423f75602f"
+  },
+  ".claude/agents/ajudante-haiku.md": {
+    "mtime": 1794576586.5900228,
+    "seen": 1794577243.2163181,
+    "ast_hash": "3cc1d51e18a6e6150f7b50d494232897",
+    "semantic_hash": "3cc1d51e18a6e6150f7b50d494232897"
+  },
+  ".claude/agents/ajudante-opus.md": {
+    "mtime": 1794576586.5902584,
+    "seen": 1794577243.2163193,
+    "ast_hash": "294b0ead88f6c285c585d46d04794457",
+    "semantic_hash": "294b0ead88f6c285c585d46d04794457"
+  },
+  ".claude/agents/ajudante-sonnet.md": {
+    "mtime": 1794576586.5905917,
+    "seen": 1794577243.21632,
+    "ast_hash": "e183c40ca7997b7df92e12c3aad2fc47",
+    "semantic_hash": "e183c40ca7997b7df92e12c3aad2fc47"
+  },
+  ".claude/agents/auditor-acessibilidade.md": {
+    "mtime": 1794576586.5910723,
+    "seen": 1794577243.216321,
+    "ast_hash": "d1d826f79c2daa5bbf5fc278f71f1453",
+    "semantic_hash": "d1d826f79c2daa5bbf5fc278f71f1453"
+  },
+  ".claude/agents/auditor-desempenho.md": {
+    "mtime": 1794576586.5913458,
+    "seen": 1794577243.2163217,
+    "ast_hash": "3ac72aa33e240f386d6c64c5155a75e7",
+    "semantic_hash": "3ac72aa33e240f386d6c64c5155a75e7"
+  },
+  ".claude/agents/cliente-desastrado.md": {
+    "mtime": 1794576586.5915082,
+    "seen": 1794577243.2163227,
+    "ast_hash": "396d460e242465ed1cb8c55b11701120",
+    "semantic_hash": "396d460e242465ed1cb8c55b11701120"
+  },
+  ".claude/agents/hacker-etico.md": {
+    "mtime": 1794576586.591655,
+    "seen": 1794577243.2163236,
+    "ast_hash": "4d3223c71c7adec02476ebe709205675",
+    "semantic_hash": "4d3223c71c7adec02476ebe709205675"
+  },
+  ".claude/agents/revisor-textos.md": {
+    "mtime": 1794576586.591939,
+    "seen": 1794577243.2163243,
+    "ast_hash": "12a4f28946af0b8d0648c655a45c3a02",
+    "semantic_hash": "12a4f28946af0b8d0648c655a45c3a02"
+  },
+  ".claude/skills/bibliotecas-de-design/SKILL.md": {
+    "mtime": 1794576586.572674,
+    "seen": 1794577243.216325,
+    "ast_hash": "9410d067f8fe3468c1f035287a1b354b",
+    "semantic_hash": "9410d067f8fe3468c1f035287a1b354b"
+  },
+  ".claude/skills/web-design/SKILL.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.216326,
+    "ast_hash": "da3efe6d8b523e7daeadf9a9c4632057",
+    "semantic_hash": "da3efe6d8b523e7daeadf9a9c4632057"
+  },
+  ".claude/skills/web-design/references/aesthetics.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.2163284,
+    "ast_hash": "5248a26b7dbdc2ac312cf684419ce5f9",
+    "semantic_hash": "5248a26b7dbdc2ac312cf684419ce5f9"
+  },
+  ".claude/skills/web-design/references/brand.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.216329,
+    "ast_hash": "d117d9913fb814c9252e1dec433c8cf7",
+    "semantic_hash": "d117d9913fb814c9252e1dec433c8cf7"
+  },
+  ".claude/skills/web-design/references/color.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.21633,
+    "ast_hash": "7e03ba51942089b1d71e7323ace4ec8f",
+    "semantic_hash": "7e03ba51942089b1d71e7323ace4ec8f"
+  },
+  ".claude/skills/web-design/references/creative-dev.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.216331,
+    "ast_hash": "09254dcae92bd8c9804648e309822a84",
+    "semantic_hash": "09254dcae92bd8c9804648e309822a84"
+  },
+  ".claude/skills/web-design/references/design-systems.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.2163317,
+    "ast_hash": "86727ab5b395beedd10721ebdd8f883e",
+    "semantic_hash": "86727ab5b395beedd10721ebdd8f883e"
+  },
+  ".claude/skills/web-design/references/mcp-servers.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.2163324,
+    "ast_hash": "57cc11a74118d8056d2179dac4169928",
+    "semantic_hash": "57cc11a74118d8056d2179dac4169928"
+  },
+  ".claude/skills/web-design/references/process.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.2163336,
+    "ast_hash": "8f72d90d3431562d988867f547b96940",
+    "semantic_hash": "8f72d90d3431562d988867f547b96940"
+  },
+  ".claude/skills/web-design/references/signatures.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.2163343,
+    "ast_hash": "0466d801c55f229264fca4f6bdbba277",
+    "semantic_hash": "0466d801c55f229264fca4f6bdbba277"
+  },
+  ".claude/skills/web-design/references/typography.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.216335,
+    "ast_hash": "988b23eee5c870c03b8e893ceedc9c5e",
+    "semantic_hash": "988b23eee5c870c03b8e893ceedc9c5e"
+  },
+  ".claude/skills/web-design/references/ui-ux.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.2163358,
+    "ast_hash": "0c56a8572768a30dc69b2bfe23eafd67",
+    "semantic_hash": "0c56a8572768a30dc69b2bfe23eafd67"
+  },
+  ".claude/skills/web-design/references/web.md": {
+    "mtime": 1794576586.5848563,
+    "seen": 1794577243.2163367,
+    "ast_hash": "3655c387cf7bdf6e7b353683072f4b83",
+    "semantic_hash": "3655c387cf7bdf6e7b353683072f4b83"
+  },
+  "AGENTS.md": {
+    "mtime": 1794576512.4032738,
+    "seen": 1794577243.2163374,
+    "ast_hash": "cafb0bef8762119031e3499a5c893265",
+    "semantic_hash": "cafb0bef8762119031e3499a5c893265"
+  },
+  "CLAUDE.md": {
+    "mtime": 1794576512.4032738,
+    "seen": 1794577243.2163384,
+    "ast_hash": "a1185b20f66d62ae2ad1d1c56e296dc8",
+    "semantic_hash": "a1185b20f66d62ae2ad1d1c56e296dc8"
+  },
+  "DESIGN.md": {
+    "mtime": 1794576512.4032738,
+    "seen": 1794577243.216339,
+    "ast_hash": "f8db199c5dad6fae460fc1ce4b45fe6a",
+    "semantic_hash": "f8db199c5dad6fae460fc1ce4b45fe6a"
+  },
+  "HISTORICO_PRs.md": {
+    "mtime": 1794576512.4032738,
+    "seen": 1794577243.21634,
+    "ast_hash": "17f7323354eb6d1908e9ff6c89a6646c",
+    "semantic_hash": "17f7323354eb6d1908e9ff6c89a6646c"
+  },
+  "README.md": {
+    "mtime": 1794576512.4032738,
+    "seen": 1794577243.2163408,
+    "ast_hash": "15b8e90e2e18cd3b6dd17c1be922676b",
+    "semantic_hash": "15b8e90e2e18cd3b6dd17c1be922676b"
+  },
+  "docs/CONTINUIDADE.md": {
+    "mtime": 1794576512.4064589,
+    "seen": 1794577243.2163415,
+    "ast_hash": "8ebbbc118e74cad68bc6aa1ea95fc2f3",
+    "semantic_hash": "8ebbbc118e74cad68bc6aa1ea95fc2f3"
+  },
+  "frontend/AGENTS.md": {
+    "mtime": 1794576512.4066749,
+    "seen": 1794577243.2163422,
+    "ast_hash": "01e8142356e15c3404e0d84c48187cd0",
+    "semantic_hash": "01e8142356e15c3404e0d84c48187cd0"
+  },
+  "frontend/CLAUDE.md": {
+    "mtime": 1794576512.4066749,
+    "seen": 1794577243.216343,
+    "ast_hash": "5c27369b226fcf2be8a6cfe52224e767",
+    "semantic_hash": "5c27369b226fcf2be8a6cfe52224e767"
+  },
+  "frontend/README.md": {
+    "mtime": 1794576512.4066749,
+    "seen": 1794577243.2163439,
+    "ast_hash": "f15aaa42d5d299d091b1171097ea56ad",
+    "semantic_hash": "f15aaa42d5d299d091b1171097ea56ad"
+  },
+  "frontend/public/file.svg": {
+    "mtime": 1794576512.4066749,
+    "seen": 1794577243.2163446,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "frontend/public/fmc-icon.png": {
+    "mtime": 1794576512.4077818,
+    "seen": 1794577243.2163458,
+    "ast_hash": "3b5ffbf12ff712da477799311bf6705c",
+    "semantic_hash": "3b5ffbf12ff712da477799311bf6705c"
+  },
+  "frontend/public/fmc-logo-sidebar.png": {
+    "mtime": 1794576512.4077818,
+    "seen": 1794577243.2163467,
+    "ast_hash": "0cdccddc949a34500b24244becf0bcc9",
+    "semantic_hash": "0cdccddc949a34500b24244becf0bcc9"
+  },
+  "frontend/public/fmc-logo.png": {
+    "mtime": 1794576512.4077818,
+    "seen": 1794577243.2163475,
+    "ast_hash": "966c45d3aad0dca12d94223da054c55c",
+    "semantic_hash": "966c45d3aad0dca12d94223da054c55c"
+  },
+  "frontend/public/globe.svg": {
+    "mtime": 1794576512.4077818,
+    "seen": 1794577243.2163482,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": "2aaafa6a49b6563925fe440891e32717"
+  },
+  "frontend/public/next.svg": {
+    "mtime": 1794576512.4077818,
+    "seen": 1794577243.216349,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "frontend/public/vercel.svg": {
+    "mtime": 1794576512.4077818,
+    "seen": 1794577243.2163496,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": "c0af2f507b369b085b35ef4bbe3bcf1e"
+  },
+  "frontend/public/window.svg": {
+    "mtime": 1794576512.4077818,
+    "seen": 1794577243.2163506,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": "a2760511c65806022ad20adf74370ff3"
+  }
+}
