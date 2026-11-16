@@ -40,6 +40,7 @@ O projeto é dividido em uma arquitetura desacoplada:
   | Funcionário | Consultar, registrar ponto, enviar justificativas e documentos, dar baixa no estoque |
 
   A **primeira conta** a entrar vira Gerente; as seguintes entram como Funcionário. E-mails em `APP_MANAGER_EMAILS` (separados por vírgula) sempre entram como Gerente. O sistema não deixa ficar sem nenhum Gerente ativo, e mudanças de papel valem na hora.
+- **Modo de teste do MVP (ligado em produção):** com `APP_ALL_MANAGERS=true` (padrão do perfil `prod`), toda conta entra e vale como **Gerente**, com acesso a tudo. Depois do teste, defina `APP_ALL_MANAGERS=false` no Render para os papéis voltarem a valer.
 - **Alertas de prazo** (`/alertas`): lembretes, contratos a vencer, envios ao MP, estoque abaixo do mínimo e justificativas pendentes. Cada conta escolhe o que ver e com quantos dias de antecedência; a escolha fica salva na conta (`/api/v1/auth/me/preferences`). Envio por e-mail ainda depende de configurar um serviço de e-mail no servidor.
 - **Formatação dos modelos** (`/documentos/modelos`, Gerente/Administrador): texto, cabeçalho, fonte, alinhamento e tamanho de cada modelo, com campos `{campo}` preenchidos pelo formulário. Cada documento gerado guarda uma cópia do texto: mudar o modelo depois não altera documentos já emitidos.
 - `APP_TOKEN_SECRET` assina os tokens (o `render.yaml` gera um valor; sem ele, o backend deriva da `APP_ADMIN_PASSWORD`).
