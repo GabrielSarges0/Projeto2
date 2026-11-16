@@ -33,11 +33,15 @@ public class UserService {
     private final AppUserRepository repository;
     private final ObjectMapper objectMapper;
     private final Set<String> managerEmails;
+    /** Teste do MVP: toda conta ativa entra (e passa a ser) Gerente. Desligue com APP_ALL_MANAGERS=false. */
+    private final boolean allManagers;
 
     public UserService(
             AppUserRepository repository,
             ObjectMapper objectMapper,
-            @Value("${app.auth.manager-emails:}") String managerEmails) {
+            @Value("${app.auth.manager-emails:}") String managerEmails,
+            @Value("${app.auth.all-managers:false}") boolean allManagers) {
+        this.allManagers = allManagers;
         this.repository = repository;
         this.objectMapper = objectMapper;
         Set<String> emails = Arrays.stream(managerEmails.split(","))
@@ -60,7 +64,7 @@ public class UserService {
         if (!user.isActive()) {
             throw new ForbiddenException("Conta desativada. Fale com o gerente da Fundação.");
         }
-        if (managerEmails.contains(email) && user.getRole() != UserRole.GERENTE) {
+        if ((allManagers || managerEmails.contains(email)) && user.getRole() != UserRole.GERENTE) {
             user.setRole(UserRole.GERENTE);
         }
         // No login comum o nome salvo (talvez editado no Perfil) é mantido; no cadastro, vale o informado.
@@ -79,7 +83,8 @@ public class UserService {
             return cached.user();
         }
         Optional<AuthenticatedUser> user = findActive(email)
-                .map(found -> new AuthenticatedUser(found.getEmail(), found.getDisplayName(), found.getRole()));
+                // Com o modo de teste ligado, quem já estava logado como Funcionário também passa a valer como Gerente.
+                .map(found -> new AuthenticatedUser(found.getEmail(), found.getDisplayName(), allManagers ? UserRole.GERENTE : found.getRole()));
         if (cache.size() > 5_000) cache.clear();
         cache.put(email, new CachedUser(user, now.plus(CACHE_TTL)));
         return user;
