@@ -8,7 +8,7 @@
   --fmc-muted: #6b7280;
   --fmc-panel-border: #000000;
   --sidebar-width: 218px;
-  --content-width: 1148px;
+  --content-width: 1600px;
 }
 
 * {
@@ -186,8 +186,9 @@ button {
 }
 
 .app-main-inner {
-  width: min(var(--content-width), calc(100% - 38px));
-  margin-left: 18px;
+  /* Ocupa a área útil e centraliza em telas muito largas (antes travava em 1148px colado à esquerda). */
+  width: min(var(--content-width), calc(100% - 36px));
+  margin-inline: auto;
   padding-top: 18px;
 }
 
