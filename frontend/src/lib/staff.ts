@@ -5,7 +5,8 @@ import { attendanceSchema, justificationSchema, type Attendance, type Justificat
 
 /**
  * Autoatendimento do ponto (StaffController.java). As coleções de pessoal só são lidas por Gerente/Administrador;
- * aqui vêm só nome e função da equipe e, com o CPF conferido no servidor, os registros do próprio funcionário.
+ * aqui vêm só nome e função da equipe e, com o CPF conferido no servidor, os registros do próprio funcionário
+ * e a gravação do ponto.
  */
 export const staffMemberSchema = z.object({
   id: z.string(),
@@ -19,6 +20,13 @@ const selfServiceResponseSchema = z.object({
   attendance: z.array(z.unknown()),
   justifications: z.array(z.unknown()),
 });
+
+const punchResponseSchema = z.object({
+  step: z.string(),
+  time: z.string(),
+  attendance: attendanceSchema,
+});
+export type StaffPunch = z.infer<typeof punchResponseSchema>;
 
 export type StaffSelfService = {
   employee: StaffMember;
@@ -36,6 +44,12 @@ function parseEach<T>(values: unknown[], schema: z.ZodType<T>): T[] {
 
 export const staffApi = {
   directory: () => apiRequest("/api/v1/staff/directory", z.array(staffMemberSchema)),
+  /** O servidor confere o CPF e grava o próximo passo do dia com a hora dele. */
+  punch: (employeeId: string, cpf: string, location: string | null) =>
+    apiRequest(`/api/v1/staff/${encodeURIComponent(employeeId)}/punch`, punchResponseSchema, {
+      method: "POST",
+      body: { cpf, location },
+    }),
   async selfService(employeeId: string, cpf: string): Promise<StaffSelfService> {
     const response = await apiRequest(`/api/v1/staff/${encodeURIComponent(employeeId)}/self`, selfServiceResponseSchema, {
       method: "POST",

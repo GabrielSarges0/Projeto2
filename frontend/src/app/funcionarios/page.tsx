@@ -37,10 +37,6 @@ const toMinutes = (time: string | null) => {
   return h * 60 + m;
 };
 const formatMinutes = (total: number) => `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, "0")}min`;
-const nowTime = () => {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-};
 
 function workedMinutes(record: Attendance): number | null {
   const entry = toMinutes(record.entryTime);
@@ -961,6 +957,8 @@ function EmployeeView() {
   const [cpf, setCpf] = useState("");
   // Pontos e justificativas do próprio funcionário: só chegam depois que o servidor confere o CPF.
   const [identified, setIdentified] = useState<StaffSelfService | null>(null);
+  // O servidor confere o CPF de novo ao gravar o ponto; fica só em memória enquanto o funcionário está identificado.
+  const [confirmedCpf, setConfirmedCpf] = useState("");
   const [identifyErrors, setIdentifyErrors] = useState<{ employee?: string; cpf?: string }>({});
   const [identifying, setIdentifying] = useState(false);
   const [punchError, setPunchError] = useState("");
@@ -978,6 +976,7 @@ function EmployeeView() {
 
   function leave() {
     setIdentified(null);
+    setConfirmedCpf("");
     setCpf("");
     setPunchError("");
     setIdentifyErrors({});
@@ -997,6 +996,7 @@ function EmployeeView() {
     setIdentifying(true);
     try {
       setIdentified(await staffApi.selfService(employeeId, cpf));
+      setConfirmedCpf(cpf);
       setCpf("");
     } catch (err) {
       setIdentifyErrors({ cpf: errorMessage(err) });
@@ -1009,28 +1009,6 @@ function EmployeeView() {
     if (!employee || !nextStep) return;
     setPunchError("");
     setBusy(true);
-    const time = nowTime();
-    const base: Attendance = todayRecord ?? {
-      id: `att-${today.replace(/-/g, "")}-${employee.id}`,
-      employeeId: employee.id,
-      date: today,
-      status: "Presente",
-      entryTime: null,
-      entryLocation: null,
-      breakStart: null,
-      breakStartLocation: null,
-      breakEnd: null,
-      breakEndLocation: null,
-      exitTime: null,
-      exitLocation: null,
-      registeredBy: "",
-    };
-    const previous = PUNCH_STEPS.map((step) => base[step.key]).filter(Boolean).pop();
-    if (previous && time <= previous) {
-      setPunchError(`Aguarde: o último registro foi às ${previous}.`);
-      setBusy(false);
-      return;
-    }
     let loc: string | null = null;
     if (includeLocation) {
       setLocating(true);
@@ -1041,16 +1019,10 @@ function EmployeeView() {
       }
     }
     try {
-      const record: Attendance = {
-        ...base,
-        status: "Presente",
-        [nextStep.key]: time,
-        ...(loc ? { [nextStep.locationKey]: loc } : {}),
-        registeredBy: employee.name,
-      };
-      await putRecord("attendance", record);
-      applyLocalUpsert("attendance", record);
-      show(`${nextStep.label} registrada às ${time}${loc ? ` · ${loc}` : ""}.`);
+      // Data, hora e passo vêm do servidor: o navegador não decide nem altera horários já gravados.
+      const result = await staffApi.punch(employee.id, confirmedCpf, loc);
+      applyLocalUpsert("attendance", result.attendance);
+      show(`${result.step} registrada às ${result.time}${loc ? ` · ${loc}` : ""}.`);
       // Cada ponto pede o CPF de novo, como antes: no aparelho compartilhado, o próximo não registra pelo colega.
       leave();
     } catch (err) {
