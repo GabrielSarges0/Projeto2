@@ -85,10 +85,15 @@ export default function DocumentosPage() {
         show("Documento com autenticidade e assinatura verificadas.", "success");
       }
     } else {
-      show("Documento não encontrado. Ele pode ter sido excluído ou movido.", "error");
+      show(
+        canReadClients
+          ? "Documento não encontrado. Ele pode ter sido excluído ou movido."
+          : "Documento não encontrado ou restrito ao Gerente e ao Administrador.",
+        "error"
+      );
     }
     window.history.replaceState(null, "", "/documentos");
-  }, [docsStore.loading, documents, show]);
+  }, [docsStore.loading, documents, show, canReadClients]);
 
   // Pré-preenche o formulário a partir do cliente (botão "Emitir recibo / termo" em Clientes).
   useEffect(() => {
