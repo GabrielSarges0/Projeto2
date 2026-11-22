@@ -979,6 +979,23 @@ textarea.ui-input {
   background: #f8fafc;
 }
 
+/* Linha inteira abre os detalhes (o botão da linha segue como alvo de teclado). */
+.ui-table tbody tr.ui-row-clickable {
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.ui-table tbody tr.ui-row-clickable:hover {
+  background: #eef3fa;
+  box-shadow: inset 3px 0 0 var(--ui-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-table tbody tr.ui-row-clickable {
+    transition: none;
+  }
+}
+
 .ui-empty {
   padding: 28px 16px;
   color: var(--ui-text-muted);

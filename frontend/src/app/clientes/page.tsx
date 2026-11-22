@@ -14,6 +14,7 @@ import { ACCEPTED_FILE_TYPES } from "@/lib/files";
 import { errorMessage, notifyFinanceChanged, propertiesApi, type PropertyItem } from "@/lib/financial-api";
 import { daysUntil, formatCurrency, formatDate, formatMoneyInput, isValidIsoDate, newId, normalizeText, parseMoney, toCents, todayIso } from "@/lib/format";
 import { useCan } from "@/lib/permissions";
+import { rowClickHandler } from "@/lib/row-click";
 import { useRecords } from "@/lib/records";
 import { clientSchema, documentSchema, type Client } from "@/lib/schemas";
 import {
@@ -266,7 +267,7 @@ export default function ClientesPage() {
                 filtered.map((client) => {
                   const status = displayStatus(client);
                   return (
-                    <tr key={client.id}>
+                    <tr key={client.id} className="ui-row-clickable" onClick={rowClickHandler(() => setSelectedId(client.id))}>
                       <td>
                         <strong>{client.name}</strong>
                         <div className="ui-field-hint">{client.cpf}</div>
