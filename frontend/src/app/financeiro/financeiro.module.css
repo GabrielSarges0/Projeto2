@@ -1,316 +1,3 @@
-.financeShell {
-  min-height: 100vh;
-  background: #ffffff;
-  color: #000000;
-}
-
-.financeMain {
-  min-height: 100vh;
-  margin-left: 218px;
-  background: #ffffff;
-}
-
-.financeCanvas {
-  position: relative;
-  width: min(1148px, 100%);
-  min-height: 700px;
-  margin: 0 auto;
-  padding: 18px 24px 28px;
-}
-
-.pageTitle {
-  width: max-content;
-  margin: 0 auto;
-  font-family: "Julius Sans One", Inter, "Segoe UI", Arial, sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 26px;
-}
-
-.periodControls {
-  position: absolute;
-  top: 18px;
-  left: 24px;
-  z-index: 2;
-  display: flex;
-  gap: 20px;
-}
-
-.periodSelect,
-.periodSelectSmall {
-  display: block;
-  height: 32px;
-}
-
-.periodSelect select,
-.periodSelectSmall select {
-  height: 32px;
-  padding: 0 24px 0 12px;
-  border: 1px solid #c1c1c1;
-  border-radius: 4px;
-  outline: 0;
-  background: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  color: #000000;
-  font-family: "Inter", sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 18px;
-  cursor: pointer;
-}
-
-.periodSelect select {
-  width: 130px;
-}
-
-.periodSelectSmall select {
-  width: 100px;
-}
-
-.summaryGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 22px;
-}
-
-/* Figma: rótulo + valor soltos, sem cartão, centralizados em 3 colunas */
-.summaryCard {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 98px;
-  min-width: 0;
-}
-
-.summaryIcon {
-  display: none;
-}
-
-.summaryContent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.summaryContent strong {
-  color: #092a54;
-  font-family: "Jockey One", sans-serif;
-  font-size: 30px;
-  font-weight: 400;
-  line-height: 42px;
-  letter-spacing: 0.02em;
-}
-
-.summaryContent span {
-  margin-top: -2px;
-  color: #000000;
-  font-family: "Jockey One", sans-serif;
-  font-size: 35px;
-  font-weight: 400;
-  line-height: 49px;
-  white-space: nowrap;
-}
-
-.transactionsGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 20px;
-}
-
-.transactionPanel {
-  position: relative;
-  height: 480px;
-  min-width: 0;
-  overflow: hidden;
-  background: #ffffff;
-  border: 1px solid #000000;
-  border-radius: 8px;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.15);
-}
-
-
-.panelHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 48px;
-  padding: 14px 25px 10px;
-}
-
-.panelHeaderTitle {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.panelHeader h2 {
-  margin: 0;
-  color: #0e1a29;
-  font-family: "Inter", sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 27px;
-}
-
-.panelMonth {
-  color: #312911;
-  font-family: "Inter", sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 24px;
-}
-
-.iconButton {
-  display: grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  padding: 0;
-  border: 1px solid #000000;
-  border-radius: 50%;
-  background: #31739c;
-  color: #ffffff;
-  cursor: pointer;
-  transition: background 140ms ease, transform 140ms ease;
-}
-
-.iconButton:hover {
-  background: #255a7b;
-  transform: scale(1.08);
-}
-
-.iconButton svg {
-  width: 18px;
-  height: 18px;
-}
-
-.manualEntryButton {
-  position: absolute;
-  z-index: 10;
-  top: 45px;
-  right: 25px;
-  width: 229px;
-  height: 28px;
-  padding: 0 16px;
-  border: 0.5px solid #000000;
-  background: #d9d9d9;
-  color: #000000;
-  font-family: "Inter", sans-serif;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 16px;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.manualEntryButton:hover {
-  background: #c8c8c8;
-}
-
-.emptyState {
-  position: absolute;
-  inset: 48px 22px 0 16px;
-  display: grid;
-  place-items: center;
-  color: #000000;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 17px;
-}
-
-.fakeScrollbar {
-  position: absolute;
-  top: 42px;
-  right: 6px;
-  bottom: 5px;
-  width: 11px;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #efefef;
-  box-shadow: inset 0 4px 4px rgba(0, 0, 0, 0.25);
-}
-
-.fakeScrollbar span {
-  display: block;
-  width: 11px;
-  height: 66%;
-  border: 0.11px solid #dfdfdf;
-  border-top-width: 0;
-  border-bottom-width: 0;
-  border-radius: 8px;
-  background: #bbbbbb;
-}
-
-.bottomGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 954px) 167px;
-  gap: 11px;
-  margin-top: 14px;
-}
-
-.remindersPanel {
-  position: relative;
-  height: 163px;
-  background: #ffffff;
-  border: 1px solid #000000;
-  border-radius: 8px;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.15);
-}
-
-.reminderEmpty {
-  position: absolute;
-  inset: 42px 18px 8px;
-  display: grid;
-  place-items: center;
-  color: #000000;
-  font-size: 14px;
-  line-height: 17px;
-}
-
-.quickActions {
-  display: grid;
-  grid-template-rows: repeat(2, 76px);
-  gap: 12px;
-}
-
-.quickAction {
-  display: grid;
-  grid-template-columns: 42px 1fr;
-  align-items: center;
-  width: 167px;
-  height: 76px;
-  padding: 0 14px;
-  border: 0.25px solid #c1c1c1;
-  border-radius: 8px;
-  background: #9cbfea;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
-  color: #000000;
-  cursor: pointer;
-  transition: background 140ms ease, transform 140ms ease;
-}
-
-.quickAction:hover {
-  background: #7b97ba;
-  transform: translateY(-1px);
-}
-
-.quickAction svg {
-  width: 32px;
-  height: 32px;
-}
-
-.quickAction span {
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 16px;
-}
-
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -400,7 +87,6 @@
   letter-spacing: 0.02em;
   line-height: 27px;
 }
-
 
 .documentTypeRow {
   display: flex;
@@ -688,78 +374,7 @@
   background: #00367e;
 }
 
-@media (max-width: 1180px) {
-  .financeCanvas {
-    width: auto;
-    margin-right: 12px;
-  }
-
-  .periodControls {
-    position: static;
-    justify-content: flex-start;
-    margin-bottom: 8px;
-  }
-
-  .pageTitle {
-    position: absolute;
-    top: 10px;
-    right: 0;
-  }
-
-  .transactionsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .transactionPanel {
-    height: 390px;
-  }
-
-  .bottomGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .quickActions {
-    grid-template-columns: repeat(2, minmax(0, 167px));
-    grid-template-rows: 76px;
-  }
-}
-
-@media (max-width: 860px) {
-  .financeMain {
-    margin-left: 76px;
-  }
-
-  .financeCanvas {
-    width: auto;
-    margin-left: 8px;
-  }
-
-  .summaryGrid {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-
-  .summaryCard {
-    min-height: 72px;
-  }
-}
-
 @media (max-width: 720px) {
-  .financeCanvas {
-    padding-top: 12px;
-  }
-
-  .periodControls {
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-right: 120px;
-  }
-
-  .pageTitle {
-    top: 14px;
-    font-size: 15px;
-  }
-
   .entryModal {
     min-height: 0;
     padding: 12px 16px 18px;
@@ -811,46 +426,6 @@
 }
 
 @media (max-width: 520px) {
-  .financeCanvas {
-    width: auto;
-    margin-left: 6px;
-  }
-
-  .periodControls {
-    padding-right: 0;
-  }
-
-  .pageTitle {
-    position: static;
-    margin-top: 8px;
-  }
-
-  .summaryGrid {
-    margin-top: 12px;
-  }
-
-  .transactionPanel {
-    height: 340px;
-  }
-
-  .bottomGrid {
-    gap: 10px;
-  }
-
-  .remindersPanel {
-    height: 140px;
-  }
-
-  .quickActions {
-    grid-template-columns: 1fr;
-    grid-template-rows: repeat(2, 68px);
-  }
-
-  .quickAction {
-    width: 100%;
-    height: 68px;
-  }
-
   .modalOverlay {
     padding: 10px;
   }
@@ -894,18 +469,6 @@
 
 .integrationSuccess {
   color: #1e6030;
-}
-
-.movementList {
-  position: absolute;
-  inset: 43px 22px 7px 12px;
-  overflow-y: auto;
-  padding: 0 8px 8px 0;
-  scrollbar-width: none;
-}
-
-.movementList::-webkit-scrollbar {
-  display: none;
 }
 
 .movementRow {
@@ -957,10 +520,6 @@
   color: #9f1b1b;
 }
 
-.quickAction {
-  text-decoration: none;
-}
-
 .primaryButton:disabled,
 .secondaryButton:disabled,
 .modalClose:disabled,
@@ -982,8 +541,9 @@
 .deleteRowButton {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  /* Alvo de toque ≥ 32px: os ícones no canto direito eram estreitos demais. */
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -999,19 +559,17 @@
 }
 
 .deleteRowButton svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
+}
+
+.deleteRowButton:focus-visible,
+.reminderDelete:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 1px;
 }
 
 /* Lembretes Interativos (FMC) */
-.remindersList {
-  height: calc(100% - 50px);
-  overflow-y: auto;
-  padding: 6px 16px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 
 .reminderItem {
   display: flex;
@@ -1060,12 +618,16 @@
 }
 
 .reminderDelete {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   border: 0;
   background: transparent;
-  color: #94a3b8;
+  color: #64748b;
   cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
+  padding: 0;
+  border-radius: 6px;
 }
 
 .reminderDelete:hover {
@@ -1303,7 +865,6 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
-
 /* Estilos adicionais para as telas de Histórico e Imóveis Cadastrados do Figma */
 .viewTitleHeader {
   display: flex;
@@ -1517,11 +1078,6 @@
 .viewDocBtn:hover {
   background: #f1f5f9;
   transform: scale(1.15);
-}
-
-.quickActionActive {
-  background: #648db9 !important;
-  border-color: #092a54 !important;
 }
 
 /* --- EXTENSÕES SPRINT 3 (FMC) --- */
@@ -1769,4 +1325,46 @@
   padding: 12px;
   border-radius: 6px;
   border: 1px solid #e2e8f0;
+}
+
+/* Layout do Financeiro no padrão do sistema (ui-page, ui-card). */
+.transactionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.panelHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.panelHeader h2 {
+  margin: 0;
+  color: var(--ui-primary);
+  font-size: 17px;
+}
+
+.panelMonth {
+  color: var(--ui-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.movementList {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.remindersList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 360px;
+  overflow-y: auto;
 }

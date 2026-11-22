@@ -86,7 +86,7 @@ export function buildAlerts(sources: Sources, prefs: AlertPrefs): AlertItem[] {
           severity: days <= 0 ? "critical" : "warning",
           title: reminder.title,
           detail: `Lembrete ${dueText(days)} (${formatDate(reminder.dueDate)})${reminder.responsible ? ` · ${reminder.responsible}` : ""}`,
-          href: "/financeiro",
+          href: "/alertas#lembretes-title",
           sortKey: reminder.dueDate,
         });
       });

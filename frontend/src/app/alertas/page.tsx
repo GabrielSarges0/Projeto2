@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, BellRing, Clock } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Field } from "@/components/ui/Field";
+import { RemindersPanel } from "@/components/finance/RemindersPanel";
 import { useToast } from "@/components/ui/Toast";
 import { ALERT_KINDS, ALERT_KIND_LABEL, saveAlertPrefs, useAlerts, type AlertKind, type AlertPrefs } from "@/lib/alerts";
 import { errorMessage } from "@/lib/financial-api";
@@ -93,6 +94,9 @@ export default function AlertasPage() {
               </ul>
             )}
           </section>
+
+          {/* Lembretes ficam aqui, na área de prazos (antes estavam duplicados no Financeiro). */}
+          <RemindersPanel notify={show} />
 
           <PreferencesForm key={JSON.stringify(prefs)} prefs={prefs} onSaved={() => show("Preferências de alerta salvas.")} />
         </div>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight, CircleDollarSign, Download, History, House, Paperclip, Plus, Trash2 } from "lucide-react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { ArrowDownLeft, ArrowUpRight, CircleDollarSign, Download, History, Paperclip, Plus, Trash2, type LucideIcon } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { documentHref } from "@/lib/documents";
@@ -22,7 +22,6 @@ import { useCan } from "@/lib/permissions";
 import { useRecords } from "@/lib/records";
 import { documentSchema, type DocumentItem } from "@/lib/schemas";
 import { HistoryView } from "./HistoryView";
-import { RemindersPanel } from "./RemindersPanel";
 import { EntryModal, ExpenseModal } from "./TransactionModals";
 import styles from "@/app/financeiro/financeiro.module.css";
 
@@ -114,112 +113,95 @@ export function FinancialDashboard() {
   }
 
   return (
-    <div className={styles.financeShell}>
-      <Sidebar />
-
-      <main className={styles.financeMain}>
-        <div className={styles.financeCanvas}>
-          {view === "FINANCEIRO" ? (
-            <>
-              <div className={styles.periodControls}>
-                <label className={styles.periodSelect}>
-                  <span className="sr-only">Mês</span>
-                  <select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="Mês de referência">
-                    {MONTHS.map((label, index) => (
-                      <option key={label} value={index + 1}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={styles.periodSelectSmall}>
-                  <span className="sr-only">Ano</span>
-                  <select value={year} onChange={(e) => setYear(Number(e.target.value))} aria-label="Ano de referência">
-                    {yearOptions(now.getFullYear()).map((value) => (
-                      <option key={value} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <h1 className={styles.pageTitle}>FINANCEIRO</h1>
-
-              {loadError ? (
-                <p className="ui-alert ui-alert-error" role="alert" style={{ margin: "8px 0" }}>
-                  {loadError}{" "}
-                  <button type="button" className="ui-link" onClick={() => void load()}>
-                    Tentar de novo
-                  </button>
-                </p>
-              ) : null}
-
-              <section className={styles.summaryGrid} aria-label={`Resumo de ${monthLabel}/${year}`} aria-busy={loading}>
-                <SummaryCard label="ENTRADA:" value={loading ? "..." : formatCurrency(summary.income)} icon={<ArrowDownLeft aria-hidden="true" />} />
-                <SummaryCard label="SAÍDA:" value={loading ? "..." : formatCurrency(summary.expense)} icon={<ArrowUpRight aria-hidden="true" />} />
-                <SummaryCard label="SALDO:" value={loading ? "..." : formatCurrency(summary.balance)} icon={<CircleDollarSign aria-hidden="true" />} />
-              </section>
-
-              <section className={styles.transactionsGrid}>
-                <TransactionPanel
-                  title="ENTRADA:"
-                  month={monthLabel}
-                  items={incomes}
-                  loading={loading}
-                  emptyText="Nenhuma entrada neste mês."
-                  actionLabel="Registrar entrada"
-                  onAction={canEdit ? () => setModal("entry") : undefined}
-                  onDelete={canEdit ? setToDelete : undefined}
-                  receipts={receiptsByMovement}
-                />
-                <TransactionPanel
-                  title="SAÍDA:"
-                  month={monthLabel}
-                  items={expenses}
-                  loading={loading}
-                  emptyText="Nenhuma saída neste mês."
-                  actionLabel="Registrar saída"
-                  onAction={canEdit ? () => setModal("expense") : undefined}
-                  onDelete={canEdit ? setToDelete : undefined}
-                  receipts={receiptsByMovement}
-                />
-              </section>
-            </>
-          ) : (
-            <HistoryView receipts={receiptsByMovement} onBack={() => setView("FINANCEIRO")} />
-          )}
-
-          <section className={styles.bottomGrid}>
-            <RemindersPanel notify={show} />
-
-            <div className={styles.quickActions}>
+    <AppShell>
+      {view === "FINANCEIRO" ? (
+        <section className="ui-page" aria-labelledby="financeiro-title">
+          <div className="ui-page-header">
+            <div>
+              <h1 id="financeiro-title">Financeiro</h1>
+              <p>Entradas e saídas de {monthLabel}/{year}, conforme os lançamentos.</p>
+            </div>
+            <div className="ui-row-actions">
+              <label className="sr-only" htmlFor="financeiro-mes">
+                Mês de referência
+              </label>
+              <select id="financeiro-mes" className="ui-input" style={{ width: "auto" }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+                {MONTHS.map((label, index) => (
+                  <option key={label} value={index + 1}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <label className="sr-only" htmlFor="financeiro-ano">
+                Ano de referência
+              </label>
+              <select id="financeiro-ano" className="ui-input" style={{ width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+                {yearOptions(now.getFullYear()).map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                className={styles.quickAction}
+                className="ui-btn ui-btn-secondary"
                 onClick={() => exportFinancialMovementsToCsv(movements, `${monthLabel}_${year}`)}
+                disabled={loading || movements.length === 0}
                 title="Exportar lançamentos do mês em planilha CSV"
               >
-                <Download aria-hidden="true" />
-                <span>Exportar CSV</span>
+                <Download size={16} aria-hidden="true" /> Exportar CSV
               </button>
-              <Link href="/imoveis" className={styles.quickAction} title="Imóveis agora têm aba própria no menu lateral">
-                <House aria-hidden="true" />
-                <span>Imóveis</span>
-              </Link>
-              <button
-                type="button"
-                className={`${styles.quickAction} ${view === "HISTORICO" ? styles.quickActionActive : ""}`}
-                onClick={() => setView((current) => (current === "HISTORICO" ? "FINANCEIRO" : "HISTORICO"))}
-                aria-pressed={view === "HISTORICO"}
-              >
-                <History aria-hidden="true" />
-                <span>Histórico</span>
+              <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setView("HISTORICO")}>
+                <History size={16} aria-hidden="true" /> Histórico
               </button>
             </div>
-          </section>
-        </div>
-      </main>
+          </div>
+
+          {loadError ? (
+            <p className="ui-alert ui-alert-error" role="alert">
+              {loadError}{" "}
+              <button type="button" className="ui-link" onClick={() => void load()}>
+                Tentar de novo
+              </button>
+            </p>
+          ) : null}
+
+          <div className="ui-stat-grid" aria-label={`Resumo de ${monthLabel}/${year}`} aria-busy={loading}>
+            <SummaryCard label="Entradas" value={loading ? "…" : formatCurrency(summary.income)} icon={ArrowDownLeft} bg="#dcfce7" color="#15803d" />
+            <SummaryCard label="Saídas" value={loading ? "…" : formatCurrency(summary.expense)} icon={ArrowUpRight} bg="#fee2e2" color="#b91c1c" />
+            <SummaryCard label="Saldo do mês" value={loading ? "…" : formatCurrency(summary.balance)} icon={CircleDollarSign} bg="#e0e7ff" color="#092a54" />
+          </div>
+
+          <div className={styles.transactionsGrid}>
+            <TransactionPanel
+              id="entradas"
+              title="Entradas"
+              month={monthLabel}
+              items={incomes}
+              loading={loading}
+              emptyText="Nenhuma entrada neste mês."
+              actionLabel="Registrar entrada"
+              onAction={canEdit ? () => setModal("entry") : undefined}
+              onDelete={canEdit ? setToDelete : undefined}
+              receipts={receiptsByMovement}
+            />
+            <TransactionPanel
+              id="saidas"
+              title="Saídas"
+              month={monthLabel}
+              items={expenses}
+              loading={loading}
+              emptyText="Nenhuma saída neste mês."
+              actionLabel="Registrar saída"
+              onAction={canEdit ? () => setModal("expense") : undefined}
+              onDelete={canEdit ? setToDelete : undefined}
+              receipts={receiptsByMovement}
+            />
+          </div>
+        </section>
+      ) : (
+        <HistoryView receipts={receiptsByMovement} onBack={() => setView("FINANCEIRO")} />
+      )}
 
       {modal === "entry" ? (
         <EntryModal properties={properties} documents={documents} onClose={() => setModal(null)} onSaved={handleSaved} />
@@ -245,23 +227,26 @@ export function FinancialDashboard() {
       ) : null}
 
       {toast}
+    </AppShell>
+  );
+}
+
+function SummaryCard({ label, value, icon: Icon, bg, color }: { label: string; value: string; icon: LucideIcon; bg: string; color: string }) {
+  return (
+    <div className="ui-card ui-stat">
+      <span className="ui-stat-icon" style={{ background: bg, color }} aria-hidden="true">
+        <Icon size={22} />
+      </span>
+      <div>
+        <div className="ui-stat-label">{label}</div>
+        <div className="ui-stat-value">{value}</div>
+      </div>
     </div>
   );
 }
 
-function SummaryCard({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
-  return (
-    <article className={styles.summaryCard}>
-      <div className={styles.summaryIcon}>{icon}</div>
-      <div className={styles.summaryContent}>
-        <strong>{label}</strong>
-        <span>{value}</span>
-      </div>
-    </article>
-  );
-}
-
 function TransactionPanel({
+  id,
   title,
   month,
   items,
@@ -272,6 +257,7 @@ function TransactionPanel({
   onDelete,
   receipts,
 }: {
+  id: string;
   title: string;
   month: string;
   items: FinancialMovement[];
@@ -283,26 +269,25 @@ function TransactionPanel({
   receipts: Map<number, DocumentItem>;
 }) {
   return (
-    <article className={styles.transactionPanel}>
+    <section className="ui-card" aria-labelledby={`financeiro-${id}`}>
       <div className={styles.panelHeader}>
-        <div className={styles.panelHeaderTitle}>
-          <h2>{title}</h2>
-          <span className={styles.panelMonth}>({month})</span>
-        </div>
+        <h2 id={`financeiro-${id}`}>
+          {title} <span className={styles.panelMonth}>({month})</span>
+        </h2>
         {onAction ? (
-          <button type="button" className={styles.iconButton} aria-label={actionLabel} title={actionLabel} onClick={onAction}>
-            <Plus aria-hidden="true" />
+          <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={onAction}>
+            <Plus size={14} aria-hidden="true" /> {actionLabel}
           </button>
         ) : null}
       </div>
 
       {loading ? (
-        <div style={{ display: "grid", gap: 10, padding: 12 }} aria-busy="true">
+        <div style={{ display: "grid", gap: 10 }} aria-busy="true">
           <div className="ui-skeleton" style={{ height: 36 }} />
           <div className="ui-skeleton" style={{ height: 36 }} />
         </div>
       ) : items.length === 0 ? (
-        <div className={styles.emptyState}>{emptyText}</div>
+        <p className="ui-empty">{emptyText}</p>
       ) : (
         <div className={styles.movementList}>
           {items.map((item) => {
@@ -342,6 +327,6 @@ function TransactionPanel({
           })}
         </div>
       )}
-    </article>
+    </section>
   );
 }
