@@ -10,12 +10,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,13 +38,49 @@ import tools.jackson.databind.ObjectMapper;
         "app.auth.password=senha-de-teste",
         "app.auth.token-secret=segredo-de-teste-123"})
 @AutoConfigureMockMvc
+@Import(UserRolesIntegrationTest.TestClockConfig.class)
 class UserRolesIntegrationTest {
 
     private static final String MANAGER = "gerente@fundacao.org";
 
+    /** Relógio que o teste avança: o ponto usa a hora do servidor. */
+    static final class TestClock extends Clock {
+        private volatile Instant now = Instant.parse("2026-11-23T11:00:00Z");
+
+        void set(String instant) {
+            now = Instant.parse(instant);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return Clock.fixed(now, zone);
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+    }
+
+    @TestConfiguration
+    static class TestClockConfig {
+        @Bean
+        @Primary
+        TestClock testClock() {
+            return new TestClock();
+        }
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private TestClock clock;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -140,8 +184,9 @@ class UserRolesIntegrationTest {
         // Bloquear a leitura não tira do funcionário o envio de justificativa.
         mockMvc.perform(json(staff, put("/api/v1/records/justifications/just-novo-" + suffix), justification(employeeId, "2026-11-06")))
                 .andExpect(status().isOk());
+        // O ponto não é mais gravado direto: vai por /api/v1/staff/{id}/punch, com o CPF conferido no servidor.
         mockMvc.perform(json(staff, put("/api/v1/records/attendance/att-20261106-" + employeeId), attendance(employeeId, "2026-11-06")))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(json(manager, put("/api/v1/users/" + staffEmail + "/role"), "{\"role\":\"ADMINISTRADOR\"}"))
                 .andExpect(status().isOk());
@@ -225,6 +270,73 @@ class UserRolesIntegrationTest {
         String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");
         mockMvc.perform(json(staff, post("/api/v1/staff/" + id + "/self"), "{\"cpf\":\"111.444.777-35\"}"))
                 .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void pontoSoComCpfConferidoEHoraDoServidor() throws Exception {
+        String manager = login(MANAGER);
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String id = "ponto-" + suffix;
+        mockMvc.perform(json(manager, put("/api/v1/records/employees/" + id), employee("Elisa " + suffix, "111.444.777-35", true)))
+                .andExpect(status().isOk());
+        String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");
+        String punch = "/api/v1/staff/" + id + "/punch";
+        String gps = "Lat -8.0500, Long -34.9000 (±30m)";
+
+        mockMvc.perform(json(staff, post(punch), "{\"cpf\":\"529.982.247-25\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("CPF não confere com o funcionário selecionado."));
+        mockMvc.perform(json(staff, post(punch), "{\"cpf\":\"111.444.777-35\",\"location\":\"Rua da Aurora, 10\"}"))
+                .andExpect(status().isBadRequest());
+
+        // 11:00 UTC = 08:00 em Recife.
+        clock.set("2026-11-23T11:00:00Z");
+        mockMvc.perform(json(staff, post(punch), "{\"cpf\":\"11144477735\",\"location\":\"" + gps + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.step").value("Entrada"))
+                .andExpect(jsonPath("$.time").value("08:00"))
+                .andExpect(jsonPath("$.attendance.id").value("att-20261123-" + id))
+                .andExpect(jsonPath("$.attendance.date").value("2026-11-23"))
+                .andExpect(jsonPath("$.attendance.entryTime").value("08:00"))
+                .andExpect(jsonPath("$.attendance.entryLocation").value(gps))
+                .andExpect(jsonPath("$.attendance.registeredBy").value("Elisa " + suffix));
+        mockMvc.perform(json(staff, post(punch), "{\"cpf\":\"111.444.777-35\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Aguarde: o último registro foi às 08:00."));
+
+        clock.set("2026-11-23T15:00:00Z");
+        mockMvc.perform(json(staff, post(punch), "{\"cpf\":\"111.444.777-35\"}"))
+                .andExpect(jsonPath("$.step").value("Saída para intervalo"))
+                .andExpect(jsonPath("$.attendance.breakStart").value("12:00"))
+                .andExpect(jsonPath("$.attendance.breakStartLocation").isEmpty())
+                .andExpect(jsonPath("$.attendance.entryTime").value("08:00"));
+        clock.set("2026-11-23T16:00:00Z");
+        mockMvc.perform(json(staff, post(punch), "{\"cpf\":\"111.444.777-35\"}")).andExpect(jsonPath("$.step").value("Retorno"));
+        clock.set("2026-11-23T20:00:00Z");
+        mockMvc.perform(json(staff, post(punch), "{\"cpf\":\"111.444.777-35\"}")).andExpect(jsonPath("$.step").value("Saída final"));
+        clock.set("2026-11-23T20:30:00Z");
+        mockMvc.perform(json(staff, post(punch), "{\"cpf\":\"111.444.777-35\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("A jornada de hoje já está completa."));
+
+        mockMvc.perform(as(manager, get("/api/v1/records/attendance/att-20261123-" + id)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.entryTime").value("08:00"))
+                .andExpect(jsonPath("$.data.breakEnd").value("13:00"))
+                .andExpect(jsonPath("$.data.exitTime").value("17:00"));
+        // O gestor continua ajustando o ponto direto.
+        mockMvc.perform(json(manager, put("/api/v1/records/attendance/att-20261123-" + id), attendance(id, "2026-11-23")))
+                .andExpect(status().isOk());
+
+        // 01:30 UTC do dia 24 ainda é 22:30 do dia 23 em Recife.
+        String late = "noite-" + suffix;
+        mockMvc.perform(json(manager, put("/api/v1/records/employees/" + late), employee("Fábio " + suffix, "390.533.447-05", true)))
+                .andExpect(status().isOk());
+        clock.set("2026-11-24T01:30:00Z");
+        mockMvc.perform(json(staff, post("/api/v1/staff/" + late + "/punch"), "{\"cpf\":\"390.533.447-05\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.time").value("22:30"))
+                .andExpect(jsonPath("$.attendance.date").value("2026-11-23"));
     }
 
     @Test

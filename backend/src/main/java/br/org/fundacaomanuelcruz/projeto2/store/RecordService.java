@@ -79,6 +79,17 @@ public class RecordService {
         return persist(collection, id, record, data);
     }
 
+    /**
+     * Gravação que o próprio servidor já validou (ex.: ponto em StaffService, com CPF conferido): não passa pelas
+     * regras por papel do upsert, mas respeita os limites de tamanho e de quantidade da coleção.
+     */
+    @Transactional
+    public RecordResponse saveValidated(RecordCollection collection, String recordId, ObjectNode data) {
+        data.put("id", recordId);
+        AppRecordId id = new AppRecordId(collection.slug(), recordId);
+        return persist(collection, id, repository.findById(id).orElse(null), data);
+    }
+
     @Transactional
     public void delete(String collectionSlug, String recordId) {
         RecordCollection collection = RecordCollection.fromSlug(collectionSlug);
@@ -132,14 +143,12 @@ public class RecordService {
     }
 
     /**
-     * Funcionário grava só o dia a dia: ponto, justificativa nova (pendente), documento novo (com seu arquivo),
-     * retirada/descarte do estoque (baixando a quantidade). Aprovar, editar cadastros e excluir fica com Gerente/Administrador.
+     * Funcionário grava só o dia a dia: justificativa nova (pendente), documento novo (com seu arquivo),
+     * retirada/descarte do estoque (baixando a quantidade). O ponto vai por /api/v1/staff/{id}/punch, com o CPF
+     * conferido no servidor. Aprovar, editar cadastros e excluir fica com Gerente/Administrador.
      */
     private void checkStaffWrite(RecordCollection collection, AppRecord existing, ObjectNode data) {
         switch (collection) {
-            case ATTENDANCE -> {
-                return;
-            }
             case DOCUMENT_FILES -> {
                 if (existing == null && isPartOfNewDocument(data)) return;
                 throw new ForbiddenException("Funcionário só envia arquivos de documentos novos.");
