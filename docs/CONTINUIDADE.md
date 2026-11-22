@@ -59,8 +59,11 @@ Produção: as contas `gabrielsarges1926@gmail.com` e `hbsv@cesar.school` têm g
 
 1. **Roteiro de homologação da Sprint 4 (Hannah)**: validação ponta a ponta dos fluxos implementados nas 3 personas (Gerente, Administrador, Funcionário).
 2. **Validação da experiência de impressão/PDF de contratos e termos com QR Code de autenticidade.**
-3. **Documentos — arrastar e soltar em pastas** (relatório de teste, item 4.1): mover documentos para pastas por drag-and-drop, com alternativa por teclado.
-4. **Equipe — gestão completa** (relatório de teste, item 4.2): ficha com dados pessoais completos, edição dos dados e acesso ao contrato vinculado ao membro. Pode exigir migration; planejar antes.
+3. **Desligar o modo de teste do MVP antes de dados reais da equipe**: com `APP_ALL_MANAGERS=true` (padrão no Render) toda conta que entra vira Gerente e, portanto, enxerga a ficha da equipe (dados pessoais). Defina `APP_ALL_MANAGERS=false` no Render ao fim do teste.
+
+## Feito a partir do relatório de teste (22/11/2026)
+- **Documentos — arrastar e soltar (4.1):** documentos arrastados para uma pasta (ou para o caminho no topo) são movidos; arquivos do computador soltos numa pasta abrem "Enviar arquivo" já preenchido. Pelo teclado continua "Renomear / mover".
+- **Equipe — ficha completa (4.2):** ficha por conta com dados pessoais, edição e contrato vinculado (documento existente ou arquivo novo em Documentos › Funcionários). Coleção `team-profiles` no `app_record` (sem migration), lida e gravada só pelo Gerente (`SecurityConfig`).
 
 ## Como verificar antes de abrir PR
 

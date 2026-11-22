@@ -26,14 +26,18 @@ type Props = {
   initialTemplateId?: string | null;
   prefill?: Record<string, string>;
   clientId?: string | null;
+  /** Arquivo solto sobre uma pasta: abre direto em "Enviar arquivo" com ele escolhido. */
+  initialFile?: File | null;
   onClose: () => void;
   onCreated: (document: DocumentItem) => void;
 };
 
 /** Formulários de documento ficam aqui, dentro de Documentos → Novo documento (Relatório Sprint 3). */
-export function NewDocumentModal({ folders, defaultFolderId, initialTemplateId, prefill, clientId, onClose, onCreated }: Props) {
+export function NewDocumentModal({ folders, defaultFolderId, initialTemplateId, prefill, clientId, initialFile, onClose, onCreated }: Props) {
   const initialTemplate = findTemplate(initialTemplateId);
-  const [step, setStep] = useState<Step>(initialTemplate ? { kind: "template", template: initialTemplate } : { kind: "choose" });
+  const [step, setStep] = useState<Step>(
+    initialTemplate ? { kind: "template", template: initialTemplate } : initialFile ? { kind: "upload" } : { kind: "choose" }
+  );
   const [saving, setSaving] = useState(false);
   const canEdit = useCan("edit");
 
@@ -88,6 +92,7 @@ export function NewDocumentModal({ folders, defaultFolderId, initialTemplateId, 
       ) : (
         <FileForm
           withFile={step.kind === "upload"}
+          initialFile={initialFile ?? null}
           folders={folders}
           defaultFolderId={defaultFolderId}
           clientId={clientId ?? null}
@@ -384,6 +389,7 @@ function TemplateForm({
 
 function FileForm({
   withFile,
+  initialFile,
   folders,
   defaultFolderId,
   clientId,
@@ -392,6 +398,7 @@ function FileForm({
   onCreated,
 }: {
   withFile: boolean;
+  initialFile: File | null;
   folders: Folder[];
   defaultFolderId: string | null;
   clientId: string | null;
@@ -399,8 +406,8 @@ function FileForm({
   onSavingChange: (saving: boolean) => void;
   onCreated: (document: DocumentItem) => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [name, setName] = useState("");
+  const [file, setFile] = useState<File | null>(withFile ? initialFile : null);
+  const [name, setName] = useState(withFile && initialFile ? initialFile.name : "");
   const [category, setCategory] = useState<DocumentCategory>("Outro");
   const [description, setDescription] = useState("");
   const [folderId, setFolderId] = useState(defaultFolderId ?? "");
