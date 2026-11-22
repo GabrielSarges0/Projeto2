@@ -14,7 +14,8 @@ export type CollectionName =
   | "document-files"
   | "folders"
   | "mp-submissions"
-  | "template-settings";
+  | "template-settings"
+  | "team-profiles";
 
 const recordEnvelopeSchema = z.object({
   id: z.string(),

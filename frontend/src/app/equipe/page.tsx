@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { IdCard, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { TeamMemberSheetLoader } from "@/components/team/TeamMemberSheetLoader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { USER_ROLES, USER_ROLE_LABEL, errorMessage, usersApi, type TeamMember, type UserRole } from "@/lib/financial-api";
 import { formatDateTime, normalizeText } from "@/lib/format";
 import { useCan } from "@/lib/permissions";
+import { rowClickHandler } from "@/lib/row-click";
 import { useSession } from "@/lib/session";
 
 const ROLE_HELP: Record<UserRole, string> = {
@@ -27,6 +29,7 @@ export default function EquipePage() {
   const [roleFilter, setRoleFilter] = useState<UserRole | "ALL">("ALL");
   const [toggling, setToggling] = useState<TeamMember | null>(null);
   const [savingEmail, setSavingEmail] = useState<string | null>(null);
+  const [sheetFor, setSheetFor] = useState<TeamMember | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -87,7 +90,7 @@ export default function EquipePage() {
         <div className="ui-page-header">
           <div>
             <h1 id="equipe-title">Gestão de equipe</h1>
-            <p>Quem acessa o painel e o que cada pessoa pode alterar. Contas novas entram como Funcionário.</p>
+            <p>Quem acessa o painel, o que cada pessoa pode alterar e a ficha de cada um (dados pessoais e contrato). Contas novas entram como Funcionário.</p>
           </div>
         </div>
 
@@ -159,7 +162,7 @@ export default function EquipePage() {
                 filtered.map((member) => {
                   const isMe = member.email === session?.user.username;
                   return (
-                    <tr key={member.email}>
+                    <tr key={member.email} className="ui-row-clickable" onClick={rowClickHandler(() => setSheetFor(member))}>
                       <td>
                         <strong>{member.name}</strong>
                         {isMe ? <span className="ui-field-hint"> (você)</span> : null}
@@ -190,13 +193,16 @@ export default function EquipePage() {
                       </td>
                       <td>{formatDateTime(member.lastLoginAt)}</td>
                       <td>
-                        {!isMe ? (
-                          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setToggling(member)}>
-                            {member.active ? "Desativar" : "Reativar"}
+                        <div className="ui-row-actions">
+                          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setSheetFor(member)} aria-label={`Ver ficha de ${member.name}`}>
+                            <IdCard size={14} aria-hidden="true" /> Ficha
                           </button>
-                        ) : (
-                          "—"
-                        )}
+                          {!isMe ? (
+                            <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setToggling(member)}>
+                              {member.active ? "Desativar" : "Reativar"}
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -206,6 +212,14 @@ export default function EquipePage() {
           </table>
         </div>
       </section>
+
+      {sheetFor ? (
+        <TeamMemberSheetLoader
+          member={sheetFor}
+          onClose={() => setSheetFor(null)}
+          onSaved={() => show(`Ficha de ${sheetFor.name} salva.`)}
+        />
+      ) : null}
 
       {toggling ? (
         <ConfirmDialog
