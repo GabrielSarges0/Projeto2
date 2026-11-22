@@ -35,6 +35,20 @@ public class StaffController {
         return service.selfService(employeeId, request.cpf());
     }
 
+    @PostMapping("/{employeeId}/punch")
+    public StaffPunchResponse punch(@PathVariable String employeeId, @Valid @RequestBody PunchRequest request) {
+        return service.punch(employeeId, request.cpf(), request.location());
+    }
+
+    public record PunchRequest(
+            @NotBlank(message = "Informe o CPF.")
+            @Size(max = 20, message = "CPF inválido.")
+            String cpf,
+
+            @Size(max = 80, message = "Localização em formato inválido.")
+            String location) {
+    }
+
     public record SelfServiceRequest(
             @NotBlank(message = "Informe o CPF.")
             @Size(max = 20, message = "CPF inválido.")

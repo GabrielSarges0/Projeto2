@@ -35,7 +35,7 @@ public class SecurityConfig {
 
     /**
      * Dados pessoais de inquilinos e da equipe (CPF, contato, ponto com localização, motivos de falta): só quem edita
-     * os cadastros lê. O funcionário usa /api/v1/staff, que devolve só o próprio ponto depois de conferir o CPF.
+     * os cadastros lê. O funcionário usa /api/v1/staff, que confere o CPF e só então devolve ou grava o próprio ponto.
      */
     private static final String[] PERSONAL_RECORDS = {
             "/api/v1/records/clients/**",
@@ -44,9 +44,8 @@ public class SecurityConfig {
             "/api/v1/records/justifications/**",
     };
 
-    /** Coleções que o funcionário também grava (regras finas em RecordService). */
+    /** Coleções que o funcionário também grava (regras finas em RecordService). O ponto vai por /api/v1/staff. */
     private static final String[] STAFF_RECORDS = {
-            "/api/v1/records/attendance/**",
             "/api/v1/records/justifications/**",
             "/api/v1/records/inventory/**",
             "/api/v1/records/inventory-movements/**",
@@ -71,7 +70,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/records/team-profiles/**").hasAnyRole(MANAGERS)
                         .requestMatchers(HttpMethod.GET, PERSONAL_RECORDS).hasAnyRole(EDITORS)
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/staff/*/self").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/staff/*/self", "/api/v1/staff/*/punch").authenticated()
                         .requestMatchers(HttpMethod.PUT, STAFF_RECORDS).authenticated()
                         .requestMatchers("/api/**").hasAnyRole(EDITORS)
                         .anyRequest().authenticated())
