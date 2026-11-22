@@ -28,10 +28,21 @@ import br.org.fundacaomanuelcruz.projeto2.user.UserService;
 @Configuration
 public class SecurityConfig {
 
-    // Papéis: GERENTE (tudo), ADMINISTRADOR (edita os módulos), FUNCIONARIO (leitura + operações do dia a dia).
+    // Papéis: GERENTE (tudo), ADMINISTRADOR (edita os módulos), FUNCIONARIO (leitura sem dados pessoais + operações do dia a dia).
     // ADMIN é o usuário técnico por HTTP Basic (scripts) e vale como Gerente.
     private static final String[] MANAGERS = { "GERENTE", "ADMIN" };
     private static final String[] EDITORS = { "GERENTE", "ADMINISTRADOR", "ADMIN" };
+
+    /**
+     * Dados pessoais de inquilinos e da equipe (CPF, contato, ponto com localização, motivos de falta): só quem edita
+     * os cadastros lê. O funcionário usa /api/v1/staff, que devolve só o próprio ponto depois de conferir o CPF.
+     */
+    private static final String[] PERSONAL_RECORDS = {
+            "/api/v1/records/clients/**",
+            "/api/v1/records/employees/**",
+            "/api/v1/records/attendance/**",
+            "/api/v1/records/justifications/**",
+    };
 
     /** Coleções que o funcionário também grava (regras finas em RecordService). */
     private static final String[] STAFF_RECORDS = {
@@ -58,7 +69,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/**").hasAnyRole(MANAGERS)
                         // Dados pessoais da equipe: nem a leitura fica aberta aos demais papéis.
                         .requestMatchers("/api/v1/records/team-profiles/**").hasAnyRole(MANAGERS)
+                        .requestMatchers(HttpMethod.GET, PERSONAL_RECORDS).hasAnyRole(EDITORS)
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/staff/*/self").authenticated()
                         .requestMatchers(HttpMethod.PUT, STAFF_RECORDS).authenticated()
                         .requestMatchers("/api/**").hasAnyRole(EDITORS)
                         .anyRequest().authenticated())

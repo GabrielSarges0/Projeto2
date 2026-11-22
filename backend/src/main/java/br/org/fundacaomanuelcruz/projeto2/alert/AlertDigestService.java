@@ -89,8 +89,8 @@ public class AlertDigestService {
                 }
             }
 
-            // 2. Contratos de clientes
-            if (contEnabled) {
+            // 2. Contratos de clientes (nome do inquilino: só para quem pode ler os clientes)
+            if (contEnabled && user.getRole() != UserRole.FUNCIONARIO) {
                 for (AppRecord rec : recordRepository.findAllByIdCollectionOrderByCreatedAtAsc("clients")) {
                     JsonNode data = parseJson(rec.getPayload());
                     String status = data.path("contractStatus").asString("");
