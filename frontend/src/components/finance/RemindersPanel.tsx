@@ -99,30 +99,30 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
   }
 
   return (
-    <div className={styles.remindersPanel}>
+    <section className="ui-card" aria-labelledby="lembretes-title">
       <div className={styles.panelHeader}>
-        <h2>LEMBRETES:</h2>
+        <h2 id="lembretes-title">Lembretes</h2>
         {canEdit ? (
-          <button type="button" className={styles.iconButton} aria-label="Criar lembrete" title="Criar lembrete" onClick={() => setFormTarget("new")}>
-            <Plus aria-hidden="true" />
+          <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => setFormTarget("new")}>
+            <Plus size={14} aria-hidden="true" /> Novo lembrete
           </button>
         ) : null}
       </div>
 
       {loading ? (
-        <div style={{ display: "grid", gap: 8, padding: "8px 0" }} aria-busy="true">
+        <div style={{ display: "grid", gap: 8 }} aria-busy="true">
           <div className="ui-skeleton" style={{ height: 28 }} />
           <div className="ui-skeleton" style={{ height: 28 }} />
         </div>
       ) : loadError ? (
-        <div className={styles.reminderEmpty} role="alert">
+        <p className="ui-alert ui-alert-error" role="alert">
           {loadError}{" "}
           <button type="button" className="ui-link" onClick={() => void load()}>
             Tentar de novo
           </button>
-        </div>
+        </p>
       ) : reminders.length === 0 ? (
-        <div className={styles.reminderEmpty}>Nenhum lembrete aqui. Use o “+” para criar um com data limite.</div>
+        <p className="ui-empty">Nenhum lembrete aqui.{canEdit ? " Use “Novo lembrete” para criar um com data limite." : ""}</p>
       ) : (
         <ul className={styles.remindersList} style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {reminders.map((reminder) => {
@@ -160,7 +160,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
                     aria-label={`Editar "${reminder.title}"`}
                     title="Editar lembrete"
                   >
-                    <Pencil size={14} aria-hidden="true" />
+                    <Pencil size={16} aria-hidden="true" />
                   </button>
                   <button
                     type="button"
@@ -169,7 +169,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
                     aria-label={`Excluir "${reminder.title}"`}
                     title="Excluir lembrete"
                   >
-                    <Trash2 size={14} aria-hidden="true" />
+                    <Trash2 size={16} aria-hidden="true" />
                   </button>
                 </div>
                 ) : null}
@@ -212,7 +212,7 @@ export function RemindersPanel({ notify }: { notify: Notify }) {
           onCancel={() => setToDelete(null)}
         />
       ) : null}
-    </div>
+    </section>
   );
 }
 

@@ -341,7 +341,7 @@ export function DashboardHome() {
                   })}
                 </ul>
               )}
-              <Link href="/financeiro" className="ui-link" style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}>
+              <Link href="/alertas#lembretes-title" className="ui-link" style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}>
                 Gerenciar lembretes
               </Link>
             </section>
