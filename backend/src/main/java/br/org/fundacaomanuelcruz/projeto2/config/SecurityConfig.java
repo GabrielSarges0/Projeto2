@@ -56,6 +56,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .requestMatchers("/api/v1/auth/**").authenticated()
                         .requestMatchers("/api/v1/users/**").hasAnyRole(MANAGERS)
+                        // Dados pessoais da equipe: nem a leitura fica aberta aos demais papéis.
+                        .requestMatchers("/api/v1/records/team-profiles/**").hasAnyRole(MANAGERS)
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
                         .requestMatchers(HttpMethod.PUT, STAFF_RECORDS).authenticated()
                         .requestMatchers("/api/**").hasAnyRole(EDITORS)

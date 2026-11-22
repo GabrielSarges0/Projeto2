@@ -76,6 +76,27 @@ class UserRolesIntegrationTest {
     }
 
     @Test
+    void fichaDaEquipeSoOGerenteLeOuGrava() throws Exception {
+        String manager = login(MANAGER);
+        mockMvc.perform(json(manager, put("/api/v1/records/team-profiles/tm-teste"), "{\"email\":\"x@fundacao.org\",\"cpf\":\"000\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(as(manager, get("/api/v1/records/team-profiles"))).andExpect(status().isOk());
+
+        String staffEmail = "func-" + UUID.randomUUID() + "@fundacao.org";
+        String staff = login(staffEmail);
+        mockMvc.perform(as(staff, get("/api/v1/records/team-profiles"))).andExpect(status().isForbidden());
+        mockMvc.perform(as(staff, get("/api/v1/records/team-profiles/tm-teste"))).andExpect(status().isForbidden());
+        mockMvc.perform(json(staff, put("/api/v1/records/team-profiles/tm-teste"), "{}")).andExpect(status().isForbidden());
+
+        // Administrador edita os módulos, mas não vê dados pessoais da equipe.
+        mockMvc.perform(json(manager, put("/api/v1/users/" + staffEmail + "/role"), "{\"role\":\"ADMINISTRADOR\"}"))
+                .andExpect(status().isOk());
+        String admin = login(staffEmail);
+        mockMvc.perform(as(admin, get("/api/v1/records/team-profiles"))).andExpect(status().isForbidden());
+        mockMvc.perform(as(admin, delete("/api/v1/records/team-profiles/tm-teste"))).andExpect(status().isForbidden());
+    }
+
+    @Test
     void formatacaoDosModelosSoGestorAltera() throws Exception {
         String manager = login(MANAGER);
         String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");
