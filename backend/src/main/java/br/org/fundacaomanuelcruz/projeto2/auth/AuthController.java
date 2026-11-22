@@ -40,7 +40,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        rateLimiter.check(clientKey(httpRequest));
+        rateLimiter.check(FixedWindowRateLimiter.clientKey(httpRequest));
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         String providedName = request.name() == null || request.name().isBlank() ? null : request.name().trim();
         AppUser user = userService.onLogin(email, providedName, nameFromEmail(email));
@@ -73,15 +73,6 @@ public class AuthController {
 
     private CurrentUserResponse toResponse(AppUser user) {
         return new CurrentUserResponse(user.getEmail(), user.getDisplayName(), user.getRole(), userService.preferencesOf(user));
-    }
-
-    // O Render fica atrás de proxy: o IP real é o primeiro do X-Forwarded-For.
-    private static String clientKey(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 
     private static String nameFromEmail(String email) {
