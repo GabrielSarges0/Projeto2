@@ -7,6 +7,7 @@ export type Permission =
   | "delete"
   | "review" // aprovar justificativas, ajustar ponto
   | "team" // gestão de equipe e papéis
+  | "personal" // ler dados pessoais: clientes (inquilinos), cadastro, ponto e justificativas da equipe
   | "staff"; // dia a dia: ponto, justificativa, retirada do estoque, enviar documento
 
 const RULES: Record<Permission, UserRole[]> = {
@@ -14,6 +15,7 @@ const RULES: Record<Permission, UserRole[]> = {
   delete: ["GERENTE", "ADMINISTRADOR"],
   review: ["GERENTE", "ADMINISTRADOR"],
   team: ["GERENTE"],
+  personal: ["GERENTE", "ADMINISTRADOR"],
   staff: ["GERENTE", "ADMINISTRADOR", "FUNCIONARIO"],
 };
 

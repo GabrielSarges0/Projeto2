@@ -26,6 +26,13 @@ export const ALERT_KIND_LABEL: Record<AlertKind, string> = {
   justifications: "Justificativas aguardando análise",
 };
 
+/** Tipos que o papel pode receber: contratos (inquilinos) e justificativas são dados pessoais. */
+export function useAlertKinds(): AlertKind[] {
+  const canReadPersonal = useCan("personal");
+  const canReview = useCan("review");
+  return ALERT_KINDS.filter((kind) => (kind !== "contracts" || canReadPersonal) && (kind !== "justifications" || canReview));
+}
+
 const alertPrefsSchema = z.object({
   enabled: z
     .object({
@@ -223,10 +230,12 @@ export function useAlerts() {
   }, []);
   const state = useSyncExternalStore(subscribe, () => shared, () => shared);
   const canReview = useCan("review");
-  const clients = useRecords("clients", clientSchema);
+  // Contratos e justificativas são dados pessoais: só quem pode ler as coleções recebe esses alertas.
+  const canReadPersonal = useCan("personal");
+  const clients = useRecords("clients", clientSchema, { enabled: canReadPersonal });
   const submissions = useRecords("mp-submissions", mpSubmissionSchema);
   const inventory = useRecords("inventory", inventoryItemSchema);
-  const justifications = useRecords("justifications", justificationSchema);
+  const justifications = useRecords("justifications", justificationSchema, { enabled: canReview });
 
   useEffect(() => {
     void refresh();

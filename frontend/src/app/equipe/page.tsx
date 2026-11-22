@@ -13,7 +13,7 @@ import { useSession } from "@/lib/session";
 const ROLE_HELP: Record<UserRole, string> = {
   GERENTE: "Tudo, inclusive papéis da equipe e exclusões.",
   ADMINISTRADOR: "Cadastra e edita em todos os módulos (financeiro, imóveis, clientes, documentos, MP, funcionários, estoque).",
-  FUNCIONARIO: "Consulta tudo; registra ponto, envia justificativas e documentos e faz retiradas do estoque.",
+  FUNCIONARIO: "Consulta os módulos, sem dados pessoais de inquilinos e da equipe; registra ponto, envia justificativas e documentos e faz retiradas do estoque.",
 };
 
 export default function EquipePage() {

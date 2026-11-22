@@ -7,12 +7,12 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Field } from "@/components/ui/Field";
 import { RemindersPanel } from "@/components/finance/RemindersPanel";
 import { useToast } from "@/components/ui/Toast";
-import { ALERT_KINDS, ALERT_KIND_LABEL, saveAlertPrefs, useAlerts, type AlertKind, type AlertPrefs } from "@/lib/alerts";
+import { ALERT_KIND_LABEL, saveAlertPrefs, useAlertKinds, useAlerts, type AlertKind, type AlertPrefs } from "@/lib/alerts";
 import { errorMessage } from "@/lib/financial-api";
-import { useCan } from "@/lib/permissions";
 
 export default function AlertasPage() {
   const { alerts, prefs, loading } = useAlerts();
+  const kinds = useAlertKinds();
   const [filter, setFilter] = useState<AlertKind | "ALL">("ALL");
   const visible = alerts.filter((alert) => filter === "ALL" || alert.kind === filter);
   const critical = alerts.filter((alert) => alert.severity === "critical").length;
@@ -60,7 +60,7 @@ export default function AlertasPage() {
                 <label htmlFor="alerta-tipo">Tipo</label>
                 <select id="alerta-tipo" className="ui-input" value={filter} onChange={(e) => setFilter(e.target.value as AlertKind | "ALL")}>
                   <option value="ALL">Todos</option>
-                  {ALERT_KINDS.map((kind) => (
+                  {kinds.map((kind) => (
                     <option key={kind} value={kind}>
                       {ALERT_KIND_LABEL[kind]}
                     </option>
@@ -107,7 +107,7 @@ export default function AlertasPage() {
 }
 
 function PreferencesForm({ prefs, onSaved }: { prefs: AlertPrefs; onSaved: () => void }) {
-  const canReview = useCan("review");
+  const kinds = useAlertKinds();
   const [draft, setDraft] = useState<AlertPrefs>(prefs);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -149,7 +149,7 @@ function PreferencesForm({ prefs, onSaved }: { prefs: AlertPrefs; onSaved: () =>
       </h2>
       <fieldset style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 6 }}>
         <legend className="sr-only">Tipos de alerta</legend>
-        {ALERT_KINDS.filter((kind) => kind !== "justifications" || canReview).map((kind) => (
+        {kinds.map((kind) => (
           <label key={kind} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, minHeight: 28 }}>
             <input
               type="checkbox"
@@ -162,7 +162,7 @@ function PreferencesForm({ prefs, onSaved }: { prefs: AlertPrefs; onSaved: () =>
       </fieldset>
       <div className="ui-form-grid-3">
         {numberField("reminderDays", "Lembretes: avisar com", 0, 30)}
-        {numberField("contractDays", "Contratos: avisar com", 7, 120)}
+        {kinds.includes("contracts") ? numberField("contractDays", "Contratos: avisar com", 7, 120) : null}
         {numberField("mpDays", "Envios ao MP: avisar com", 1, 60)}
       </div>
       <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 8 }}>

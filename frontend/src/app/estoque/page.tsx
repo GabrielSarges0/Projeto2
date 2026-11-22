@@ -17,7 +17,6 @@ import {
   INVENTORY_CATEGORIES,
   INVENTORY_MOVEMENT_LABEL,
   INVENTORY_MOVEMENT_TYPES,
-  employeeSchema,
   inventoryItemSchema,
   inventoryMovementSchema,
   type InventoryItem,
@@ -25,6 +24,7 @@ import {
 } from "@/lib/schemas";
 import { useCan } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
+import { useStaffDirectory } from "@/lib/staff";
 import { amountError, lengthError, pastDateError } from "@/lib/validation";
 
 const MAX_QUANTITY = 100_000;
@@ -32,7 +32,7 @@ const MAX_QUANTITY = 100_000;
 export default function EstoquePage() {
   const itemsStore = useRecords("inventory", inventoryItemSchema);
   const movementsStore = useRecords("inventory-movements", inventoryMovementSchema);
-  const { items: employees } = useRecords("employees", employeeSchema);
+  const { members: staff } = useStaffDirectory();
   const { show, node: toast } = useToast();
   const canEdit = useCan("edit");
   const now = new Date();
@@ -221,7 +221,7 @@ export default function EstoquePage() {
       {withdrawFor ? (
         <WithdrawModal
           item={withdrawFor}
-          employees={employees.filter((employee) => employee.active).map((employee) => `${employee.name} (${employee.role})`)}
+          employees={staff.map((member) => `${member.name} (${member.role})`)}
           onClose={() => setWithdrawFor(null)}
           onDone={(message) => {
             setWithdrawFor(null);

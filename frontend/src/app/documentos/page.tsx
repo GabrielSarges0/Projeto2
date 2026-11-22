@@ -25,9 +25,11 @@ const PROTECTED_FOLDERS = new Set<string>([...Object.values(FOLDER_IDS), "fld-mp
 type NewDocState = { templateId: string | null; prefill?: Record<string, string>; clientId?: string | null } | null;
 
 export default function DocumentosPage() {
+  const canReadClients = useCan("personal");
   const docsStore = useRecords("documents", documentSchema);
   const foldersStore = useRecords("folders", folderSchema);
-  const clientsStore = useRecords("clients", clientSchema);
+  // Só o pré-preenchimento vindo de Clientes usa os inquilinos; quem não lê clientes nem chega por lá.
+  const clientsStore = useRecords("clients", clientSchema, { enabled: canReadClients });
   const { layoutFor } = useTemplateSettings();
   const documents = docsStore.items;
   const folders = foldersStore.items;

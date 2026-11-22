@@ -15,34 +15,35 @@ import {
   Scale,
   ShieldCheck,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { useAlerts } from "@/lib/alerts";
 import { logout } from "@/lib/logout";
-import { useCan } from "@/lib/permissions";
+import { can, useRole, type Permission } from "@/lib/permissions";
+
+type NavItem = { href: string; label: string; icon: LucideIcon; permission?: Permission };
 
 // "Formulários" agora fica dentro de Documentos → Novo Documento (Relatório Sprint 3).
-const items = [
+const items: NavItem[] = [
   { href: "/", label: "Painel", icon: Home },
-  { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/clientes", label: "Clientes", icon: Users, permission: "personal" },
   { href: "/imoveis", label: "Imóveis", icon: Building2 },
   { href: "/documentos", label: "Documentos", icon: FileText },
   { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
   { href: "/ministerio-publico", label: "Ministério Público", icon: Scale },
   { href: "/funcionarios", label: "Funcionários", icon: Contact },
   { href: "/estoque", label: "Estoque", icon: Boxes },
+  { href: "/alertas", label: "Alertas", icon: Bell },
+  { href: "/equipe", label: "Equipe", icon: ShieldCheck, permission: "team" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const canManageTeam = useCan("team");
+  const role = useRole();
   const { alerts } = useAlerts();
   const critical = alerts.filter((alert) => alert.severity === "critical").length;
-  const visibleItems = [
-    ...items,
-    { href: "/alertas", label: "Alertas", icon: Bell },
-    ...(canManageTeam ? [{ href: "/equipe", label: "Equipe", icon: ShieldCheck }] : []),
-  ];
+  const visibleItems = items.filter((item) => !item.permission || can(role, item.permission));
 
   function handleLogout() {
     logout();

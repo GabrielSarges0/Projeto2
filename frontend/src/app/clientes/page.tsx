@@ -55,6 +55,23 @@ function addMonthsIso(iso: string, months: number) {
 }
 
 export default function ClientesPage() {
+  const canRead = useCan("personal");
+  if (!canRead) {
+    return (
+      <AppShell>
+        <section className="ui-page">
+          <div className="ui-page-header">
+            <h1>Clientes</h1>
+          </div>
+          <p className="ui-alert ui-alert-info">Os dados dos inquilinos ficam com o Gerente e o Administrador. Seu papel atual aparece no Perfil.</p>
+        </section>
+      </AppShell>
+    );
+  }
+  return <ClientesWorkspace />;
+}
+
+function ClientesWorkspace() {
   const clientsStore = useRecords("clients", clientSchema);
   const { items: documents } = useRecords("documents", documentSchema);
   const clients = clientsStore.items;
