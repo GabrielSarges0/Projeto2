@@ -18,6 +18,7 @@ import {
   type ReminderItem,
 } from "@/lib/financial-api";
 import { MONTHS, daysUntil, formatCurrency, formatDate, todayIso } from "@/lib/format";
+import { useCan } from "@/lib/permissions";
 import { useRecords } from "@/lib/records";
 import { clientSchema, mpSubmissionSchema } from "@/lib/schemas";
 
@@ -63,7 +64,8 @@ export function DashboardHome() {
   const [error, setError] = useState("");
   const [showTable, setShowTable] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | "ALL">("ALL");
-  const { items: clients, loading: clientsLoading } = useRecords("clients", clientSchema);
+  const canReadClients = useCan("personal");
+  const { items: clients, loading: clientsLoading } = useRecords("clients", clientSchema, { enabled: canReadClients });
   const { items: submissions, loading: submissionsLoading } = useRecords("mp-submissions", mpSubmissionSchema);
   const skeleton = <div className="ui-skeleton" style={{ height: 48 }} aria-busy="true" />;
 
@@ -296,29 +298,31 @@ export function DashboardHome() {
           </section>
 
           <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
-            <section className="ui-card" aria-labelledby="contratos-title">
-              <h2 id="contratos-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>
-                Contratos a vencer (30 dias)
-              </h2>
-              {clientsLoading ? (
-                skeleton
-              ) : expiring.length === 0 ? (
-                <p className="ui-field-hint">Nenhum contrato vencendo nos próximos 30 dias.</p>
-              ) : (
-                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, fontSize: 14 }}>
-                  {expiring.map((client) => (
-                    <li key={client.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <Link href={`/clientes?cliente=${client.id}`} className="ui-link">
-                        {client.name}
-                      </Link>
-                      <span className="ui-field-hint">
-                        {client.propertyCode} · {formatDate(client.contractEndDate)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            {canReadClients ? (
+              <section className="ui-card" aria-labelledby="contratos-title">
+                <h2 id="contratos-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>
+                  Contratos a vencer (30 dias)
+                </h2>
+                {clientsLoading ? (
+                  skeleton
+                ) : expiring.length === 0 ? (
+                  <p className="ui-field-hint">Nenhum contrato vencendo nos próximos 30 dias.</p>
+                ) : (
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, fontSize: 14 }}>
+                    {expiring.map((client) => (
+                      <li key={client.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                        <Link href={`/clientes?cliente=${client.id}`} className="ui-link">
+                          {client.name}
+                        </Link>
+                        <span className="ui-field-hint">
+                          {client.propertyCode} · {formatDate(client.contractEndDate)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
 
             <section className="ui-card" aria-labelledby="lembretes-title">
               <h2 id="lembretes-title" style={{ margin: "0 0 8px", fontSize: 17, color: "var(--ui-primary)" }}>

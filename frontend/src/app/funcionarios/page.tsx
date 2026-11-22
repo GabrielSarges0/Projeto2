@@ -12,7 +12,7 @@ import { exportAttendanceToCsv } from "@/lib/export-csv";
 import { ACCEPTED_FILE_TYPES, fileTooLargeMessage } from "@/lib/files";
 import { errorMessage } from "@/lib/financial-api";
 import { formatDate, formatDateTime, isValidIsoDate, newId, normalizeText, todayIso } from "@/lib/format";
-import { useRecords } from "@/lib/records";
+import { applyLocalUpsert, putRecord, useRecords } from "@/lib/records";
 import {
   ATTENDANCE_STATUSES,
   EMPLOYEE_ROLES,
@@ -28,6 +28,7 @@ import {
 } from "@/lib/schemas";
 import { useCan } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
+import { staffApi, useStaffDirectory, type StaffMember, type StaffSelfService } from "@/lib/staff";
 import { EARLIEST_DATE, formatCpf, isValidCpf, personNameError } from "@/lib/validation";
 
 const toMinutes = (time: string | null) => {
@@ -954,39 +955,58 @@ const PUNCH_STEPS = [
 ] as const;
 
 function EmployeeView() {
-  const employeesStore = useRecords("employees", employeeSchema);
-  const attendanceStore = useRecords("attendance", attendanceSchema);
-  const justificationsStore = useRecords("justifications", justificationSchema);
+  const directory = useStaffDirectory();
   const { show, node: toast } = useToast();
   const [employeeId, setEmployeeId] = useState("");
   const [cpf, setCpf] = useState("");
+  // Pontos e justificativas do próprio funcionário: só chegam depois que o servidor confere o CPF.
+  const [identified, setIdentified] = useState<StaffSelfService | null>(null);
+  const [identifyErrors, setIdentifyErrors] = useState<{ employee?: string; cpf?: string }>({});
+  const [identifying, setIdentifying] = useState(false);
   const [punchError, setPunchError] = useState("");
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
   const [includeLocation, setIncludeLocation] = useState(true);
   const [newJustification, setNewJustification] = useState(false);
 
-  const employees = employeesStore.items.filter((employee) => employee.active).sort((a, b) => a.name.localeCompare(b.name));
-  const employee = employees.find((item) => item.id === employeeId) ?? null;
+  const employee = identified?.employee ?? null;
   const today = todayIso();
-  const todayRecord = attendanceStore.items.find((record) => record.employeeId === employeeId && record.date === today);
+  const todayRecord = identified?.attendance.find((record) => record.date === today);
   const nextStep = PUNCH_STEPS.find((step) => !todayRecord?.[step.key]);
-  const mine = useMemo(
-    () => justificationsStore.items.filter((item) => item.employeeId === employeeId).sort((a, b) => b.date.localeCompare(a.date)),
-    [justificationsStore.items, employeeId]
-  );
-  const history = attendanceStore.items
-    .filter((record) => record.employeeId === employeeId)
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 10);
+  const mine = useMemo(() => [...(identified?.justifications ?? [])].sort((a, b) => b.date.localeCompare(a.date)), [identified]);
+  const history = [...(identified?.attendance ?? [])].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
+
+  function leave() {
+    setIdentified(null);
+    setCpf("");
+    setPunchError("");
+    setIdentifyErrors({});
+  }
+
+  async function identify(event: FormEvent) {
+    event.preventDefault();
+    if (!employeeId) {
+      setIdentifyErrors({ employee: "Selecione seu nome." });
+      return;
+    }
+    if (cpf.replace(/\D/g, "").length !== 11) {
+      setIdentifyErrors({ cpf: "Informe os 11 dígitos do CPF." });
+      return;
+    }
+    setIdentifyErrors({});
+    setIdentifying(true);
+    try {
+      setIdentified(await staffApi.selfService(employeeId, cpf));
+      setCpf("");
+    } catch (err) {
+      setIdentifyErrors({ cpf: errorMessage(err) });
+    } finally {
+      setIdentifying(false);
+    }
+  }
 
   async function punch() {
     if (!employee || !nextStep) return;
-    // Confirmação por CPF (Backlog 7.3): o ponto é registrado só por quem sabe o CPF do funcionário.
-    if (cpf.replace(/\D/g, "") !== employee.cpf.replace(/\D/g, "")) {
-      setPunchError("CPF não confere com o funcionário selecionado.");
-      return;
-    }
     setPunchError("");
     setBusy(true);
     const time = nowTime();
@@ -1021,16 +1041,18 @@ function EmployeeView() {
       }
     }
     try {
-      const locationField = nextStep.locationKey;
-      await attendanceStore.save({
+      const record: Attendance = {
         ...base,
         status: "Presente",
         [nextStep.key]: time,
-        ...(loc ? { [locationField]: loc } : {}),
+        ...(loc ? { [nextStep.locationKey]: loc } : {}),
         registeredBy: employee.name,
-      });
+      };
+      await putRecord("attendance", record);
+      applyLocalUpsert("attendance", record);
       show(`${nextStep.label} registrada às ${time}${loc ? ` · ${loc}` : ""}.`);
-      setCpf("");
+      // Cada ponto pede o CPF de novo, como antes: no aparelho compartilhado, o próximo não registra pelo colega.
+      leave();
     } catch (err) {
       setPunchError(errorMessage(err));
     } finally {
@@ -1041,25 +1063,16 @@ function EmployeeView() {
   return (
     <>
       <div className="ui-card" style={{ display: "grid", gap: 14 }}>
-        <div className="ui-form-grid">
-          <Field label="Funcionário">
-            {(props) => (
-              <select {...props} className="ui-input" value={employeeId} onChange={(e) => { setEmployeeId(e.target.value); setPunchError(""); }}>
-                <option value="">Selecione seu nome</option>
-                {employees.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} — {item.role}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-          <Field label="Confirme seu CPF" error={punchError} hint="Usado só para confirmar o registro.">
-            {(props) => <input {...props} className="ui-input" inputMode="numeric" value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} disabled={!employee} />}
-          </Field>
-        </div>
         {employee ? (
           <>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <p style={{ margin: 0, fontSize: 15 }}>
+                <strong>{employee.name}</strong> — {employee.role}
+              </p>
+              <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={leave} disabled={busy || locating}>
+                Trocar funcionário
+              </button>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
               {PUNCH_STEPS.map((step) => (
                 <div key={step.key} className="ui-card" style={{ textAlign: "center", padding: 12, background: todayRecord?.[step.key] ? "#f0fdf4" : undefined }}>
@@ -1082,10 +1095,54 @@ function EmployeeView() {
               <button type="button" className="ui-btn ui-btn-primary" style={{ justifySelf: "start", minHeight: 48 }} disabled={!nextStep || busy || locating} onClick={() => void punch()} aria-busy={busy || locating}>
                 <Clock size={18} aria-hidden="true" /> {locating ? "Obtendo localização GPS..." : busy ? "Registrando ponto..." : nextStep ? `Registrar ${nextStep.label.toLowerCase()} agora` : "Jornada de hoje concluída"}
               </button>
+              {punchError ? (
+                <p className="ui-alert ui-alert-error" role="alert">
+                  {punchError}
+                </p>
+              ) : null}
             </div>
           </>
         ) : (
-          <p className="ui-field-hint">Selecione seu nome para registrar o ponto de hoje ({formatDate(today)}).</p>
+          <form onSubmit={identify} noValidate style={{ display: "grid", gap: 14 }}>
+            <div className="ui-form-grid">
+              <Field label="Funcionário" error={identifyErrors.employee}>
+                {(props) => (
+                  <select
+                    {...props}
+                    className="ui-input"
+                    value={employeeId}
+                    disabled={directory.loading}
+                    onChange={(e) => {
+                      setEmployeeId(e.target.value);
+                      setIdentifyErrors({});
+                    }}
+                  >
+                    <option value="">{directory.loading ? "Carregando a lista..." : "Selecione seu nome"}</option>
+                    {directory.members.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} — {item.role}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+              <Field label="Confirme seu CPF" error={identifyErrors.cpf} hint="Conferido pelo sistema antes de mostrar seus pontos.">
+                {(props) => <input {...props} className="ui-input" inputMode="numeric" autoComplete="off" value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} />}
+              </Field>
+            </div>
+            {directory.error ? (
+              <p className="ui-alert ui-alert-error" role="alert">
+                {directory.error}
+              </p>
+            ) : !directory.loading && directory.members.length === 0 ? (
+              <p className="ui-field-hint">Nenhum funcionário ativo cadastrado. Peça ao gestor para cadastrar.</p>
+            ) : (
+              <p className="ui-field-hint">Selecione seu nome e confirme o CPF para registrar o ponto de hoje ({formatDate(today)}).</p>
+            )}
+            <button type="submit" className="ui-btn ui-btn-primary" style={{ justifySelf: "start", minHeight: 48 }} disabled={identifying || directory.loading} aria-busy={identifying}>
+              {identifying ? "Confirmando..." : "Confirmar"}
+            </button>
+          </form>
         )}
       </div>
 
@@ -1161,7 +1218,9 @@ function EmployeeView() {
           existing={mine}
           onClose={() => setNewJustification(false)}
           onSave={async (item) => {
-            await justificationsStore.save(item);
+            await putRecord("justifications", item);
+            applyLocalUpsert("justifications", item);
+            setIdentified((current) => (current ? { ...current, justifications: [...current.justifications, item] } : current));
             setNewJustification(false);
             show("Justificativa enviada para análise do gestor.");
           }}
@@ -1178,7 +1237,7 @@ function JustificationForm({
   onClose,
   onSave,
 }: {
-  employee: Employee;
+  employee: StaffMember;
   existing: Justification[];
   onClose: () => void;
   onSave: (item: Justification) => Promise<void>;

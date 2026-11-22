@@ -389,7 +389,8 @@ function PropertyFormModal({
 
 function PropertyDetailsModal({ property, onClose, onEdit }: { property: PropertyItem; onClose: () => void; onEdit?: () => void }) {
   const [movements, setMovements] = useState<FinancialMovement[] | null>(null);
-  const { items: clients } = useRecords("clients", clientSchema);
+  const canReadClients = useCan("personal");
+  const { items: clients } = useRecords("clients", clientSchema, { enabled: canReadClients });
   const linkedClients = clients.filter((client) => client.propertyCode === property.registrationCode);
 
   useEffect(() => {
@@ -428,23 +429,25 @@ function PropertyDetailsModal({ property, onClose, onEdit }: { property: Propert
       </dl>
       {property.notes ? <p style={{ margin: 0, fontSize: 14, whiteSpace: "pre-wrap" }}>{property.notes}</p> : null}
 
-      <div>
-        <h3 style={{ fontSize: 15, margin: "4px 0 8px", color: "var(--ui-primary)" }}>Clientes vinculados</h3>
-        {linkedClients.length === 0 ? (
-          <p className="ui-field-hint">Nenhum cliente cadastrado para este imóvel.</p>
-        ) : (
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>
-            {linkedClients.map((client) => (
-              <li key={client.id}>
-                <Link href={`/clientes?cliente=${client.id}`} className="ui-link">
-                  {client.name}
-                </Link>{" "}
-                — contrato até {formatDate(client.contractEndDate)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {canReadClients ? (
+        <div>
+          <h3 style={{ fontSize: 15, margin: "4px 0 8px", color: "var(--ui-primary)" }}>Clientes vinculados</h3>
+          {linkedClients.length === 0 ? (
+            <p className="ui-field-hint">Nenhum cliente cadastrado para este imóvel.</p>
+          ) : (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>
+              {linkedClients.map((client) => (
+                <li key={client.id}>
+                  <Link href={`/clientes?cliente=${client.id}`} className="ui-link">
+                    {client.name}
+                  </Link>{" "}
+                  — contrato até {formatDate(client.contractEndDate)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       <div>
         <h3 style={{ fontSize: 15, margin: "4px 0 8px", color: "var(--ui-primary)" }}>Últimas movimentações</h3>

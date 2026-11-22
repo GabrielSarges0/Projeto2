@@ -106,11 +106,21 @@ function load<T extends Identified>(collection: CollectionName, store: Store<T>)
   return store.inflight;
 }
 
+type UseRecordsOptions = {
+  /**
+   * Desligado, não chama a API nem devolve o que estiver em cache. Use quando o papel não pode ler a coleção
+   * (dados pessoais): o backend responderia 403 e a tela mostraria erro.
+   */
+  enabled?: boolean;
+};
+
+const NO_ITEMS: never[] = [];
+
 /**
  * Coleção compartilhada no servidor com cache em memória: todas as telas que usam a mesma coleção
  * veem a mesma lista e as mudanças aparecem na hora (atualização otimista, desfeita se o servidor recusar).
  */
-export function useRecords<T extends Identified>(collection: CollectionName, schema: z.ZodType<T>) {
+export function useRecords<T extends Identified>(collection: CollectionName, schema: z.ZodType<T>, { enabled = true }: UseRecordsOptions = {}) {
   const store = getStore(collection, schema);
 
   const subscribe = useCallback(
@@ -126,13 +136,14 @@ export function useRecords<T extends Identified>(collection: CollectionName, sch
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   useEffect(() => {
+    if (!enabled) return;
     if (store.state.status === "idle") void load(collection, store);
     const onFocus = () => {
       if (Date.now() - store.state.loadedAt > STALE_AFTER_MS) void load(collection, store);
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [collection, store]);
+  }, [collection, store, enabled]);
 
   const save = useCallback(
     async (item: T) => {
@@ -175,9 +186,9 @@ export function useRecords<T extends Identified>(collection: CollectionName, sch
   const reload = useCallback(() => load(collection, store), [collection, store]);
 
   return {
-    items: state.items,
-    loading: state.status === "idle" || state.status === "loading",
-    error: state.status === "error" ? state.error : "",
+    items: enabled ? state.items : NO_ITEMS,
+    loading: enabled && (state.status === "idle" || state.status === "loading"),
+    error: enabled && state.status === "error" ? state.error : "",
     save,
     saveMany,
     remove,
