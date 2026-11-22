@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { ChevronRight, Download, Eye, FileText, Folder as FolderIcon, FolderPlus, MoreVertical, Pencil, Plus, ScanLine, Search, Settings2, Trash2, Upload } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -22,7 +22,11 @@ import { documentLayout, layoutToHtml, useTemplateSettings } from "@/lib/templat
 // Pastas usadas por outras telas (anexos, MP, clientes): podem receber arquivos, mas não ser renomeadas/excluídas.
 const PROTECTED_FOLDERS = new Set<string>([...Object.values(FOLDER_IDS), "fld-mp-anos", "fld-mp-2026", "fld-mp-2026-atas", "fld-mp-2026-relatorios"]);
 
-type NewDocState = { templateId: string | null; prefill?: Record<string, string>; clientId?: string | null } | null;
+type NewDocState = { templateId: string | null; prefill?: Record<string, string>; clientId?: string | null; file?: File; folderId?: string | null } | null;
+
+/** Tipo próprio no dataTransfer: só documentos desta tela viram "mover"; arquivos do computador viram "enviar". */
+const DOC_DRAG_TYPE = "application/x-fmc-document";
+const ROOT_DROP_KEY = "__root__";
 
 export default function DocumentosPage() {
   const docsStore = useRecords("documents", documentSchema);
@@ -45,6 +49,7 @@ export default function DocumentosPage() {
   const [deletingDoc, setDeletingDoc] = useState<DocumentItem | null>(null);
   const [deletingFolder, setDeletingFolder] = useState<Folder | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
+  const [dropKey, setDropKey] = useState<string | null>(null);
   const pendingDocId = useRef<string | null>(null);
   const pendingVerify = useRef(false);
 
@@ -171,6 +176,50 @@ export default function DocumentosPage() {
     setDeletingFolder(null);
   }
 
+  async function moveDocument(docId: string, folderId: string | null) {
+    const doc = documents.find((item) => item.id === docId);
+    if (!doc || doc.folderId === folderId) return;
+    const target = folders.find((folder) => folder.id === folderId);
+    try {
+      await docsStore.save({ ...doc, folderId });
+      show(`"${doc.name}" movido para ${target ? target.name : "Documentos (sem pasta)"}.`);
+    } catch (error) {
+      show(errorMessage(error, "Não foi possível mover o documento."), "error");
+    }
+  }
+
+  /** Alvo de soltura: documentos desta tela são movidos; arquivos do computador abrem o envio já na pasta. */
+  function dropTargetProps(folderId: string | null) {
+    if (!canEdit) return {};
+    const key = folderId ?? ROOT_DROP_KEY;
+    const accepts = (event: DragEvent) => event.dataTransfer.types.includes(DOC_DRAG_TYPE) || event.dataTransfer.types.includes("Files");
+    return {
+      "data-drop-active": dropKey === key ? "true" : undefined,
+      onDragOver: (event: DragEvent) => {
+        if (!accepts(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = event.dataTransfer.types.includes(DOC_DRAG_TYPE) ? "move" : "copy";
+        if (dropKey !== key) setDropKey(key);
+      },
+      onDragLeave: (event: DragEvent) => {
+        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+        setDropKey((current) => (current === key ? null : current));
+      },
+      onDrop: (event: DragEvent) => {
+        if (!accepts(event)) return;
+        event.preventDefault();
+        setDropKey(null);
+        const docId = event.dataTransfer.getData(DOC_DRAG_TYPE);
+        if (docId) {
+          void moveDocument(docId, folderId);
+          return;
+        }
+        const file = event.dataTransfer.files?.[0];
+        if (file) setNewDoc({ templateId: null, file, folderId });
+      },
+    };
+  }
+
   const loading = docsStore.loading || foldersStore.loading;
   const loadError = docsStore.error || foldersStore.error;
 
@@ -229,13 +278,25 @@ export default function DocumentosPage() {
         </div>
 
         <nav aria-label="Caminho da pasta" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, fontSize: 14 }}>
-          <button type="button" className="ui-link" onClick={() => setCurrentFolderId(null)} aria-current={currentFolderId === null ? "page" : undefined}>
+          <button
+            type="button"
+            className="ui-link ui-drop-target"
+            onClick={() => setCurrentFolderId(null)}
+            aria-current={currentFolderId === null ? "page" : undefined}
+            {...dropTargetProps(null)}
+          >
             Documentos
           </button>
           {breadcrumb.map((folder) => (
             <span key={folder.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
               <ChevronRight size={14} aria-hidden="true" />
-              <button type="button" className="ui-link" onClick={() => setCurrentFolderId(folder.id)} aria-current={folder.id === currentFolderId ? "page" : undefined}>
+              <button
+                type="button"
+                className="ui-link ui-drop-target"
+                onClick={() => setCurrentFolderId(folder.id)}
+                aria-current={folder.id === currentFolderId ? "page" : undefined}
+                {...dropTargetProps(folder.id)}
+              >
                 {folder.name}
               </button>
             </span>
@@ -255,9 +316,14 @@ export default function DocumentosPage() {
         <div style={{ display: "grid", gridTemplateColumns: searching ? "1fr" : "repeat(auto-fit, minmax(min(300px, 100%), 1fr))", gap: 16, alignItems: "start" }}>
           {!searching ? (
             <section className="ui-card" aria-labelledby="pastas-title">
-              <h2 id="pastas-title" style={{ margin: "0 0 10px", fontSize: 17, color: "var(--ui-primary)" }}>
+              <h2 id="pastas-title" style={{ margin: "0 0 4px", fontSize: 17, color: "var(--ui-primary)" }}>
                 Pastas
               </h2>
+              {canEdit ? (
+                <p className="ui-field-hint" style={{ margin: "0 0 10px" }}>
+                  Arraste documentos (ou arquivos do computador) para uma pasta. Pelo teclado, use “Renomear / mover” no menu do documento.
+                </p>
+              ) : null}
               {loading ? (
                 <div className="ui-skeleton" style={{ height: 120 }} />
               ) : visibleFolders.length === 0 ? (
@@ -268,7 +334,12 @@ export default function DocumentosPage() {
                     const count = countInside(folder.id);
                     const locked = PROTECTED_FOLDERS.has(folder.id) || !canEdit;
                     return (
-                      <li key={folder.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f1f5f9", padding: "6px 0" }}>
+                      <li
+                        key={folder.id}
+                        className="ui-drop-target"
+                        style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f1f5f9", padding: "6px 4px" }}
+                        {...dropTargetProps(folder.id)}
+                      >
                         <button
                           type="button"
                           onClick={() => setCurrentFolderId(folder.id)}
@@ -300,7 +371,7 @@ export default function DocumentosPage() {
             </section>
           ) : null}
 
-          <section className="ui-card" aria-labelledby="docs-list-title">
+          <section className="ui-card ui-drop-target" aria-labelledby="docs-list-title" {...(searching ? {} : dropTargetProps(currentFolderId))}>
             <h2 id="docs-list-title" style={{ margin: "0 0 10px", fontSize: 17, color: "var(--ui-primary)" }}>
               {searching ? `Resultados (${visibleDocs.length})` : currentFolder ? `Documentos em ${currentFolder.name}` : "Documentos sem pasta"}
             </h2>
@@ -319,6 +390,7 @@ export default function DocumentosPage() {
                     onDownload={() => void download(doc)}
                     onEdit={canEdit ? () => setEditingDoc(doc) : undefined}
                     onDelete={canDelete ? () => setDeletingDoc(doc) : undefined}
+                    draggable={canEdit}
                   />
                 ))}
               </ul>
@@ -343,7 +415,8 @@ export default function DocumentosPage() {
         <NewDocumentModal
           key={`${newDoc.templateId}-${newDoc.prefill ? "p" : "n"}`}
           folders={folders}
-          defaultFolderId={currentFolderId}
+          defaultFolderId={newDoc.file ? newDoc.folderId ?? null : currentFolderId}
+          initialFile={newDoc.file ?? null}
           initialTemplateId={newDoc.templateId}
           prefill={newDoc.prefill}
           clientId={newDoc.clientId ?? null}
@@ -448,6 +521,7 @@ function DocumentRow({
   onDownload,
   onEdit,
   onDelete,
+  draggable,
 }: {
   doc: DocumentItem;
   path: string | null;
@@ -455,10 +529,23 @@ function DocumentRow({
   onDownload: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  draggable: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
   return (
-    <li style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f1f5f9", padding: "6px 0" }}>
+    <li
+      draggable={draggable}
+      onDragStart={(event) => {
+        event.dataTransfer.setData(DOC_DRAG_TYPE, doc.id);
+        event.dataTransfer.setData("text/plain", doc.name);
+        event.dataTransfer.effectAllowed = "move";
+        setDragging(true);
+      }}
+      onDragEnd={() => setDragging(false)}
+      title={draggable ? "Arraste para uma pasta para mover" : undefined}
+      style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f1f5f9", padding: "6px 0", cursor: draggable ? "grab" : undefined, opacity: dragging ? 0.5 : 1 }}
+    >
       <button
         type="button"
         onClick={onOpen}

@@ -980,6 +980,24 @@ textarea.ui-input {
   background: #f8fafc;
 }
 
+/* Alvo de arrastar e soltar (Documentos): contorno tracejado enquanto algo passa por cima. */
+.ui-drop-target {
+  border-radius: 8px;
+  transition: background-color 150ms ease, outline-color 150ms ease;
+}
+
+.ui-drop-target[data-drop-active="true"] {
+  outline: 2px dashed var(--ui-primary);
+  outline-offset: 2px;
+  background: #eef3fa;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-drop-target {
+    transition: none;
+  }
+}
+
 /* Linha inteira abre os detalhes (o botão da linha segue como alvo de teclado). */
 .ui-table tbody tr.ui-row-clickable {
   cursor: pointer;
