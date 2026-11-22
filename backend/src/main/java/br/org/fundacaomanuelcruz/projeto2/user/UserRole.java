@@ -5,6 +5,6 @@ public enum UserRole {
     GERENTE,
     /** Cadastra e edita em todos os módulos; não gerencia a equipe. */
     ADMINISTRADOR,
-    /** Consulta tudo; registra ponto, justificativas, retiradas do estoque e envia documentos. */
+    /** Consulta os módulos sem dados pessoais; registra ponto, justificativas, retiradas do estoque e envia documentos. */
     FUNCIONARIO
 }
