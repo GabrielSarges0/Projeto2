@@ -4,6 +4,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -94,6 +97,152 @@ class UserRolesIntegrationTest {
         String admin = login(staffEmail);
         mockMvc.perform(as(admin, get("/api/v1/records/team-profiles"))).andExpect(status().isForbidden());
         mockMvc.perform(as(admin, delete("/api/v1/records/team-profiles/tm-teste"))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void dadosPessoaisSoGestorEAdministradorLeem() throws Exception {
+        String manager = login(MANAGER);
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String clientId = "cli-" + suffix;
+        String employeeId = "func-" + suffix;
+        String attendanceId = "att-20261105-" + employeeId;
+        String justificationId = "just-" + suffix;
+        mockMvc.perform(json(manager, put("/api/v1/records/clients/" + clientId), "{\"name\":\"Inquilina\",\"cpf\":\"111.444.777-35\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/employees/" + employeeId), employee("Ana", "111.444.777-35", true)))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/attendance/" + attendanceId), attendance(employeeId, "2026-11-05")))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/justifications/" + justificationId), justification(employeeId, "2026-11-05")))
+                .andExpect(status().isOk());
+
+        String[] personal = {
+                "/api/v1/records/clients", "/api/v1/records/clients/" + clientId,
+                "/api/v1/records/employees", "/api/v1/records/employees/" + employeeId,
+                "/api/v1/records/attendance", "/api/v1/records/attendance/" + attendanceId,
+                "/api/v1/records/justifications", "/api/v1/records/justifications/" + justificationId,
+        };
+        for (String path : personal) {
+            mockMvc.perform(as(manager, get(path))).andExpect(status().isOk());
+        }
+
+        String staffEmail = "func-" + UUID.randomUUID() + "@fundacao.org";
+        String staff = login(staffEmail);
+        for (String path : personal) {
+            mockMvc.perform(as(staff, get(path)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(content().string(not(containsString("111.444.777-35"))));
+        }
+        // O que não é dado pessoal continua aberto à leitura.
+        mockMvc.perform(as(staff, get("/api/v1/records/inventory"))).andExpect(status().isOk());
+        mockMvc.perform(as(staff, get("/api/v1/records/mp-submissions"))).andExpect(status().isOk());
+        // Bloquear a leitura não tira do funcionário o registro do dia a dia.
+        mockMvc.perform(json(staff, put("/api/v1/records/attendance/att-20261106-" + employeeId), attendance(employeeId, "2026-11-06")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(json(manager, put("/api/v1/users/" + staffEmail + "/role"), "{\"role\":\"ADMINISTRADOR\"}"))
+                .andExpect(status().isOk());
+        for (String path : personal) {
+            mockMvc.perform(as(staff, get(path))).andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    void funcionarioVeSoOProprioPontoDepoisDeConfirmarOCpf() throws Exception {
+        String manager = login(MANAGER);
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String ana = "ana-" + suffix;
+        String bruno = "bruno-" + suffix;
+        String carla = "carla-" + suffix;
+        mockMvc.perform(json(manager, put("/api/v1/records/employees/" + ana), employee("Ana " + suffix, "111.444.777-35", true)))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/employees/" + bruno), employee("Bruno " + suffix, "529.982.247-25", true)))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/employees/" + carla), employee("Carla " + suffix, "390.533.447-05", false)))
+                .andExpect(status().isOk());
+        for (String id : new String[] {ana, bruno}) {
+            mockMvc.perform(json(manager, put("/api/v1/records/attendance/att-20261105-" + id), attendance(id, "2026-11-05")))
+                    .andExpect(status().isOk());
+            mockMvc.perform(json(manager, put("/api/v1/records/justifications/just-" + id), justification(id, "2026-11-05")))
+                    .andExpect(status().isOk());
+        }
+
+        String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");
+        mockMvc.perform(as(staff, get("/api/v1/staff/directory")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + ana + "' && @.name == 'Ana " + suffix + "' && @.role == 'Porteiro')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + bruno + "')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + carla + "')]").isEmpty())
+                .andExpect(content().string(not(containsString("cpf"))))
+                .andExpect(content().string(not(containsString("111.444.777-35"))));
+
+        mockMvc.perform(json(staff, post("/api/v1/staff/" + ana + "/self"), "{\"cpf\":\"11144477735\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employee.id").value(ana))
+                .andExpect(jsonPath("$.employee.name").value("Ana " + suffix))
+                .andExpect(jsonPath("$.attendance.length()").value(1))
+                .andExpect(jsonPath("$.attendance[0].employeeId").value(ana))
+                .andExpect(jsonPath("$.attendance[0].entryLocation").value("Lat -8.05, Long -34.9 (±30m)"))
+                .andExpect(jsonPath("$.justifications.length()").value(1))
+                .andExpect(jsonPath("$.justifications[0].employeeId").value(ana))
+                .andExpect(content().string(not(containsString(bruno))))
+                .andExpect(content().string(not(containsString("cpf"))));
+
+        String mismatch = "CPF não confere com o funcionário selecionado.";
+        mockMvc.perform(json(staff, post("/api/v1/staff/" + ana + "/self"), "{\"cpf\":\"529.982.247-25\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(mismatch));
+        // Inativo e inexistente respondem igual ao CPF errado.
+        mockMvc.perform(json(staff, post("/api/v1/staff/" + carla + "/self"), "{\"cpf\":\"390.533.447-05\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(mismatch));
+        mockMvc.perform(json(staff, post("/api/v1/staff/nao-existe-" + suffix + "/self"), "{\"cpf\":\"111.444.777-35\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(mismatch));
+        mockMvc.perform(json(staff, post("/api/v1/staff/" + ana + "/self"), "{\"cpf\":\" \"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/v1/staff/" + ana + "/self").contentType(MediaType.APPLICATION_JSON).content("{\"cpf\":\"11144477735\"}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/staff/directory")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void confirmacaoDoCpfTemLimiteDeTentativasPorFuncionario() throws Exception {
+        String manager = login(MANAGER);
+        String id = "lim-" + UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(json(manager, put("/api/v1/records/employees/" + id), employee("Dora", "111.444.777-35", true)))
+                .andExpect(status().isOk());
+
+        // Contas diferentes não somam um limite novo: a contagem é por funcionário.
+        for (int attempt = 0; attempt < 10; attempt++) {
+            String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");
+            mockMvc.perform(json(staff, post("/api/v1/staff/" + id + "/self"), "{\"cpf\":\"000.000.000-" + String.format("%02d", attempt) + "\"}"))
+                    .andExpect(status().isForbidden());
+        }
+        String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");
+        mockMvc.perform(json(staff, post("/api/v1/staff/" + id + "/self"), "{\"cpf\":\"111.444.777-35\"}"))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    private static String employee(String name, String cpf, boolean active) {
+        return """
+                {"name":"%s","role":"Porteiro","cpf":"%s","shiftStart":"08:00","shiftEnd":"17:00",
+                 "breakStart":"12:00","breakEnd":"13:00","active":%s,"situation":"%s"}
+                """.formatted(name, cpf, active, active ? "Ativo" : "Desligado");
+    }
+
+    private static String attendance(String employeeId, String date) {
+        return """
+                {"employeeId":"%s","date":"%s","status":"Presente","entryTime":"08:00",
+                 "entryLocation":"Lat -8.05, Long -34.9 (±30m)","breakStart":null,"breakEnd":null,"exitTime":null,"registeredBy":"Teste"}
+                """.formatted(employeeId, date);
+    }
+
+    private static String justification(String employeeId, String date) {
+        return """
+                {"employeeId":"%s","employeeName":"Teste","date":"%s","type":"Ausência","reason":"Consulta médica",
+                 "status":"Pendente","submittedAt":"%sT09:00:00Z","submittedBy":"Teste","reviewedBy":null}
+                """.formatted(employeeId, date, date);
     }
 
     @Test
