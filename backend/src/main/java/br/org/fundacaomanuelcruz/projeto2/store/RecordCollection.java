@@ -19,7 +19,9 @@ public enum RecordCollection {
     FOLDERS("folders", 5_000, 1_000),
     MP_SUBMISSIONS("mp-submissions", 20_000, 10_000),
     // Texto editável dos modelos de documento (Backlog 3), um registro por modelo.
-    TEMPLATE_SETTINGS("template-settings", 60_000, 100);
+    TEMPLATE_SETTINGS("template-settings", 60_000, 100),
+    // Ficha da equipe (dados pessoais + contrato): leitura e escrita só do Gerente (SecurityConfig).
+    TEAM_PROFILES("team-profiles", 20_000, 2_000);
 
     private final String slug;
     private final int maxPayloadChars;
