@@ -37,7 +37,9 @@ O projeto é dividido em uma arquitetura desacoplada:
   |---|---|
   | Gerente | Tudo, inclusive a tela **Equipe** (mudar papel, desativar/reativar contas) |
   | Administrador | Cadastrar, editar, excluir, aprovar justificativas e mudar a formatação dos modelos |
-  | Funcionário | Consultar, registrar ponto, enviar justificativas e documentos, dar baixa no estoque |
+  | Funcionário | Consultar (sem dados pessoais), registrar ponto, enviar justificativas e documentos, dar baixa no estoque |
+
+  **Dados pessoais** — clientes (inquilinos e fiadores), cadastro, ponto e justificativas da equipe — só Gerente e Administrador leem (a ficha da equipe, `team-profiles`, só o Gerente). No **Registro de presença** o funcionário escolhe o nome e confirma o CPF; o servidor confere o CPF e devolve só os pontos e justificativas dele (`/api/v1/staff`, até 10 tentativas por minuto por funcionário).
 
   A **primeira conta** a entrar vira Gerente; as seguintes entram como Funcionário. E-mails em `APP_MANAGER_EMAILS` (separados por vírgula) sempre entram como Gerente. O sistema não deixa ficar sem nenhum Gerente ativo, e mudanças de papel valem na hora.
 - **Modo de teste do MVP (ligado em produção):** com `APP_ALL_MANAGERS=true` (padrão do perfil `prod`), toda conta entra e vale como **Gerente**, com acesso a tudo. Depois do teste, defina `APP_ALL_MANAGERS=false` no Render para os papéis voltarem a valer.
