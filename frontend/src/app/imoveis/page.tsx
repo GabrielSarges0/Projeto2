@@ -23,6 +23,7 @@ import {
 } from "@/lib/financial-api";
 import { formatCurrency, formatDate, formatDateTime, formatMoneyInput, normalizeText, parseMoney, toCents } from "@/lib/format";
 import { useCan } from "@/lib/permissions";
+import { rowClickHandler } from "@/lib/row-click";
 import { useRecords } from "@/lib/records";
 import { clientSchema } from "@/lib/schemas";
 import { amountError, lengthError, personNameError } from "@/lib/validation";
@@ -200,7 +201,7 @@ export default function ImoveisPage() {
                 </tr>
               ) : (
                 filtered.map((item) => (
-                  <tr key={item.id}>
+                  <tr key={item.id} className="ui-row-clickable" onClick={rowClickHandler(() => setDetails(item))}>
                     <td>
                       <strong>{item.registrationCode}</strong>
                     </td>
