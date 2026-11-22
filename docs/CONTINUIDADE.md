@@ -59,6 +59,8 @@ Produção: as contas `gabrielsarges1926@gmail.com` e `hbsv@cesar.school` têm g
 
 1. **Roteiro de homologação da Sprint 4 (Hannah)**: validação ponta a ponta dos fluxos implementados nas 3 personas (Gerente, Administrador, Funcionário).
 2. **Validação da experiência de impressão/PDF de contratos e termos com QR Code de autenticidade.**
+3. **Documentos — arrastar e soltar em pastas** (relatório de teste, item 4.1): mover documentos para pastas por drag-and-drop, com alternativa por teclado.
+4. **Equipe — gestão completa** (relatório de teste, item 4.2): ficha com dados pessoais completos, edição dos dados e acesso ao contrato vinculado ao membro. Pode exigir migration; planejar antes.
 
 ## Como verificar antes de abrir PR
 
