@@ -639,11 +639,13 @@ function InventoryHistory({ movements, onClose }: { movements: InventoryMovement
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const term = normalizeText(search);
+  // Datas ISO (yyyy-mm-dd) comparam como texto. Período invertido não filtra para não sumir com tudo sem explicação.
+  const rangeError = from && to && to < from ? "A data final não pode ser anterior à inicial." : null;
   const rows = movements
     .filter((movement) => {
       if (type !== "ALL" && movement.type !== type) return false;
-      if (from && movement.date < from) return false;
-      if (to && movement.date > to) return false;
+      if (!rangeError && from && movement.date < from) return false;
+      if (!rangeError && to && movement.date > to) return false;
       return !term || normalizeText(`${movement.itemName} ${movement.responsible} ${movement.reason}`).includes(term);
     })
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
@@ -662,14 +664,12 @@ function InventoryHistory({ movements, onClose }: { movements: InventoryMovement
             ))}
           </select>
         </div>
-        <div className="ui-field">
-          <label htmlFor="hist-de">De</label>
-          <input id="hist-de" type="date" className="ui-input" value={from} onChange={(e) => setFrom(e.target.value)} />
-        </div>
-        <div className="ui-field">
-          <label htmlFor="hist-ate">Até</label>
-          <input id="hist-ate" type="date" className="ui-input" value={to} onChange={(e) => setTo(e.target.value)} />
-        </div>
+        <Field label="De">
+          {(props) => <input {...props} type="date" className="ui-input" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />}
+        </Field>
+        <Field label="Até" error={rangeError}>
+          {(props) => <input {...props} type="date" className="ui-input" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />}
+        </Field>
         <div className="ui-field" style={{ flex: "2 1 180px" }}>
           <label htmlFor="hist-busca">Buscar</label>
           <input id="hist-busca" className="ui-input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Item, responsável ou motivo" />
