@@ -37,6 +37,7 @@ class UserRolesIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -136,7 +137,9 @@ class UserRolesIntegrationTest {
         // O que não é dado pessoal continua aberto à leitura.
         mockMvc.perform(as(staff, get("/api/v1/records/inventory"))).andExpect(status().isOk());
         mockMvc.perform(as(staff, get("/api/v1/records/mp-submissions"))).andExpect(status().isOk());
-        // Bloquear a leitura não tira do funcionário o registro do dia a dia.
+        // Bloquear a leitura não tira do funcionário o envio de justificativa.
+        mockMvc.perform(json(staff, put("/api/v1/records/justifications/just-novo-" + suffix), justification(employeeId, "2026-11-06")))
+                .andExpect(status().isOk());
         mockMvc.perform(json(staff, put("/api/v1/records/attendance/att-20261106-" + employeeId), attendance(employeeId, "2026-11-06")))
                 .andExpect(status().isOk());
 
@@ -222,6 +225,107 @@ class UserRolesIntegrationTest {
         String staff = login("func-" + UUID.randomUUID() + "@fundacao.org");
         mockMvc.perform(json(staff, post("/api/v1/staff/" + id + "/self"), "{\"cpf\":\"111.444.777-35\"}"))
                 .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void documentosPessoaisFicamForaDoFuncionario() throws Exception {
+        String manager = login(MANAGER);
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String subfolder = "fld-sub-" + suffix;
+        String inSubfolder = "doc-sub-" + suffix;
+        String receipt = "doc-recibo-" + suffix;
+        String ofClient = "doc-cli-" + suffix;
+        String report = "doc-rel-" + suffix;
+        mockMvc.perform(json(manager, put("/api/v1/records/folders/" + subfolder),
+                        "{\"name\":\"Maria Helena\",\"parentId\":\"fld-clientes\",\"createdAt\":\"2026-11-23\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/documents/" + inSubfolder), document(subfolder, "Outro", null)))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/documents/" + receipt), document("fld-comprovantes", "Recibo", null)))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/documents/" + ofClient), document(null, "Outro", "cli-joao")))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(manager, put("/api/v1/records/documents/" + report), document("fld-mp", "Relatório", null)))
+                .andExpect(status().isOk());
+        for (String doc : new String[] {inSubfolder, report}) {
+            mockMvc.perform(json(manager, put("/api/v1/records/document-files/" + doc + "-p0"), filePart(doc, 0)))
+                    .andExpect(status().isOk());
+        }
+
+        String staffEmail = "func-" + UUID.randomUUID() + "@fundacao.org";
+        String staff = login(staffEmail);
+        mockMvc.perform(as(staff, get("/api/v1/records/documents")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + report + "')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.id == 'doc-estatuto')]").isNotEmpty())
+                // Categoria, pasta (com subpasta) e vínculo com cliente, cada um basta para esconder.
+                .andExpect(jsonPath("$[?(@.id == '" + inSubfolder + "')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + receipt + "')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + ofClient + "')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == 'doc-pessoal-cli-joao')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == 'doc-contrato-im-001')]").isEmpty());
+        mockMvc.perform(as(staff, get("/api/v1/records/documents/" + report))).andExpect(status().isOk());
+        mockMvc.perform(as(staff, get("/api/v1/records/documents/" + receipt)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Documento restrito ao Gerente e ao Administrador."));
+
+        mockMvc.perform(as(staff, get("/api/v1/records/folders")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == 'fld-mp')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.id == 'fld-clientes')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == 'fld-contratos')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == 'fld-funcionarios')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + subfolder + "')]").isEmpty())
+                .andExpect(content().string(not(containsString("Maria Helena"))));
+        mockMvc.perform(as(staff, get("/api/v1/records/folders/" + subfolder))).andExpect(status().isForbidden());
+
+        mockMvc.perform(as(staff, get("/api/v1/records/document-files"))).andExpect(status().isForbidden());
+        mockMvc.perform(as(staff, get("/api/v1/records/document-files/" + inSubfolder + "-p0"))).andExpect(status().isForbidden());
+        mockMvc.perform(as(staff, get("/api/v1/records/document-files/" + report + "-p0")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").value("data:text/plain;base64,T2zDoQ=="));
+
+        // Não troca o arquivo de documento existente, nem cria parte nova para ele.
+        mockMvc.perform(json(staff, put("/api/v1/records/document-files/" + report + "-p0"), filePart(report, 0)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(json(staff, put("/api/v1/records/document-files/" + report + "-p1"), filePart(report, 1)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(json(staff, put("/api/v1/records/document-files/doc-x-" + suffix + "-p0"), filePart(report, 0)))
+                .andExpect(status().isForbidden());
+        // Envio continua: atestado da justificativa cai na pasta restrita e some da lista dele.
+        String upload = "doc-atestado-" + suffix;
+        mockMvc.perform(json(staff, put("/api/v1/records/document-files/" + upload + "-p0"), filePart(upload, 0)))
+                .andExpect(status().isOk());
+        mockMvc.perform(json(staff, put("/api/v1/records/documents/" + upload), document("fld-funcionarios", "Justificativa", null)))
+                .andExpect(status().isOk());
+        mockMvc.perform(as(staff, get("/api/v1/records/documents")))
+                .andExpect(jsonPath("$[?(@.id == '" + upload + "')]").isEmpty());
+
+        mockMvc.perform(as(manager, get("/api/v1/records/documents")))
+                .andExpect(jsonPath("$[?(@.id == '" + inSubfolder + "')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + receipt + "')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + upload + "')]").isNotEmpty());
+        mockMvc.perform(as(manager, get("/api/v1/records/document-files/" + upload + "-p0"))).andExpect(status().isOk());
+
+        mockMvc.perform(json(manager, put("/api/v1/users/" + staffEmail + "/role"), "{\"role\":\"ADMINISTRADOR\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(as(staff, get("/api/v1/records/documents/" + receipt))).andExpect(status().isOk());
+        mockMvc.perform(as(staff, get("/api/v1/records/folders/" + subfolder))).andExpect(status().isOk());
+        mockMvc.perform(as(staff, get("/api/v1/records/document-files/" + inSubfolder + "-p0"))).andExpect(status().isOk());
+    }
+
+    private static String document(String folderId, String category, String clientId) {
+        return """
+                {"name":"Arquivo.pdf","folderId":%s,"category":"%s","createdAt":"2026-11-23","sizeBytes":3,
+                 "mimeType":"text/plain","fileParts":1,"protocol":"FMC-2026-00001","signed":false,"description":"",
+                 "template":null,"templateData":null,"rendered":null,"clientId":%s,"movementId":null,"createdBy":"Teste"}
+                """.formatted(folderId == null ? "null" : "\"" + folderId + "\"", category, clientId == null ? "null" : "\"" + clientId + "\"");
+    }
+
+    private static String filePart(String docId, int index) {
+        return """
+                {"docId":"%s","index":%d,"content":"data:text/plain;base64,T2zDoQ=="}
+                """.formatted(docId, index);
     }
 
     private static String employee(String name, String cpf, boolean active) {

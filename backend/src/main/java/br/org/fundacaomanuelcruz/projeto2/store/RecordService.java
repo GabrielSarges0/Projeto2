@@ -1,6 +1,8 @@
 package br.org.fundacaomanuelcruz.projeto2.store;
 
 import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
@@ -18,29 +20,43 @@ import tools.jackson.databind.node.ObjectNode;
 public class RecordService {
 
     private static final Pattern RECORD_ID = Pattern.compile("^[A-Za-z0-9_-]{1,80}$");
+    static final String RESTRICTED_DOCUMENT = "Documento restrito ao Gerente e ao Administrador.";
 
     private final AppRecordRepository repository;
     private final ObjectMapper objectMapper;
+    private final DocumentVisibility documentVisibility;
 
-    public RecordService(AppRecordRepository repository, ObjectMapper objectMapper) {
+    public RecordService(AppRecordRepository repository, ObjectMapper objectMapper, DocumentVisibility documentVisibility) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.documentVisibility = documentVisibility;
     }
 
     @Transactional(readOnly = true)
     public List<RecordResponse> list(String collectionSlug) {
         RecordCollection collection = RecordCollection.fromSlug(collectionSlug);
+        boolean staff = CurrentUser.role() == UserRole.FUNCIONARIO;
+        // Partes de arquivo são lidas uma a uma, pelo documento; a listagem inteira entregaria todos os arquivos.
+        if (staff && collection == RecordCollection.DOCUMENT_FILES) {
+            throw new ForbiddenException(RESTRICTED_DOCUMENT);
+        }
+        Predicate<RecordResponse> visible = staff ? staffCanRead(collection) : record -> true;
         return repository.findAllByIdCollectionOrderByCreatedAtAsc(collection.slug()).stream()
                 .map(this::toResponse)
+                .filter(visible)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public RecordResponse get(String collectionSlug, String recordId) {
         RecordCollection collection = RecordCollection.fromSlug(collectionSlug);
-        return repository.findById(new AppRecordId(collection.slug(), recordId))
+        RecordResponse record = repository.findById(new AppRecordId(collection.slug(), recordId))
                 .map(this::toResponse)
                 .orElseThrow(() -> new NotFoundException("Registro não encontrado: " + recordId));
+        if (CurrentUser.role() == UserRole.FUNCIONARIO && !staffCanRead(collection).test(record)) {
+            throw new ForbiddenException(RESTRICTED_DOCUMENT);
+        }
+        return record;
     }
 
     @Transactional
@@ -55,24 +71,12 @@ public class RecordService {
         ObjectNode data = (ObjectNode) body;
         // O id do caminho é a fonte da verdade: evita registro salvo sob uma chave e lido com outra.
         data.put("id", recordId);
-        String payload = objectMapper.writeValueAsString(data);
-        if (payload.length() > collection.maxPayloadChars()) {
-            throw new IllegalArgumentException("Registro grande demais para " + collection.slug() + ".");
-        }
-
         AppRecordId id = new AppRecordId(collection.slug(), recordId);
         AppRecord record = repository.findById(id).orElse(null);
         if (CurrentUser.role() == UserRole.FUNCIONARIO) {
             checkStaffWrite(collection, record, data);
         }
-        if (record == null) {
-            if (repository.countByIdCollection(collection.slug()) >= collection.maxRecords()) {
-                throw new IllegalArgumentException("Limite de registros atingido para " + collection.slug() + ".");
-            }
-            record = new AppRecord(id);
-        }
-        record.update(payload, CurrentUser.displayName());
-        return toResponse(repository.save(record));
+        return persist(collection, id, record, data);
     }
 
     @Transactional
@@ -85,14 +89,60 @@ public class RecordService {
         repository.deleteById(id);
     }
 
+    private RecordResponse persist(RecordCollection collection, AppRecordId id, AppRecord existing, ObjectNode data) {
+        String payload = objectMapper.writeValueAsString(data);
+        if (payload.length() > collection.maxPayloadChars()) {
+            throw new IllegalArgumentException("Registro grande demais para " + collection.slug() + ".");
+        }
+        AppRecord record = existing;
+        if (record == null) {
+            if (repository.countByIdCollection(collection.slug()) >= collection.maxRecords()) {
+                throw new IllegalArgumentException("Limite de registros atingido para " + collection.slug() + ".");
+            }
+            record = new AppRecord(id);
+        }
+        record.update(payload, CurrentUser.displayName());
+        return toResponse(repository.save(record));
+    }
+
     /**
-     * Funcionário grava só o dia a dia: ponto, justificativa nova (pendente), documento novo, retirada/descarte
-     * do estoque (baixando a quantidade). Aprovar, editar cadastros e excluir fica com Gerente/Administrador.
+     * O que o Funcionário lê de cada coleção. As coleções de pessoal (clientes, funcionários, ponto, justificativas)
+     * já são barradas no SecurityConfig; aqui ficam as regras que dependem do conteúdo do registro.
+     */
+    private Predicate<RecordResponse> staffCanRead(RecordCollection collection) {
+        return switch (collection) {
+            case DOCUMENTS -> {
+                Set<String> restricted = documentVisibility.restrictedFolders();
+                yield record -> !documentVisibility.isPersonal(record.data(), restricted);
+            }
+            case FOLDERS -> {
+                Set<String> restricted = documentVisibility.restrictedFolders();
+                yield record -> !restricted.contains(record.id());
+            }
+            case DOCUMENT_FILES -> {
+                Set<String> restricted = documentVisibility.restrictedFolders();
+                // Arquivo sem documento (órfão) também fica fechado: não há como saber se era pessoal.
+                yield part -> repository.findById(new AppRecordId(
+                                RecordCollection.DOCUMENTS.slug(), DocumentVisibility.text(part.data(), "docId")))
+                        .map(document -> !documentVisibility.isPersonal(objectMapper.readTree(document.getPayload()), restricted))
+                        .orElse(false);
+            }
+            default -> record -> true;
+        };
+    }
+
+    /**
+     * Funcionário grava só o dia a dia: ponto, justificativa nova (pendente), documento novo (com seu arquivo),
+     * retirada/descarte do estoque (baixando a quantidade). Aprovar, editar cadastros e excluir fica com Gerente/Administrador.
      */
     private void checkStaffWrite(RecordCollection collection, AppRecord existing, ObjectNode data) {
         switch (collection) {
-            case ATTENDANCE, DOCUMENT_FILES -> {
+            case ATTENDANCE -> {
                 return;
+            }
+            case DOCUMENT_FILES -> {
+                if (existing == null && isPartOfNewDocument(data)) return;
+                throw new ForbiddenException("Funcionário só envia arquivos de documentos novos.");
             }
             case JUSTIFICATIONS -> {
                 boolean pending = "Pendente".equals(data.path("status").asString(""))
@@ -115,6 +165,19 @@ public class RecordService {
             }
             default -> throw new ForbiddenException("Seu perfil não tem permissão para esta ação. Fale com o gerente.");
         }
+    }
+
+    /**
+     * O envio grava as partes ("{docId}-p{n}") antes do documento. Exigir o id nesse formato e o documento ainda
+     * inexistente impede o Funcionário de trocar o arquivo de um documento que já existe.
+     */
+    private boolean isPartOfNewDocument(ObjectNode part) {
+        String docId = DocumentVisibility.text(part, "docId");
+        JsonNode index = part.path("index");
+        return !docId.isEmpty()
+                && index.isIntegralNumber()
+                && DocumentVisibility.text(part, "id").equals(docId + "-p" + index.asLong())
+                && !repository.existsById(new AppRecordId(RecordCollection.DOCUMENTS.slug(), docId));
     }
 
     private static boolean onlyQuantityDecreased(JsonNode before, ObjectNode after) {
