@@ -274,94 +274,97 @@ function TemplateForm({
   const settingsBlocked = settings.loading || Boolean(settings.error);
 
   return (
-    <form onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 14 }}>
-      <BackButton onBack={onBack} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
-        <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
-          {template.fields.map((field) => (
-            <Field key={field.key} label={field.label} required={field.required} error={errors[field.key]}>
-              {(props) =>
-                field.type === "textarea" ? (
-                  <textarea {...props} className="ui-input" value={data[field.key]} onChange={(e) => set(field.key, e.target.value)} maxLength={field.maxLength} />
-                ) : field.type === "select" ? (
-                  <select {...props} className="ui-input" value={data[field.key]} onChange={(e) => set(field.key, e.target.value)}>
-                    <option value="">Selecione</option>
-                    {field.options?.map((option) => (
-                      <option key={option}>{option}</option>
-                    ))}
-                  </select>
-                ) : field.type === "property" ? (
-                  <select {...props} className="ui-input" value={data[field.key]} onChange={(e) => set(field.key, e.target.value)}>
-                    <option value="">Selecione o imóvel</option>
-                    {data[field.key] && !properties.some((p) => `${p.registrationCode} - ${p.address}` === data[field.key]) ? (
-                      <option value={data[field.key]}>{data[field.key]}</option>
-                    ) : null}
-                    {properties.map((property) => (
-                      <option key={property.id} value={`${property.registrationCode} - ${property.address}`}>
-                        {property.registrationCode} - {property.address}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    {...props}
-                    className="ui-input"
-                    type={field.type === "date" ? "date" : "text"}
-                    inputMode={field.type === "money" || field.type === "number" ? "numeric" : undefined}
-                    placeholder={field.type === "money" ? "R$ 0,00" : field.placeholder}
-                    value={data[field.key]}
-                    maxLength={field.maxLength}
-                    onChange={(e) =>
-                      set(field.key, field.type === "money" ? formatMoneyInput(e.target.value) : field.type === "number" ? e.target.value.replace(/\D/g, "").slice(0, 4) : e.target.value)
-                    }
-                  />
-                )
-              }
-            </Field>
-          ))}
-          <FolderSelect folders={folders} value={folderId} onChange={setFolderId} />
-          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#092a54" }}>
-                <ShieldCheck size={16} />
-                <span>Assinatura Digital</span>
+    <>
+      <form onSubmit={handleSubmit} noValidate style={{ display: "grid", gap: 14 }}>
+        <BackButton onBack={onBack} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
+            {template.fields.map((field) => (
+              <Field key={field.key} label={field.label} required={field.required} error={errors[field.key]}>
+                {(props) =>
+                  field.type === "textarea" ? (
+                    <textarea {...props} className="ui-input" value={data[field.key]} onChange={(e) => set(field.key, e.target.value)} maxLength={field.maxLength} />
+                  ) : field.type === "select" ? (
+                    <select {...props} className="ui-input" value={data[field.key]} onChange={(e) => set(field.key, e.target.value)}>
+                      <option value="">Selecione</option>
+                      {field.options?.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : field.type === "property" ? (
+                    <select {...props} className="ui-input" value={data[field.key]} onChange={(e) => set(field.key, e.target.value)}>
+                      <option value="">Selecione o imóvel</option>
+                      {data[field.key] && !properties.some((p) => `${p.registrationCode} - ${p.address}` === data[field.key]) ? (
+                        <option value={data[field.key]}>{data[field.key]}</option>
+                      ) : null}
+                      {properties.map((property) => (
+                        <option key={property.id} value={`${property.registrationCode} - ${property.address}`}>
+                          {property.registrationCode} - {property.address}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      {...props}
+                      className="ui-input"
+                      type={field.type === "date" ? "date" : "text"}
+                      inputMode={field.type === "money" || field.type === "number" ? "numeric" : undefined}
+                      placeholder={field.type === "money" ? "R$ 0,00" : field.placeholder}
+                      value={data[field.key]}
+                      maxLength={field.maxLength}
+                      onChange={(e) =>
+                        set(field.key, field.type === "money" ? formatMoneyInput(e.target.value) : field.type === "number" ? e.target.value.replace(/\D/g, "").slice(0, 4) : e.target.value)
+                      }
+                    />
+                  )
+                }
+              </Field>
+            ))}
+            <FolderSelect folders={folders} value={folderId} onChange={setFolderId} />
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#092a54" }}>
+                  <ShieldCheck size={16} />
+                  <span>Assinatura Digital</span>
+                </div>
+                <span style={{ fontSize: 12, color: "#64748b" }}>
+                  {SIGNATURE_TYPE_LABELS[signature.type]} · {signature.signedBy} ({signature.signerRole})
+                </span>
               </div>
-              <span style={{ fontSize: 12, color: "#64748b" }}>
-                {SIGNATURE_TYPE_LABELS[signature.type]} · {signature.signedBy} ({signature.signerRole})
-              </span>
+              <button
+                type="button"
+                className="ui-btn ui-btn-secondary ui-btn-sm"
+                onClick={() => setShowSignModal(true)}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                <PenLine size={14} aria-hidden="true" /> Alterar
+              </button>
             </div>
-            <button
-              type="button"
-              className="ui-btn ui-btn-secondary ui-btn-sm"
-              onClick={() => setShowSignModal(true)}
-              style={{ whiteSpace: "nowrap" }}
-            >
-              <PenLine size={14} aria-hidden="true" /> Alterar
+          </div>
+          <aside aria-label="Pré-visualização" className="ui-card" style={{ alignSelf: "start", background: "#fff" }}>
+            {settings.loading ? <div className="ui-skeleton" style={{ height: 220 }} aria-busy="true" /> : <DocumentPreview layout={preview} signature={signature} compact />}
+          </aside>
+        </div>
+        {settings.error ? (
+          <div className="ui-alert ui-alert-error" role="alert" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+            <span>Não foi possível carregar a formatação deste modelo. O documento só é gerado com a formatação certa.</span>
+            <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => void settings.reload()}>
+              Tentar de novo
             </button>
           </div>
-        </div>
-        <aside aria-label="Pré-visualização" className="ui-card" style={{ alignSelf: "start", background: "#fff" }}>
-          {settings.loading ? <div className="ui-skeleton" style={{ height: 220 }} aria-busy="true" /> : <DocumentPreview layout={preview} signature={signature} compact />}
-        </aside>
-      </div>
-      {settings.error ? (
-        <div className="ui-alert ui-alert-error" role="alert" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-          <span>Não foi possível carregar a formatação deste modelo. O documento só é gerado com a formatação certa.</span>
-          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => void settings.reload()}>
-            Tentar de novo
+        ) : null}
+        {formError ? (
+          <p className="ui-alert ui-alert-error" role="alert">
+            {formError}
+          </p>
+        ) : null}
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button type="submit" className="ui-btn ui-btn-primary" disabled={saving || settingsBlocked} aria-busy={saving}>
+            {saving ? "Gerando..." : "Gerar e salvar documento"}
           </button>
         </div>
-      ) : null}
-      {formError ? (
-        <p className="ui-alert ui-alert-error" role="alert">
-          {formError}
-        </p>
-      ) : null}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button type="submit" className="ui-btn ui-btn-primary" disabled={saving || settingsBlocked} aria-busy={saving}>
-          {saving ? "Gerando..." : "Gerar e salvar documento"}
-        </button>
-      </div>
+      </form>
+      {/* Fora do <form>: form aninhado é HTML inválido e o submit do modal disparava a geração do documento. */}
       {showSignModal ? (
         <SignDocumentModal
           documentTitle={template.fileName(data)}
@@ -375,7 +378,7 @@ function TemplateForm({
           }}
         />
       ) : null}
-    </form>
+    </>
   );
 }
 

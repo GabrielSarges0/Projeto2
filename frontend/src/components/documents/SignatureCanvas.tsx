@@ -19,6 +19,8 @@ export function SignatureCanvas({ onChange, initialImage, height = 180 }: Props)
   const [color, setColor] = useState<"#092a54" | "#111827">("#092a54");
   const [lineWidth, setLineWidth] = useState(2.5);
   const currentStroke = useRef<Stroke | null>(null);
+  // Assinatura salva antes: aparece até o primeiro traço novo e não volta ao desfazer/limpar.
+  const [baseImage, setBaseImage] = useState<string | null>(initialImage ?? null);
 
   // Redesenha os traços no canvas sempre que a lista de strokes mudar
   useEffect(() => {
@@ -63,14 +65,11 @@ export function SignatureCanvas({ onChange, initialImage, height = 180 }: Props)
 
     if (strokes.length > 0) {
       // Exporta em PNG com fundo transparente
-      const dataUrl = canvas.toDataURL("image/png");
-      onChange(dataUrl);
-    } else if (initialImage) {
-      onChange(initialImage);
+      onChange(canvas.toDataURL("image/png"));
     } else {
-      onChange(null);
+      onChange(baseImage);
     }
-  }, [strokes, height, initialImage, onChange]);
+  }, [strokes, height, baseImage, onChange]);
 
   function getCoords(e: React.PointerEvent<HTMLCanvasElement>): Point {
     const canvas = canvasRef.current;
@@ -85,6 +84,7 @@ export function SignatureCanvas({ onChange, initialImage, height = 180 }: Props)
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
     setIsDrawing(true);
+    setBaseImage(null);
     const point = getCoords(e);
     currentStroke.current = {
       points: [point],
@@ -103,9 +103,8 @@ export function SignatureCanvas({ onChange, initialImage, height = 180 }: Props)
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const ratio = window.devicePixelRatio || 1;
+    // O contexto já está escalado pelo devicePixelRatio no efeito de redesenho.
     ctx.save();
-    ctx.scale(ratio, ratio);
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
     ctx.lineCap = "round";
@@ -121,16 +120,18 @@ export function SignatureCanvas({ onChange, initialImage, height = 180 }: Props)
   }
 
   function handlePointerUp() {
-    if (isDrawing && currentStroke.current && currentStroke.current.points.length > 1) {
-      setStrokes((prev) => [...prev, currentStroke.current!]);
-    }
-    setIsDrawing(false);
+    // Copia o traço antes de zerar a ref: o updater do setState roda depois, e com a ref já nula quebrava a página.
+    const stroke = currentStroke.current;
     currentStroke.current = null;
+    setIsDrawing(false);
+    if (stroke && stroke.points.length > 1) {
+      setStrokes((prev) => [...prev, stroke]);
+    }
   }
 
   function clear() {
     setStrokes([]);
-    onChange(null);
+    setBaseImage(null);
   }
 
   function undo() {
@@ -158,7 +159,15 @@ export function SignatureCanvas({ onChange, initialImage, height = 180 }: Props)
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
         />
-        {strokes.length === 0 && !initialImage ? (
+        {strokes.length === 0 && baseImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- data URL local, next/image não otimiza
+          <img
+            src={baseImage}
+            alt="Assinatura salva"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+          />
+        ) : null}
+        {strokes.length === 0 && !baseImage ? (
           <div
             style={{
               position: "absolute",
@@ -229,7 +238,7 @@ export function SignatureCanvas({ onChange, initialImage, height = 180 }: Props)
             type="button"
             className="ui-btn ui-btn-secondary ui-btn-sm"
             onClick={clear}
-            disabled={strokes.length === 0}
+            disabled={strokes.length === 0 && !baseImage}
             title="Limpar assinatura"
           >
             <Trash2 size={14} aria-hidden="true" /> Limpar
