@@ -11,7 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import br.org.fundacaomanuelcruz.projeto2.auth.LoginRateLimiter;
+import br.org.fundacaomanuelcruz.projeto2.auth.FixedWindowRateLimiter;
 import br.org.fundacaomanuelcruz.projeto2.user.ForbiddenException;
 
 @RestControllerAdvice
@@ -35,8 +35,8 @@ public class ApiExceptionHandler {
         return response(HttpStatus.FORBIDDEN, exception.getMessage(), Map.of());
     }
 
-    @ExceptionHandler(LoginRateLimiter.TooManyRequestsException.class)
-    ResponseEntity<ApiErrorResponse> tooManyRequests(LoginRateLimiter.TooManyRequestsException exception) {
+    @ExceptionHandler(FixedWindowRateLimiter.TooManyRequestsException.class)
+    ResponseEntity<ApiErrorResponse> tooManyRequests(FixedWindowRateLimiter.TooManyRequestsException exception) {
         return response(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage(), Map.of());
     }
 
