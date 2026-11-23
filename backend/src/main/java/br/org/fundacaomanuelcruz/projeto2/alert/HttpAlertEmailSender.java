@@ -8,20 +8,17 @@ import java.time.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Envia e-mails de alerta por webhook/API externa (configurada no Render) ou simula em log quando não configurada.
+ * Envia os e-mails de alerta pelo webhook/API externa configurada no Render.
  * Zero dependências extras de Maven (usa java.net.http.HttpClient nativo do Java 21).
  */
-@Component
-public class HttpOrLogAlertEmailSender implements AlertEmailSender {
+public class HttpAlertEmailSender implements AlertEmailSender {
 
-    private static final Logger log = LoggerFactory.getLogger(HttpOrLogAlertEmailSender.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpAlertEmailSender.class);
 
     private final String webhookUrl;
     private final String apiKey;
@@ -29,14 +26,10 @@ public class HttpOrLogAlertEmailSender implements AlertEmailSender {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    public HttpOrLogAlertEmailSender(
-            @Value("${app.alerts.mail.webhook-url:}") String webhookUrl,
-            @Value("${app.alerts.mail.api-key:}") String apiKey,
-            @Value("${app.alerts.mail.from:alertas@fundacaomanuelcruz.org.br}") String from,
-            ObjectMapper objectMapper) {
-        this.webhookUrl = webhookUrl != null ? webhookUrl.trim() : "";
-        this.apiKey = apiKey != null ? apiKey.trim() : "";
-        this.from = from != null ? from.trim() : "alertas@fundacaomanuelcruz.org.br";
+    public HttpAlertEmailSender(String webhookUrl, String apiKey, String from, ObjectMapper objectMapper) {
+        this.webhookUrl = webhookUrl;
+        this.apiKey = apiKey;
+        this.from = from;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -45,11 +38,6 @@ public class HttpOrLogAlertEmailSender implements AlertEmailSender {
 
     @Override
     public boolean sendEmail(String to, String toName, String subject, String bodyText, String bodyHtml) {
-        if (webhookUrl.isEmpty()) {
-            log.info("[AlertEmailSender] Simulação de envio para {} ({}) | Assunto: {}", toName, to, subject);
-            return true;
-        }
-
         try {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.put("from", from);
