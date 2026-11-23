@@ -8,7 +8,7 @@ import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { FOLDER_IDS, createDocument, documentHref } from "@/lib/documents";
-import { exportAttendanceToCsv } from "@/lib/export-csv";
+import { attendanceReport, useSpreadsheetExport } from "@/lib/export-spreadsheet";
 import { ACCEPTED_FILE_TYPES, fileTooLargeMessage } from "@/lib/files";
 import { errorMessage } from "@/lib/financial-api";
 import { formatDate, formatDateTime, isValidIsoDate, newId, normalizeText, todayIso } from "@/lib/format";
@@ -408,6 +408,7 @@ function ManagerView() {
             setReviewing(item);
           }}
           onClose={() => setHistoryOf(null)}
+          notify={show}
         />
       ) : null}
       {reviewing ? <ReviewModal item={reviewing} onClose={() => setReviewing(null)} onDecide={review} /> : null}
@@ -653,13 +654,16 @@ function HistoryModal({
   justifications,
   onOpenJustification,
   onClose,
+  notify,
 }: {
   employee: Employee;
   records: Attendance[];
   justifications: Justification[];
   onOpenJustification: (item: Justification) => void;
   onClose: () => void;
+  notify: (message: string, tone: "success" | "error") => void;
 }) {
+  const exporter = useSpreadsheetExport(notify);
   const history = records
     .filter((record) => record.employeeId === employee.id)
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -678,10 +682,12 @@ function HistoryModal({
           type="button"
           className="ui-btn ui-btn-secondary"
           style={{ padding: "4px 10px", fontSize: "13px" }}
-          onClick={() => exportAttendanceToCsv(employee, history, todayIso().slice(0, 7))}
-          title="Exportar espelho de ponto em planilha CSV"
+          onClick={() => void exporter.run(() => attendanceReport(employee, history, todayIso().slice(0, 7)))}
+          disabled={exporter.busy}
+          aria-busy={exporter.busy}
+          title="Exportar espelho de ponto em planilha Excel"
         >
-          <Download size={15} aria-hidden="true" /> Exportar Espelho de Ponto
+          <Download size={15} aria-hidden="true" /> {exporter.busy ? "Gerando planilha…" : "Exportar Espelho de Ponto"}
         </button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>

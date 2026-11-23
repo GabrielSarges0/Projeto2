@@ -8,7 +8,7 @@ import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { FOLDER_IDS, createDocument, documentHref } from "@/lib/documents";
-import { exportInventoryToCsv } from "@/lib/export-csv";
+import { inventoryReport, useSpreadsheetExport } from "@/lib/export-spreadsheet";
 import { ACCEPTED_FILE_TYPES, fileTooLargeMessage } from "@/lib/files";
 import { errorMessage, financialApi, notifyFinanceChanged } from "@/lib/financial-api";
 import { MONTHS, formatCurrency, formatDate, formatMoneyInput, newId, normalizeText, parseMoney, toCents, todayIso } from "@/lib/format";
@@ -34,6 +34,7 @@ export default function EstoquePage() {
   const movementsStore = useRecords("inventory-movements", inventoryMovementSchema);
   const { members: staff } = useStaffDirectory();
   const { show, node: toast } = useToast();
+  const exporter = useSpreadsheetExport(show);
   const canEdit = useCan("edit");
   const now = new Date();
   const [year, setYear] = useState(String(now.getFullYear()));
@@ -72,10 +73,12 @@ export default function EstoquePage() {
             <button
               type="button"
               className="ui-btn ui-btn-secondary"
-              onClick={() => exportInventoryToCsv(itemsStore.items)}
-              title="Exportar inventário completo em planilha CSV"
+              onClick={() => void exporter.run(() => inventoryReport(itemsStore.items))}
+              disabled={exporter.busy}
+              aria-busy={exporter.busy}
+              title="Exportar inventário completo em planilha Excel"
             >
-              <Download size={18} aria-hidden="true" /> Exportar Inventário
+              <Download size={18} aria-hidden="true" /> {exporter.busy ? "Gerando planilha…" : "Exportar Inventário"}
             </button>
             <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setHistoryOpen(true)}>
               <History size={18} aria-hidden="true" /> Histórico
