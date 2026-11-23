@@ -27,3 +27,11 @@ cd frontend && npm ci && npm run build
 ## Design e front-end
 - Todo trabalho de UI segue a skill `web-design` (`.claude/skills/web-design/` no Claude Code, `.agents/skills/web-design/` no Antigravity) e o `DESIGN.md` da raiz.
 - Este site precisa ter visual único: antes de qualquer decisão visual, leia o `DESIGN.md` e o `references/signatures.md` da skill.
+
+## PDFs e planilhas entregues ao usuário
+Vale para todo PDF, documento ou planilha que a sessão gerar como entrega. As exportações do próprio sistema seguem o `DESIGN.md`.
+- **Estrutura**: título, seções com títulos curtos (tópicos), listas para itens paralelos e tabelas para dados comparáveis. Cada seção começa direto no conteúdo.
+- **Visual sóbrio**: texto todo preto numa fonte comum de documento (Calibri ou Carlito). Títulos ficam em negrito e preto. Código vai em fonte monoespaçada, só recuado. Tabelas usam grade preta simples.
+- **Texto da equipe**: frases curtas e só o necessário, como se a equipe tivesse escrito. O documento começa no título e termina no último tópico, sem introdução sobre o pedido, sem nota sobre como foi feito e sem rodapé de numeração.
+- **Planilhas** saem em `.xlsx`: uma aba por assunto, cabeçalho em negrito e congelado, filtro ligado, colunas na largura do conteúdo, valores em R$ e datas no formato brasileiro.
+- **Conferência visual** antes de entregar: gere imagens das páginas e confira que nada sai da margem, que nenhum título fica sozinho no fim da página e que não sobra página quase vazia.
