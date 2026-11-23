@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Download, Paperclip } from "lucide-react";
 import { documentHref } from "@/lib/documents";
-import { exportFinancialMovementsToCsv } from "@/lib/export-csv";
+import { financialReport, useSpreadsheetExport } from "@/lib/export-spreadsheet";
 import { errorMessage, financialApi, type FinancialMovement } from "@/lib/financial-api";
 import { MONTHS, formatCurrency, formatDate, normalizeText } from "@/lib/format";
 import type { DocumentItem } from "@/lib/schemas";
@@ -12,7 +12,16 @@ import styles from "@/app/financeiro/financeiro.module.css";
 
 type TypeFilter = "ALL" | "INCOME" | "EXPENSE";
 
-export function HistoryView({ receipts, onBack }: { receipts: Map<number, DocumentItem>; onBack: () => void }) {
+export function HistoryView({
+  receipts,
+  onBack,
+  notify,
+}: {
+  receipts: Map<number, DocumentItem>;
+  onBack: () => void;
+  notify: (message: string, tone: "success" | "error") => void;
+}) {
+  const exporter = useSpreadsheetExport(notify);
   const [movements, setMovements] = useState<FinancialMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -72,10 +81,12 @@ export function HistoryView({ receipts, onBack }: { receipts: Map<number, Docume
           <button
             type="button"
             className="ui-btn ui-btn-secondary"
-            onClick={() => exportFinancialMovementsToCsv(filtered, "historico_filtrado")}
-            title="Exportar registros filtrados em planilha CSV"
+            onClick={() => void exporter.run(() => financialReport(filtered, "Histórico filtrado"))}
+            disabled={exporter.busy}
+            aria-busy={exporter.busy}
+            title="Exportar registros filtrados em planilha Excel"
           >
-            <Download size={16} aria-hidden="true" /> Exportar CSV
+            <Download size={16} aria-hidden="true" /> {exporter.busy ? "Gerando planilha…" : "Exportar planilha"}
           </button>
           <button type="button" className="ui-btn ui-btn-secondary" onClick={onBack}>
             ← Voltar ao mês

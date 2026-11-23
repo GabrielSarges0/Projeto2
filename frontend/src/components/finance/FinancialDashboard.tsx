@@ -7,7 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { documentHref } from "@/lib/documents";
-import { exportFinancialMovementsToCsv } from "@/lib/export-csv";
+import { financialReport, useSpreadsheetExport } from "@/lib/export-spreadsheet";
 import {
   errorMessage,
   financialApi,
@@ -44,6 +44,7 @@ export function FinancialDashboard() {
   const [modal, setModal] = useState<"entry" | "expense" | null>(null);
   const [toDelete, setToDelete] = useState<FinancialMovement | null>(null);
   const { show, node: toast } = useToast();
+  const exporter = useSpreadsheetExport(show);
   const { items: documents } = useRecords("documents", documentSchema);
   const canEdit = useCan("edit");
 
@@ -145,11 +146,12 @@ export function FinancialDashboard() {
               <button
                 type="button"
                 className="ui-btn ui-btn-secondary"
-                onClick={() => exportFinancialMovementsToCsv(movements, `${monthLabel}_${year}`)}
-                disabled={loading || movements.length === 0}
-                title="Exportar lançamentos do mês em planilha CSV"
+                onClick={() => void exporter.run(() => financialReport(movements, `${monthLabel}/${year}`))}
+                disabled={loading || movements.length === 0 || exporter.busy}
+                aria-busy={exporter.busy}
+                title="Exportar lançamentos do mês em planilha Excel"
               >
-                <Download size={16} aria-hidden="true" /> Exportar CSV
+                <Download size={16} aria-hidden="true" /> {exporter.busy ? "Gerando planilha…" : "Exportar planilha"}
               </button>
               <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setView("HISTORICO")}>
                 <History size={16} aria-hidden="true" /> Histórico
@@ -200,7 +202,7 @@ export function FinancialDashboard() {
           </div>
         </section>
       ) : (
-        <HistoryView receipts={receiptsByMovement} onBack={() => setView("FINANCEIRO")} />
+        <HistoryView receipts={receiptsByMovement} onBack={() => setView("FINANCEIRO")} notify={show} />
       )}
 
       {modal === "entry" ? (

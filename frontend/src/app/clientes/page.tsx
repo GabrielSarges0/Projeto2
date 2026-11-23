@@ -9,7 +9,7 @@ import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { FOLDER_IDS, createDocument, documentHref } from "@/lib/documents";
-import { exportClientsToCsv } from "@/lib/export-csv";
+import { clientsReport, useSpreadsheetExport } from "@/lib/export-spreadsheet";
 import { ACCEPTED_FILE_TYPES } from "@/lib/files";
 import { errorMessage, notifyFinanceChanged, propertiesApi, type PropertyItem } from "@/lib/financial-api";
 import { daysUntil, formatCurrency, formatDate, formatMoneyInput, isValidIsoDate, newId, normalizeText, parseMoney, toCents, todayIso } from "@/lib/format";
@@ -84,6 +84,7 @@ function ClientesWorkspace() {
   const [deleting, setDeleting] = useState<Client | null>(null);
   const [uploading, setUploading] = useState(false);
   const { show, node: toast } = useToast();
+  const exporter = useSpreadsheetExport(show);
   const canEdit = useCan("edit");
   const canDelete = useCan("delete");
   const selected = clients.find((client) => client.id === selectedId) ?? null;
@@ -169,10 +170,12 @@ function ClientesWorkspace() {
             <button
               type="button"
               className="ui-btn ui-btn-secondary"
-              onClick={() => exportClientsToCsv(clients)}
-              title="Exportar cadastro completo de clientes em planilha CSV"
+              onClick={() => void exporter.run(() => clientsReport(clients))}
+              disabled={exporter.busy}
+              aria-busy={exporter.busy}
+              title="Exportar cadastro completo de clientes em planilha Excel"
             >
-              <Download size={18} aria-hidden="true" /> Exportar CSV
+              <Download size={18} aria-hidden="true" /> {exporter.busy ? "Gerando planilha…" : "Exportar planilha"}
             </button>
             {canEdit ? (
               <button type="button" className="ui-btn ui-btn-primary" onClick={() => setFormTarget("new")}>

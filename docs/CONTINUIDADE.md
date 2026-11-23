@@ -27,7 +27,7 @@ Tudo abaixo está implementado e validado (backend 31/31 testes verdes, frontend
   - MP: cards de contadores, filtros dos 10 tipos, períodos relativos, menu ⋮ com ações de arquivo e lixeira.
   - Funcionários: filtros de Função e Status no quadro, reloginho lateral com histórico de pontos e justificativas com aprovação/rejeição.
 - **Pacote Completo de Melhorias Funcionais da Plataforma (PR aberto):**
-  - **Exportação de Dados em Planilha (CSV/Excel):** Adicionada funcionalidade de exportação com UTF-8 BOM em todos os módulos principais:
+  - **Exportação de Dados em Planilha (Excel .xlsx):** Exportação formatada em `frontend/src/lib/export-spreadsheet.ts` (biblioteca `write-excel-file`, carregada só no clique), com faixa da Fundação, título, data de geração, cabeçalho fixo nas cores do `DESIGN.md`, valores em R$ e datas reais, e resumo no fim. Substituiu a exportação CSV anterior. Módulos:
     - *Financeiro:* Exportação de extrato mensal e histórico completo com formatação em R$ e vínculo de imóveis.
     - *Clientes:* Exportação de cadastro com contratos, e-mails, telefones e valores de aluguel.
     - *Estoque:* Exportação de inventário completo com status de reposição (Normal, Baixo, Esgotado).
