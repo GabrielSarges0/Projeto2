@@ -1,8 +1,8 @@
-# Projeto2 — regras para sessões do Claude Code
+# Desenvolvimento e publicação do Projeto2
 
 ## Fluxo
 - Trabalhe numa branch própria, faça push e abra um PR para a `main`. Só faça o merge quando o usuário pedir.
-- Merge na `main` publica: frontend na Vercel e backend no Render (`render.yaml`). Detalhes no `README.md`, seção "Produção".
+- Merge na `main` publica: frontend na Vercel e backend no Render (`render.yaml`). Detalhes no [README](../README.md), seção "Produção".
 - `iniciar.bat` / `iniciar.ps1` / `INICIAR_R6_3.*` são só para rodar no Windows local; não fazem parte da publicação.
 
 ## Deploy sem bloqueio
@@ -25,11 +25,10 @@ cd frontend && npm ci && npm run build
 - **Qualquer escrita no banco de produção exige confirmação do usuário.**
 
 ## Design e front-end
-- Todo trabalho de UI segue a skill `web-design` (`.claude/skills/web-design/` no Claude Code, `.agents/skills/web-design/` no Antigravity) e o `DESIGN.md` da raiz.
-- Este site precisa ter visual único: antes de qualquer decisão visual, leia o `DESIGN.md` e o `references/signatures.md` da skill.
+- Antes de alterar a interface, consulte as diretrizes de [design](../DESIGN.md).
 
 ## PDFs e planilhas entregues ao usuário
-Vale para todo PDF, documento ou planilha que a sessão gerar como entrega. As exportações do próprio sistema seguem o `DESIGN.md`.
+Vale para todo PDF, documento ou planilha entregue. As exportações do sistema seguem as diretrizes de [design](../DESIGN.md).
 - **Estrutura**: título, seções com títulos curtos (tópicos), listas para itens paralelos e tabelas para dados comparáveis. Cada seção começa direto no conteúdo.
 - **Visual sóbrio**: texto todo preto numa fonte comum de documento (Calibri ou Carlito). Títulos ficam em negrito e preto. Código vai em fonte monoespaçada, só recuado. Tabelas usam grade preta simples.
 - **Texto da equipe**: frases curtas e só o necessário, como se a equipe tivesse escrito. O documento começa no título e termina no último tópico, sem introdução sobre o pedido, sem nota sobre como foi feito e sem rodapé de numeração.
