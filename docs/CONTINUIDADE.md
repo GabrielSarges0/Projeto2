@@ -1,6 +1,6 @@
-# Continuidade do Projeto2 (para o próximo agente: Antigravity, Claude ou outro)
+# Continuidade do Projeto2
 
-Leia antes: `CLAUDE.md` (fluxo, deploy, banco) e `README.md` (arquitetura, papéis, endpoints).
+Consulte o [guia de desenvolvimento](DESENVOLVIMENTO.md) para fluxo, deploy e banco e o [README](../README.md) para arquitetura, papéis e endpoints.
 
 ## Estado em 09/11/2026
 
@@ -36,7 +36,7 @@ Tudo abaixo está implementado e validado (backend 31/31 testes verdes, frontend
   - **Upload com Drag & Drop e Pré-visualização:** Nova zona de soltura de arquivos em `NewDocumentModal` com feedback visual imediato, tamanho formatado e botão de troca rápida.
   - **Orientações de Acesso e Ajuda Institucional no Login:** Atualizado o diálogo de ajuda no `AuthForm` para explicar com clareza a autenticação simplificada e o modelo de perfis da FMC.
 - **Identidade Visual e Logo Oficial do Figma (Telas 00 e 01 — PR aberto):**
-  - Resgatadas diretamente da API do Figma (`IvNhLg0cTwcZo15D5YF9vI`) via integração Composio com a conta proprietária.
+  - Resgatadas diretamente da API do Figma (`IvNhLg0cTwcZo15D5YF9vI`).
   - Imagem oficial da Logo adicionada no topo da barra de navegação lateral (`Sidebar.tsx`), eliminando o espaçamento artificial vazio de `254px`.
   - Responsividade na barra lateral: versão horizontal completa (`187x57`) no desktop e brasão dourado isolado (`44x44`) no menu colapsado/mobile.
   - Logo oficial da Fundação Manuel Cruz na tela de Login/Cadastro (`AuthForm.tsx`), substituindo o ícone genérico do Lucide (`<Landmark>`).

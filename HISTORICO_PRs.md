@@ -44,19 +44,20 @@ Antes da abertura do PR #1 na nuvem, a base do sistema foi construída nos segui
 ## 4. Histórico Detalhado Pull Request por Pull Request
 
 ### PR #1 · Publicação Full-Stack na Nuvem (Supabase + Render + Vercel)
-- **Commit de Merge:** `d429653` · **Data:** 29/10/2026 · **Agente:** Claude Code
+- **Commit de Merge:** `d429653` · **Data:** 29/10/2026
 - **Motivação:** Tirar o projeto da dependência dos scripts locais de Windows (`iniciar.bat` / `INICIAR_R6_3.bat`) e publicá-lo 100% online com banco persistente.
 - **Arquivos Criados / Modificados:**
   - `backend/Dockerfile` e `backend/.dockerignore`: build multi-stage Maven + Eclipse Temurin Java 21 JRE.
+  - Correções no `mvnw`, no contexto do build Docker e no cliente da API.
   - `render.yaml`: Blueprint IaC para deploy automático do web service no Render (plano free) lendo variáveis de ambiente seguras.
   - `backend/src/main/resources/application-prod.properties`: Configuração do perfil `prod` apontando para o PostgreSQL do Supabase no formato JDBC (`jdbc:postgresql://...`) com schema `projeto2` e porta dinâmica `$PORT`.
   - `frontend/.env.production`: Apontamento do cliente Next.js na Vercel para `https://projeto2-fmc-api.onrender.com`.
-  - `README.md` e `CLAUDE.md`: Documentação do fluxo de deploy e regras de banco.
+  - `README.md` e [guia de desenvolvimento](docs/DESENVOLVIMENTO.md): Documentação do fluxo de deploy e regras de banco.
 
 ---
 
 ### PR #2 · Governança de Segurança e Autenticação HTTP Basic / AuthGate
-- **Commit de Merge:** `640472d` · **Data:** 29/10/2026 · **Agente:** Claude Code
+- **Commit de Merge:** `640472d` · **Data:** 29/10/2026
 - **Arquivos Principais:**
   - Backend: `SecurityConfig.java`, `AuthController.java`, `AuthSecurityTest.java` (53 linhas de testes MockMvc).
   - Frontend: `frontend/src/app/login/page.tsx`, `login.module.css`, `frontend/src/components/layout/AuthGate.tsx`, `frontend/src/lib/auth.ts`, `frontend/src/lib/financial-api.ts`.
@@ -67,16 +68,17 @@ Antes da abertura do PR #1 na nuvem, a base do sistema foi construída nos segui
 ---
 
 ### PR #3 · Ambiente Padronizado no GitHub Codespaces com Dados Reais
-- **Commit de Merge:** `3101f4a` · **Data:** 29/10/2026 · **Agente:** Claude Code
+- **Commit de Merge:** `3101f4a` · **Data:** 29/10/2026
 - **Arquivos Criados / Modificados:** `.devcontainer/devcontainer.json`, `.devcontainer/setup.sh`, `.devcontainer/start.sh`, `WebConfig.java`, `AuthSecurityTest.java`
 - **Entregas:**
   - Container de desenvolvimento na nuvem pré-configurado com Java 21 e Node.js 20, instalando dependências automaticamente (`setup.sh`) e subindo backend + frontend em paralelo (`start.sh`) conectados aos dados reais, permitindo desenvolver e testar de qualquer máquina ou navegador.
   - Ajuste de CORS em `WebConfig.java` para aceitar origens `*.app.github.dev` do Codespaces.
+  - Atualização do ambiente para Node.js 24, documentação do fluxo e configuração dos segredos de Codespaces.
 
 ---
 
 ### PR #4 · Sprint 03 Completa do Backlog, Ciclo de Vida e Novos Módulos do Cliente (Clientes, Estoque por Pacote, Presença com Saída e Formulários)
-- **Branch:** `feat/sprint-03-funcoes-backlog` · **Merge Commit:** `2ea5b52` (commits `c49f411`, `9f0c97e`, `d8f7904`, `15eb47d`) · **Data:** 02/11/2026 · **Agente:** Antigravity
+- **Branch:** `feat/sprint-03-funcoes-backlog` · **Merge Commit:** `2ea5b52` (commits `c49f411`, `9f0c97e`, `d8f7904`, `15eb47d`) · **Data:** 02/11/2026
 - **Deploy de Produção Vercel:** `dpl_HiYVfoqK4t6Qzvb2ux8CKbKgcbgw` (`READY / PROMOTED` em `https://projetocesarschool.vercel.app`)
 - **Motivação:** Implementar todas as 13 tarefas atribuídas ao Gabriel na planilha oficial `Sprints + backlog + Ciclo de Vida` (Google Drive `gpss@cesar.school`) + requisitos extras solicitados pelo cliente a partir do wireframe oficial do Figma (`IvNhLg0cTwcZo15D5YF9vI`).
 - **Arquivos Criados / Modificados (+5.900 linhas adicionadas):**
@@ -128,17 +130,3 @@ Antes da abertura do PR #1 na nuvem, a base do sistema foi construída nos segui
   - Frontend: `npm run build` compilou todas as **15 rotas** sem erros no Turbopack.
   - Backend: `./mvnw test` aprovou **14/14 testes automatizados**.
   - Planilha `Sprints + backlog + Ciclo de Vida`: todas as 13 linhas do Gabriel marcadas como **Concluído**.
-
----
-
-## 4. Mapeamento de Sessões (Claude Code & Antigravity) e Sessões Cruzadas
-
-> [!WARNING]
-> A sessão `session_01CDRNikqL4A2Zxa1jgA95Dz` foi iniciada com o repositório `gpss-sarges/Projeto2` aberto no container da nuvem (`claude.ai/code`), mas além dos PRs #1, #2 e #3 do Projeto2, foi reutilizada para executar dezenas de entregas na **Casa do Químico**, no **Arumã** e no **Elysion Spa**.
-
-| Plataforma | ID da Sessão | Repositório de Origem | Título / Contexto | Trabalho Executado no Projeto2 e Cruzamentos |
-|---|---|---|---|---|
-| **Claude Code (Nuvem)** | `session_01P7dpJ2YSu1CQQ1LwHToWXG` | `gpss-sarges/Projeto2` | *Design ultramoderno do site (fork)* (25/10/2026) | Prototipação visual inicial e estruturação da interface do Projeto2. |
-| **Claude Code (Nuvem)** | `session_01CDRNinA3Dy8LJL9rowN4UA` | ⚠️ `GabrielSarges1/casa-do-quimico` | *Tecnologias em todos os repositórios* (29/10/2026) | **Sessão cruzada (aberta na Casa do Químico):** Mapeou a stack completa do Projeto2 (Spring Boot 3.4.5 Java 21 + Next.js 16 + Supabase `xgqjihgzhpmcpukmjmbv` + Render + Vercel) junto aos demais 5 repositórios. |
-| **Claude Code (Nuvem)** | `session_01CDRNikqL4A2Zxa1jgA95Dz`<br>*(link `cshk_01CDRNikqL4A2Zxa1jgA95Dz5rVXdnAskni8kwavYqoCpd`)* | ⚠️ `gpss-sarges/Projeto2`<br>(`claude/verificar-repositorios-jry12c`) | *Verificar repositórios existentes* (29/10 a 31/10/2026) | **No Projeto2:** Executou o **PR #1** (`d429653` — publicação Supabase + Render + Vercel, correção de `set -u` no `mvnw`, Docker build context e `api.ts`), o **PR #2** (`640472d` — Login HTTP Basic obrigatório + `AuthGate`) e o **PR #3** (`ee77d11` — Codespaces Java 21 + Node 24 e `CLAUDE.md`), além de configurar os segredos de Codespaces (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `APP_ADMIN_USER`, `APP_ADMIN_PASSWORD`, `NEXT_PUBLIC_API_URL`).<br>**⚠️ Fora do Projeto2 (na mesma sessão):** Anexou via MCP os repositórios `aruma` (PRs #2 e #3) e `casa-do-quimico` (PRs #10, #11, #13, #14, #20 a #28, Auth0, importação de 814 alunos Kiwify) e reparou o DNS Microsoft 365 de `casadoquimico.com.br` e `elysionspa.com.br`. |
-| **Antigravity (Local)** | `4347e542-d990-4c96-b04d-2601919cc473` | `C:\Users\Admin\Projetos\Projeto2` | *Execução das Sprints e PR #4* (01/11/2026) | **Exclusiva do Projeto2:** Executou o **PR #4** (`c0cb3fb` / `d8f7904`, merge `3be8434`) entregando os 15 épicos de produto (migration `V3__document_category_and_signed_at.sql`, exportação PDF/HTML, Lembretes interativos, Gráficos dinâmicos, integração Documentos ⇄ Fluxo de Caixa, filtros multimodais e liberação direta do `AuthGate`). |
